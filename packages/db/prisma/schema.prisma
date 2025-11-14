@@ -31,23 +31,56 @@ model workflow {
   createdAt   DateTime @default(now())
   updateAt    DateTime @default(now())
   description String
+  status      WorkFlowStatus 
   userId      String
+  config      Json
   user        User     @relation(fields: [userId], references: [id])
   TriggerId   String   @unique
   Trigger     Triggers @relation(fields: [TriggerId], references: [id])
+  NodeId      String   @unique
+  Node        Nodes    @relation(fields: [NodeId], references: [id])
+}
+
+enum WorkFlowStatus {
+  Start
+  Pending
+  InProgress
+  ReConnecting
+  Failed
+  Completed
 }
 
 model Triggers {
   id       String            @id @default(cuid())
   name     String
   typeID   String 
+  config  Json
   type     AvailableTriggers @relation(fields: [typeID], references: [id])
   workflow workflow?
 }
 
 model AvailableTriggers {
   id      String     @id @default(cuid())
-  naem    String
+  name    String
   type    String     @unique
+  config  Json
   Trigger Triggers[]
+}
+
+model AvailableNodes {
+  id      String    @id @default(cuid())
+  name    String
+  typeId  String    @unique
+  config  Json
+  Node    Nodes[]
+}
+
+model Nodes {
+  id        String             @id @default(cuid())
+  name      String
+  workflow  workflow?
+  typeID    String 
+  type      AvailableNodes     @relation(fields: [typeID], references: [id])
+  config    Json
+  position  Int 
 }
