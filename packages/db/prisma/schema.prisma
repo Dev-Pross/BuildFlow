@@ -79,8 +79,8 @@ model Nodes {
   id        String             @id @default(cuid())
   name      String
   workflow  workflow?
-  typeID    String 
-  type      AvailableNodes     @relation(fields: [typeID], references: [id])
+  typeId    String 
+  type      AvailableNodes     @relation(fields: [typeId], references: [id])
   config    Json
   position  Int 
 }
