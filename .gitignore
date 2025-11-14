@@ -4,7 +4,8 @@
 node_modules
 .pnp
 .pnp.js
-
+/.history
+/.github
 # Local env files
 .env
 .env.local
@@ -34,3 +35,6 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+/generated/prisma
+packages/db/prisma/migrations/

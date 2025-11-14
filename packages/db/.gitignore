@@ -4,3 +4,7 @@ node_modules
 
 /dist
 /generated/prisma
+/.history
+./github
+/src/generated/prisma
+/prisma/migrations
