@@ -1,0 +1,20 @@
+{
+  "name": "http-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies" : {
+    "@workspace/typescript-config" : "workspace:*"
+  },
+  "dependencies": {
+    "@types/axios": "^0.14.4",
+    "axios": "^1.13.2"
+
+  }
+}
