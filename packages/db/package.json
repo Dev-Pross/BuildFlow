@@ -1,18 +1,18 @@
 {
-  "name": "db",
+  "name": "@repo/db",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc -b",
-    "dev" : "node dist/index.js",
-    "run" : "npm run build && npm run dev"
+    "dev": "node dist/index.js",
+    "run": "npm run build && npm run dev"
   },
-  "exports" : {
-    "./client" : "./dist/index.js"
+  "exports": {
+    "./client": "./dist/index.js"
   },
-
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",

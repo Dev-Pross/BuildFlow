@@ -6,5 +6,5 @@ node_modules
 /generated/prisma
 /.history
 ./github
-/src/generated/prisma
+/src/generated
 /prisma/migrations
