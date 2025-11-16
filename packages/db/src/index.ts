@@ -1,14 +1,18 @@
-import { PrismaClient } from "./generated/prisma";
+import path from "path";
+// import dotenv from "dotenv";
+import dotenv from "dotenv"
+dotenv.config()
+// Load .env explicitly before importing/constructing Prisma
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-// Using a global singleton is a common pattern with Prisma in server environments
-// (such as with Next.js or hot-reloading setups) to avoid creating multiple instances
-// of PrismaClient, which can lead to problems like exhausting your database connection pool.
-// By attaching the PrismaClient instance to a global object, we make sure that only one instance
-// exists across reloads or re-imports.
+// Debug — remove after confirming it works
+console.debug("packages/db: cwd=", process.cwd());
+console.debug("packages/db: DATABASE_URL present=", !!process.env.DATABASE_URL);
+
+// Now import the generated client and create the singleton
+import { PrismaClient } from "./generated/client.js";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const prismaClient =
   globalForPrisma.prisma ?? (globalForPrisma.prisma = new PrismaClient());
-
-// No further global assignment/check needed, assignment is inside the ?? operator above.
