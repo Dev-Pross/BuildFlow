@@ -1,0 +1,21 @@
+{
+  "name": "trpc",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.9",
+    "@trpc/client": "^11.7.1",
+    "@trpc/server": "^11.7.1",
+    "@trpc/tanstack-react-query": "^11.7.1",
+    "client-only": "^0.0.1",
+    "server-only": "^0.0.1",
+    "zod": "^3.25.76"
+  }
+}
