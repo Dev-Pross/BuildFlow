@@ -1,0 +1,21 @@
+name: Auto-approve after CodeRabbit review
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  auto-approve:
+    runs-on: ubuntu-latest
+    if: github.event.review.user.login == 'coderabbitai[bot]'
+    permissions:
+      pull-requests: write
+      contents: write
+    
+    steps:
+      - name: Approve PR
+        run: |
+          gh pr review ${{ github.event.pull_request.number }} --approve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
