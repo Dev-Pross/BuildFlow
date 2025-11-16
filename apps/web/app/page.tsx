@@ -1,12 +1,15 @@
-import { Button } from "@workspace/ui/components/button"
+// apps/web/src/app/page.tsx
+'use client';
+import { trpc } from './utils/trpc';
 
-export default function Page() {
-  return (
-    <div className="flex items-center justify-center min-h-svh">
-      <div className="flex flex-col items-center justify-center gap-4">
-        <h1 className="text-2xl font-bold">Hello World, Testing this for Code Rabbit testing.</h1>
-        <Button size="sm">clickme</Button>
-      </div>
-    </div>
-  )
+export default function Home() {
+  // Fix: Use a valid tRPC query (replace 'greeting' with existing query or handle error gracefully)
+  // Use the valid 'greeting' query instead of 'hello'
+  const { data, isLoading, error } = trpc.greeting.useQuery({ name: 'tRPC' });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!data) return <div>No data found.</div>;
+
+  return <h1>{data}</h1>;
 }

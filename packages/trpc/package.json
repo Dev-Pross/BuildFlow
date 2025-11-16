@@ -1,14 +1,24 @@
 {
-  "name": "trpc",
+  "name": "@repo/trpc",
   "version": "1.0.0",
   "description": "",
-  "license": "ISC",
-  "author": "",
-  "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b",
+    "dev": "node dist/index.js",
+    "start": "npm run build && npm run dev"
   },
+  "exports": {
+    ".": "./dist/index.js",
+    "./AppRouter": {
+      "import": "./dist/AppRouter.js",
+      "types": "./dist/AppRouter.d.ts"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@tanstack/react-query": "^5.90.9",
     "@trpc/client": "^11.7.1",
