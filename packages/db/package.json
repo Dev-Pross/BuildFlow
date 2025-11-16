@@ -5,8 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "dev" : "node dist/index.js",
+    "run" : "npm run build && npm run dev"
   },
+  "exports" : {
+    "./client" : "./dist/index.js"
+  },
+
   "keywords": [],
   "author": "",
   "license": "ISC",

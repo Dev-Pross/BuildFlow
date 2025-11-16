@@ -1,0 +1,26 @@
+{
+  "name": "http-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b",
+    "dev": "node dist/index.js",
+    "start": "npm run build && npm run dev"
+  },
+  "devDependencies": {
+    "@repo/db": "workspace:*",
+    "@workspace/typescript-config": "workspace:*"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/express": "^5.0.5",
+    "axios": "^1.13.2",
+    "express": "^5.1.0"
+  }
+}
