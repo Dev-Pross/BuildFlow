@@ -7,15 +7,22 @@ on:
 jobs:
   auto-approve:
     runs-on: ubuntu-latest
-    if: github.event.review.user.login == 'coderabbitai[bot]'
+    if: github.event.review.user.login == 'coderabbitai[bot]' && github.event.review.state == 'approved'
     permissions:
       pull-requests: write
-      contents: write
-    
+
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up GitHub CLI
+        uses: cli/gh-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Approve PR
-        run: |
-          gh pr review ${{ github.event.pull_request.number }} --approve
+        run: gh pr review ${{ github.event.pull_request.number }} --approve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+# After this change, you just need to push a commit (it can be an empty commit or a small change) to your branch, or update the PR, so the workflow triggers on the next CodeRabbit review event. No other steps are required. Just test the workflow by getting a new CodeRabbit review on your PR.
