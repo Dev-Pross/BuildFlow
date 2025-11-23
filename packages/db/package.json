@@ -5,7 +5,8 @@
   "main": "./dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "prisma generate && tsc -b && cp src/generated/*.node dist/generated/ && cp -r src/generated/runtime dist/generated/",
+    "build": "prisma generate && tsc -b && mkdir -p dist/generated/runtime && cp src/generated/*.node dist/generated/ || true && cp -r src/generated/runtime/. dist/generated/runtime/",
+
     "dev": "node dist/index.js",
     "run": "npm run build && npm run dev"
   },
