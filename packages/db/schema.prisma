@@ -1,0 +1,99 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String?
+  email     String     @unique
+  password  String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  workflow  Workflow[]
+  creds     Credentials[]
+}
+
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updateAt    DateTime @default(now())
+  description String
+  status      WorkFlowStatus 
+  userId      String
+  config      Json
+  user        User     @relation(fields: [userId], references: [id])
+  TriggerId   String   @unique
+  Trigger     Triggers @relation(fields: [TriggerId], references: [id])
+  NodeId      String   @unique
+  Node        Nodes    @relation(fields: [NodeId], references: [id])
+}
+
+enum WorkFlowStatus {
+  Start
+  Pending
+  InProgress
+  ReConnecting
+  Failed
+  Completed
+}
+
+model Triggers {
+  id       String            @id @default(cuid())
+  name     String
+  typeID   String 
+  config  Json
+  type     AvailableTriggers @relation(fields: [typeID], references: [id])
+  workflow Workflow?
+}
+
+model AvailableTriggers {
+  id      String     @id @default(cuid())
+  name    String
+  type    String     @unique
+  config  Json
+  Trigger Triggers[]
+}
+
+model AvailableNodes {
+  id      String    @id @default(cuid())
+  name    String
+  typeId  String    @unique
+  config  Json
+  Node    Nodes[]
+}
+
+model Nodes {
+  id        String             @id @default(cuid())
+  name      String
+  workflow  Workflow?
+  typeId    String 
+  type      AvailableNodes     @relation(fields: [typeId], references: [id])
+  config    Json
+  position  Int 
+  Creds     Credentials[]
+}
+
+model Credentials{
+  id      String     @id @default(cuid())
+  userId  String
+  type    String
+  config  Json
+  user    User        @relation(fields: [userId], references: [id])
+
+  nodeId  String?
+  node    Nodes?      @relation(fields: [nodeId], references: [id])
+}
