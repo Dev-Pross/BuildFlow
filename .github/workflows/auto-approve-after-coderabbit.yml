@@ -1,14 +1,15 @@
-name: Auto-approve after CodeRabbit review
+name: Auto-approve and unblock merging after CodeRabbit review
 
 on:
   pull_request_review:
     types: [submitted]
 
 jobs:
-  auto-approve:
+  auto-approve-and-unblock:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -19,12 +20,18 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto approve PR if CodeRabbit approved
+      - name: Auto approve PR if CodeRabbit approved (unblocks merge)
         if: |
           github.event.review.user.login == 'coderabbitai[bot]' &&
           github.event.review.state == 'approved'
-        run: |
-          gh pr review "$PR_URL" --approve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "CodeRabbit has approved. Auto-approving PR $PR_URL."
+          gh pr review "$PR_URL" --approve
+          # If automerge is enabled or available, enable automerge after approval
+          echo "Attempting to enable auto-merge for PR #$PR_NUMBER"
+          gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO" || echo "Auto-merge is not enabled/available. You can now manually merge the PR."
