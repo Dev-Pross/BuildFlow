@@ -79,8 +79,16 @@ model Workflow {
   Nodes       Nodes          @relation(fields: [NodeId], references: [id])
   Triggers    Triggers       @relation(fields: [TriggerId], references: [id])
   User        User           @relation(fields: [userId], references: [id])
+  workflow    WorkflowExecution[]
 }
 
+
+model   WorkflowExecution {
+  id            String  @id @default(uuid())
+  workflowId    String
+  workflows     Workflow @relation(fields: [workflowId] , references: [id])
+
+}
 enum WorkFlowStatus {
   Start
   Pending
