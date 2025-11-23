@@ -35,3 +35,6 @@ jobs:
           # If automerge is enabled or available, enable automerge after approval
           echo "Attempting to enable auto-merge for PR #$PR_NUMBER"
           gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO" || echo "Auto-merge is not enabled/available. You can now manually merge the PR."
+
+
+          
