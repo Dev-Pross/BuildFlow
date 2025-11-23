@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc -b",
-    "dev": "node dist/index.js",
+    "dev": "npm run build && node dist/index.js",
     "start": "npm run build && npm run dev"
   },
   "devDependencies": {
