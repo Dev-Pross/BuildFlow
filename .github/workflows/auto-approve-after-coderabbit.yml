@@ -7,15 +7,26 @@ on:
 jobs:
   auto-approve:
     runs-on: ubuntu-latest
-    if: github.event.review.user.login == 'coderabbitai[bot]'
+    if: >
+      github.event.review.user.login == 'coderabbitai[bot]' &&
+      github.event.review.state == 'approved'
     permissions:
       pull-requests: write
       contents: write
-    
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up GitHub CLI
+        uses: cli/cli-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Approve PR
-        run: |
-          gh pr review ${{ github.event.pull_request.number }} --approve
+        run: gh pr review "$PR_URL" --approve
+        shell: bash
         env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
