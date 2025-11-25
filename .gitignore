@@ -38,3 +38,5 @@ npm-debug.log*
 
 /generated/prisma
 packages/db/prisma/migrations/
+# packages/nodes/src/google-sheets/token.js
+packages/nodes/client_google.json
