@@ -1,8 +1,11 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { PrismaClient } from "./generated/client.js";
+// import { PrismaClient } from "./generated/client.js";
+// export { Prisma } from "./generated/client.js"; // <-- export Prisma
 
+
+import { PrismaClient } from "@prisma/client";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

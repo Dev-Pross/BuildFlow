@@ -1,12 +1,15 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+/* ------------------------
+      USER & CREDENTIALS
+   ------------------------ */
 
 model User {
   id          String        @id @default(cuid())
@@ -15,101 +18,147 @@ model User {
   password    String
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  Credentials Credentials[]
-  Workflow    Workflow[]
+
+  credentials Credential[]
+  workflows   Workflow[]
 }
 
-model Triggers {
+model Credential {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  config    Json
+  nodeId    String?
+
+  node Node?     @relation(fields: [nodeId], references: [id])
+  user User      @relation(fields: [userId], references: [id])
+}
+
+/* ------------------------
+           TRIGGERS
+   ------------------------ */
+
+model Trigger {
   id         String            @id @default(cuid())
   name       String
-  typeID     String
+  typeId     String
   config     Json
   workflowId String?           @unique
-  type       AvailableTriggers @relation(fields: [typeID], references: [id])
-  Workflow   Workflow?         @relation(fields: [workflowId], references: [id])
+
+  triggerType AvailableTrigger @relation(fields: [typeId], references: [id])
+  workflow    Workflow?        @relation(fields: [workflowId], references: [id])
 }
 
-model AvailableTriggers {
-  id      String     @id @default(cuid())
-  name    String
-  type    String     @unique
-  config  Json
-  Trigger Triggers[]
+model AvailableTrigger {
+  id       String     @id @default(cuid())
+  name     String
+  type     String     @unique
+  config   Json
+
+  triggers Trigger[]
 }
 
-model AvailableNodes {
+/* ------------------------
+           NODES
+   ------------------------ */
+
+model AvailableNode {
   id     String  @id @default(cuid())
   name   String
   type   String  @unique
   config Json
-  Node   Nodes[]
+
+  nodes  Node[]
 }
 
-model Nodes {
-  id          String         @id @default(cuid())
-  name        String
-  typeId      String
-  config      Json
-  position    Int
-  workflowId  String?
-  Credentials Credentials[]
-  type        AvailableNodes @relation(fields: [typeId], references: [id])
-  Workflow    Workflow?      @relation(fields: [workflowId], references: [id])
-  nodeExe     NodeExecution[]
+model Node {
+  id         String         @id @default(cuid())
+  name       String
+  typeId     String
+  config     Json
+  position   Int
+  workflowId String?
+
+  type      AvailableNode   @relation(fields: [typeId], references: [id])
+  workflow  Workflow?       @relation(fields: [workflowId], references: [id])
+  credentials Credential[]
+  executions NodeExecution[]
 }
 
-model Credentials {
-  id     String  @id
-  userId String
-  type   String
-  config Json
-  nodeId String?
-  Nodes  Nodes?  @relation(fields: [nodeId], references: [id])
-  User   User    @relation(fields: [userId], references: [id])
-}
+/* ------------------------
+          WORKFLOW
+   ------------------------ */
 
 model Workflow {
-  id                 String              @id
-  name               String
-  createdAt          DateTime            @default(now())
-  updateAt           DateTime            @default(now())
-  description        String
-  status             WorkFlowStatus
-  userId             String
-  config             Json
-  Nodes              Nodes[]
-  Trigger            Triggers?
-  User               User                @relation(fields: [userId], references: [id])
-  WorkflowExecutions WorkflowExecution[]
+  id          String             @id
+  name        String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  description String
+  status      WorkflowStatus
+  userId      String
+  config      Json
+
+  nodes       Node[]
+  trigger     Trigger?
+  user        User               @relation(fields: [userId], references: [id])
+  executions  WorkflowExecution[]
 }
 
+/* ------------------------
+       WORKFLOW EXECUTION
+   ------------------------ */
 
 model WorkflowExecution {
-  id                   String          @id @default(uuid())
-  workflowId           String
-  Workflow             Workflow        @relation(fields: [workflowId], references: [id])
-  status               WorkFlowStatus
-  startAt              DateTime        @default(now())  
-  completedAt          DateTime?
-  error                String?
-  NodeExecutions       NodeExecution[]
+  id            String                @id @default(uuid())
+  workflowId    String
+  status        WorkflowStatus
+  startAt       DateTime              @default(now())
+  completedAt   DateTime?
+  error         String?
+  metadata      Json
+
+  workflow      Workflow              @relation(fields: [workflowId], references: [id])
+  executionTable WorkflowExecutionTable?
+  nodeExecutions NodeExecution[]
 }
 
-model NodeExecution{
-  id                  String              @id @default(uuid())
-  workflowExeId       String
-  nodeId              String
-  status              WorkFlowStatus
-  startedAt           DateTime            @default(now())  
-  completedAt         DateTime?
-  inputData           Json?
-  outputData          Json?
-  error               String?
-  retries             Int                 @default(0)
-  WorkflowExecution   WorkflowExecution   @relation(fields: [workflowExeId], references: [id])
-  nodes               Nodes               @relation(fields: [nodeId], references: [id])
+/* ------------------------
+          NODE EXECUTION
+   ------------------------ */
+
+model NodeExecution {
+  id              String             @id @default(uuid())
+  workflowExecId  String
+  nodeId          String
+  status          WorkflowStatus
+  startedAt       DateTime           @default(now())
+  completedAt     DateTime?
+  inputData       Json?
+  outputData      Json?
+  error           String?
+  retries         Int                @default(0)
+
+  workflowExecution WorkflowExecution @relation(fields: [workflowExecId], references: [id])
+  node             Node              @relation(fields: [nodeId], references: [id])
 }
-enum WorkFlowStatus {
+
+/* ------------------------
+     WORKFLOW EXEC TABLE
+   ------------------------ */
+
+model WorkflowExecutionTable {
+  id                  String             @id @default(uuid())
+  workflowExecutionId String             @unique
+
+  workflowExecution WorkflowExecution @relation(fields: [workflowExecutionId], references: [id])
+}
+
+/* ------------------------
+         ENUMS
+   ------------------------ */
+
+enum WorkflowStatus {
   Start
   Pending
   InProgress
