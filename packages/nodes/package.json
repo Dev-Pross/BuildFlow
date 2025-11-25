@@ -1,0 +1,21 @@
+{
+  "name": "nodes",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.4.1",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "google-auth-library": "^10.5.0",
+    "googleapis": "^166.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.9"
+  }
+}
