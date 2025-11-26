@@ -1,17 +1,29 @@
 // import {prismaClient} from '@repo/db/index.js'
 // import axios from "axios";
 import { prismaClient } from "@repo/db/client";
+import { NodeRegistry } from '@repo/nodes'
+import express from "express";
+const app = express()
+// const main = async () => {
+//   try {
+//     const users = await prismaClient.user.findMany();
+//     console.log("Users from DB:", users);
+//   } catch (err) {
+//     console.error("Error fetching users:", err);
+//   }
+// };
 
-const main = async () => {
-  try {
-    const users = await prismaClient.user.findMany();
-    console.log("Users from DB:", users);
-  } catch (err) {
-    console.error("Error fetching users:", err);
+// main().then(() => {
+//   console.log("This log is from http Backend");
+// });
+const PORT= 3000
+async function startServer() {
+  await NodeRegistry.registerAll()
+
+  app.listen(PORT, () => {
+		console.log(`Server running on port ${PORT}`);
+	 })
   }
-};
 
-main().then(() => {
-  console.log("This log is from http Backend");
-});
+  startServer()
 

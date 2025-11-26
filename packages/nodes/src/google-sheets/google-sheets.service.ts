@@ -48,6 +48,29 @@ class GoogleSheetsService{
             throw new Error(`Failed to fetch the rows: ${error}`)
         }
     }
+
+    isTokenExpired():boolean {
+        const credentials = this.auth.credentials;
+        if( !credentials.expiry_date) return false;
+        
+        return Date.now() >= credentials.expiry_date - (5 *60 * 1000);
+    }
+
+    async refreshAccessToken(): Promise <GoogleSheetsCredentials>{
+        try{
+            const {credentials} = await this.auth.refreshAccessToken();
+
+            return {
+                access_token: credentials.access_token || '',
+                refresh_token: credentials.refresh_token || '',
+                token_type: credentials.token_type || '',
+                expiry_date: credentials.expiry_date || 0
+            }
+        }
+        catch (error){
+            throw new Error(`Falied to refresh token: ${error}`)
+        }
+    }
 }
 
 export { GoogleSheetsService }

@@ -12,7 +12,7 @@ datasource db {
    ------------------------ */
 
 model User {
-  id          String        @id @default(cuid())
+  id          String        @id @default(uuid())
   name        String?
   email       String        @unique
   password    String
@@ -24,7 +24,7 @@ model User {
 }
 
 model Credential {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   userId    String
   type      String
   config    Json
@@ -39,7 +39,7 @@ model Credential {
    ------------------------ */
 
 model Trigger {
-  id         String            @id @default(cuid())
+  id         String            @id @default(uuid())
   name       String
   typeId     String
   config     Json
@@ -50,7 +50,7 @@ model Trigger {
 }
 
 model AvailableTrigger {
-  id       String     @id @default(cuid())
+  id       String     @id @default(uuid())
   name     String
   type     String     @unique
   config   Json
@@ -63,16 +63,18 @@ model AvailableTrigger {
    ------------------------ */
 
 model AvailableNode {
-  id     String  @id @default(cuid())
-  name   String
-  type   String  @unique
-  config Json
-
-  nodes  Node[]
+  id          String  @id @default(uuid())
+  name        String
+  type        String  @unique
+  config      Json
+  authType    String?
+  requireAuth Boolean
+  description String?
+  nodes       Node[]
 }
 
 model Node {
-  id         String         @id @default(cuid())
+  id         String         @id @default(uuid())
   name       String
   typeId     String
   config     Json
@@ -90,7 +92,7 @@ model Node {
    ------------------------ */
 
 model Workflow {
-  id          String             @id
+  id          String             @id @default(uuid())
   name        String
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
@@ -151,7 +153,7 @@ model WorkflowExecutionTable {
   id                  String             @id @default(uuid())
   workflowExecutionId String             @unique
 
-  workflowExecution WorkflowExecution @relation(fields: [workflowExecutionId], references: [id])
+  workflowExecution WorkflowExecution    @relation(fields: [workflowExecutionId], references: [id])
 }
 
 /* ------------------------
