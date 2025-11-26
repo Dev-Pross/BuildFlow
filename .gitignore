@@ -40,3 +40,5 @@ npm-debug.log*
 packages/db/prisma/migrations/
 # packages/nodes/src/google-sheets/token.js
 packages/nodes/client_google.json
+packages/db/tsconfig.tsbuildinfo
+packages/db/prisma/migrations/migration_lock.toml

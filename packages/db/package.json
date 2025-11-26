@@ -5,12 +5,13 @@
   "main": "./dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "prisma generate && tsc -b && mkdir -p dist/generated/runtime && cp src/generated/*.node dist/generated/ || true && cp -r src/generated/runtime/. dist/generated/runtime/",
+    "build": "prisma generate && tsc -b ",
 
     "dev": "node dist/index.js",
     "run": "npm run build && npm run dev"
   },
   "exports": {
+    ".": "./dist/index.js",
     "./client": "./dist/index.js"
   },
   "type": "module",

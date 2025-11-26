@@ -11,13 +11,15 @@
   },
   "devDependencies": {
     "@repo/db": "workspace:*",
-    "@workspace/typescript-config": "workspace:*"
+    "@workspace/typescript-config": "workspace:*",
+    "@repo/nodes": "workspace:*"
   },
   "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@repo/nodes": "workspace:*",
     "@types/axios": "^0.14.4",
     "@types/express": "^5.0.5",
     "axios": "^1.13.2",
