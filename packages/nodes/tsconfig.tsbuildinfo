@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/common/google-oauth-service.ts","./src/google-sheets/google-sheets.executor.ts","./src/google-sheets/google-sheets.node.ts","./src/google-sheets/google-sheets.service.ts","./src/registry/node-registry.ts"],"version":"5.7.3"}
+{"root":["./src/index.ts","./src/common/google-oauth-service.ts","./src/google-sheets/google-sheets.executor.ts","./src/google-sheets/google-sheets.node.ts","./src/google-sheets/google-sheets.service.ts","./src/google-sheets/test.ts","./src/registry/node-registry.ts"],"version":"5.7.3"}

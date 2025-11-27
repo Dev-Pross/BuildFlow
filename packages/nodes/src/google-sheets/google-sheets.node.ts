@@ -1,4 +1,4 @@
-import { NodeRegistry } from "../registry/node-registry";
+import  NodeRegistry  from "../registry/node-registry";
 import { GoogleSheetsNodeExecutor } from "./google-sheets.executor";
 
 export class GoogleSheetNode{
