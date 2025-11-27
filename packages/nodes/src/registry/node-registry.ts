@@ -1,5 +1,5 @@
 import { prismaClient } from "@repo/db";
-import { GoogleSheetNode } from "../google-sheets/google-sheets.node";
+import { GoogleSheetNode } from "../google-sheets/google-sheets.node.js";
 
 interface NodeDefinition{
     id: string,

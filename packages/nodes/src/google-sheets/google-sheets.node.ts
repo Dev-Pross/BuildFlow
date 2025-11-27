@@ -1,7 +1,7 @@
-import  NodeRegistry  from "../registry/node-registry";
-import { GoogleSheetsNodeExecutor } from "./google-sheets.executor";
+import NodeRegistry from "../registry/node-registry.js";
+import GoogleSheetsNodeExecutor from "./google-sheets.executor.js";
 
-export class GoogleSheetNode{
+export class GoogleSheetNode {
     static definition = {
         id: "",
         name: "Google Sheet",

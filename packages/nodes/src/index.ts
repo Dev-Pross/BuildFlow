@@ -1,8 +1,8 @@
-// Export everything from one place
-// export * from './registry/node-registry';
-// export * from './google-sheets/google-sheets.node';
-// export * from './common/google-oauth-service';
+// Central export for all major modules
+// export { default as NodeRegistry } from './registry/node-registry.js';
+export { GoogleSheetNode } from './google-sheets/google-sheets.node.js';
+import   GoogleSheetsNodeExecutor from './google-sheets/google-sheets.executor.js';
 
+export {GoogleSheetsNodeExecutor}
 
-console.log("Hello World From node / index.hs")
-
+console.log("Hello World From node / index.ts");
