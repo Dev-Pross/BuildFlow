@@ -12,6 +12,9 @@
     "clean": "rm -rf dist"
   },
   "keywords": [],
+  "exports" : {
+    "./nodeClinet" : "./dist/index.js"
+  },
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.4.1",

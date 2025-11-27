@@ -1,5 +1,5 @@
-import { GoogleOAuthService } from "../common/google-oauth-service";
-import { GoogleSheetsService, GoogleSheetsCredentials } from "./google-sheets.service";
+import { GoogleOAuthService } from "../common/google-oauth-service.js";
+import { GoogleSheetsService, GoogleSheetsCredentials } from "./google-sheets.service.js";
 
 interface NodeExecutionContext{
     nodeId: string,
@@ -106,5 +106,5 @@ class GoogleSheetsNodeExecutor{
     }
 }
 
-export { GoogleSheetsNodeExecutor };
-export type { NodeExecutionContext, NodeExecutionResult };
+export default  GoogleSheetsNodeExecutor ;
+// export  { NodeExecutionContext, NodeExecutionResult };
