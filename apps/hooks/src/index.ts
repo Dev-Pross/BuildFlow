@@ -1,19 +1,20 @@
-import { prismaClient, Prisma } from "@repo/db/client";
+import { prismaClient } from "@repo/db/client";
 import express from "express";
 
 const app = express();
 app.use(express.json());
 
 app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
-  const userId = req.params.userId;
-  const workflowId = req.params.workflowId;
+  console.log("REcieved Here  in the initla error")
 
+  const userId = req.params.userId;
+  const Data = req.body
   try {
     const result = await prismaClient.$transaction(
       async (tx) => {
+        console.log("REcieved Here")
         const workflow = await tx.workflow.create({
           data: {
-            id: workflowId,
             userId,
             name: "Sample Workflow",
             description: "Auto-generated workflow",
@@ -21,16 +22,26 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
             config: {},
           },
         });
+        console.log("REcieved Here  2222")
 
         const workflowExecution = await tx.workflowExecution.create({
           data: {
             workflowId: workflow.id,
             status: "Start",
-            metadata: {},
+            metadata: Data
           },
         });
+        console.log("REcieved Here  22222")
 
-        return { workflow, workflowExecution };
+        // Assuming that workflowExecutionTable requires a valid workflowExecution connection
+        const datInWork = await tx.workflowExecutionTable.create({
+          data : {
+            workflowExecution : {
+              connect : {id : workflowExecution.id}
+            }
+          }
+        });
+        return { workflow, workflowExecution , datInWork };
       }
     );
 
@@ -42,3 +53,4 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
 });
 
 app.listen(3002, () => console.log("Server listening on port 3002"));
+

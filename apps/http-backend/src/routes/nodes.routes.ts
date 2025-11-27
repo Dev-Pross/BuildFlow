@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prismaClient } from '@repo/db/client'
-import { GoogleSheetNode } from '@repo/nodes';
+import { GoogleSheetNode } from '@repo/nodes/nodeClinet';
 
 const router: Router = Router()
 

@@ -1,7 +1,7 @@
 // import {prismaClient} from '@repo/db/index.js'
 // import axios from "axios";
 import { prismaClient } from "@repo/db/client";
-import { NodeRegistry } from '@repo/nodes'
+import { NodeRegistry } from "@repo/nodes/nodeClinet";
 import express from "express";
 const app = express()
 // const main = async () => {
