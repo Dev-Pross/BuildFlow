@@ -6,9 +6,6 @@
     "module": "ESNext",
     "moduleResolution": "Node"
   },
-  "scripts": {
-    "build": "tsc -b",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+
   "include": ["src"]
 }

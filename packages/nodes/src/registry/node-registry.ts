@@ -40,4 +40,4 @@ class NodeRegistry{
     }
 }
 
-export { NodeRegistry }
+export default NodeRegistry;
