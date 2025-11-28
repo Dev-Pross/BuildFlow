@@ -65,6 +65,25 @@ importers:
         specifier: workspace:*
         version: link:../../packages/typescript-config
 
+  apps/processor:
+    dependencies:
+      '@types/axios':
+        specifier: ^0.14.4
+        version: 0.14.4
+      axios:
+        specifier: ^1.13.2
+        version: 1.13.2
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
+    devDependencies:
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+
   apps/web:
     dependencies:
       '@repo/trpc':
@@ -144,6 +163,19 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
 
+  apps/worker:
+    dependencies:
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
+    devDependencies:
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+
   packages/db:
     dependencies:
       '@prisma/client':
@@ -203,9 +235,6 @@ importers:
 
   packages/nodes:
     dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../db
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -216,6 +245,9 @@ importers:
         specifier: ^166.0.0
         version: 166.0.0
     devDependencies:
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
       '@types/node':
         specifier: ^20.19.9
         version: 20.19.9
@@ -2070,6 +2102,10 @@ packages:
 
   jws@4.0.0:
     resolution: {integrity: sha512-KDncfTmOZoOMTFG4mBlG0qUIOlc03fmzH+ru6RgYVZhPkyiy/92Owlt/8UEN+a4TXR1FQetfIpJE8ApdvdVxTg==}
+
+  kafkajs@2.2.4:
+    resolution: {integrity: sha512-j/YeapB1vfPT2iOIUn/vxdyKEuhuY2PxMBvf5JWux6iSaukAccrMtXEY/Lb7OvavDhOWME589bpLrEdnVHjfjA==}
+    engines: {node: '>=14.0.0'}
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
@@ -5179,6 +5215,8 @@ snapshots:
     dependencies:
       jwa: 2.0.1
       safe-buffer: 5.2.1
+
+  kafkajs@2.2.4: {}
 
   keyv@4.5.4:
     dependencies:
