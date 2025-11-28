@@ -43,3 +43,7 @@ packages/nodes/client_google.json
 packages/db/tsconfig.tsbuildinfo
 packages/db/prisma/migrations/migration_lock.toml
  apps/http-backend/tsbuildinfo
+
+
+ workder/node_modules
+ workder/dist

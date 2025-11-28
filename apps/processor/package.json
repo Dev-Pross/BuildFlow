@@ -1,0 +1,25 @@
+{
+  "name": "processor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b",
+    "dev": "npm run build &&  node dist/index.js"
+  },
+  "devDependencies": {
+    "@repo/db": "workspace:*",
+    "@workspace/typescript-config": "workspace:*"
+  },
+  "type" : "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.23.0",
+  "dependencies": {
+    "@types/axios": "^0.14.4",
+    "axios": "^1.13.2",
+    "kafkajs": "^2.2.4"
+  }
+}
