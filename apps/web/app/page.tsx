@@ -1,15 +1,41 @@
-// apps/web/src/app/page.tsx
-'use client';
-import { trpc } from './utils/trpc';
+import { getServerSession } from "next-auth";
+import { AuthOptions } from "@/app/utils/auth";
+import Link from "next/link";
 
-export default function Home() {
-  // Fix: Use a valid tRPC query (replace 'greeting' with existing query or handle error gracefully)
-  // Use the valid 'greeting' query instead of 'hello'
-  const { data, isLoading, error } = trpc.greeting.useQuery({ name: 'tRPC' });
+export default async function Home() {
+  const session = await getServerSession(AuthOptions);
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-  if (!data) return <div>No data found.</div>;
-
-  return <h1>{data}</h1>;
+  return (
+    <div>
+      <div className="text-6xl">
+        Hello world
+        <p>{JSON.stringify(session?.user)}</p>
+        {session ? (
+          <>
+            <p>Status: Authenticated</p>
+            <form action="/api/auth/signout" method="post">
+              <button
+                type="submit"
+                className="px-4 py-2 mt-4 bg-red-500 text-white rounded"
+              >
+                Log out
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <p>Status: Not authenticated</p>
+            <form action="/api/auth/signin" method="post">
+              <button
+                type="submit"
+                className="px-4 py-2 mt-4 bg-green-500 text-white rounded"
+              >
+                Sign in
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
