@@ -3,6 +3,7 @@
 import { prismaClient } from "@repo/db/client";
 import { NodeRegistry } from "@repo/nodes/nodeClinet";
 import express from "express";
+import { userRouter } from "./routes/userRoutes/userRoutes.js";
 const app = express()
 // const main = async () => {
 //   try {
@@ -16,6 +17,8 @@ const app = express()
 // main().then(() => {
 //   console.log("This log is from http Backend");
 // });
+
+app.use("/user" , userRouter)
 const PORT= 3000
 async function startServer() {
   await NodeRegistry.registerAll()

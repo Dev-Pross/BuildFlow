@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/routes/nodes.routes.ts"],"version":"5.7.3"}
+{"root":["./src/index.ts","./src/routes/nodes.routes.ts","./src/routes/userRoutes/userRoutes.ts"],"version":"5.7.3"}
