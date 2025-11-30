@@ -20,7 +20,7 @@ export function userMiddleware(
   try {
     const token = req.headers["authorization"];
     if (!token) {
-      return res.status(100).json({ 
+      return res.status(100).json({     
         message: "Token not provided",
       });
     }
