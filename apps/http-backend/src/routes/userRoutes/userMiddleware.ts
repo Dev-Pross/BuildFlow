@@ -1,35 +1,40 @@
 import dotenv from "dotenv";
-dotenv.config;
+dotenv.config(); 
 import { Request, Response, NextFunction } from "express";
-
-import jwt, { JwtPayload } from "jsonwebtoken";
+import { getToken } from "next-auth/jwt";
 
 export interface AuthRequest extends Request {
-  user?: JwtPayload;
+  user?: any; 
 }
 
 const SECRET = process.env.NEXTAUTH_SECRET;
+
 if (!SECRET) {
-  throw new Error("NEXTAUTH_SECRET is not confiured properly");
+  throw new Error("NEXTAUTH_SECRET is not configured properly");
 }
-export function userMiddleware(
+
+export async function userMiddleware(
   req: AuthRequest,
   res: Response,
-  mext: NextFunction
+  next: NextFunction 
 ) {
   try {
-    const token = req.headers["authorization"];
-    if (!token) {
-      return res.status(100).json({     
-        message: "Token not provided",
+    console.log(req.cookies)
+    const payload = await getToken({ req, secret: SECRET });
+
+    if (!payload) {
+      return res.status(401).json({
+        message: "Token not provided or invalid",
       });
     }
-    const decoded = jwt.verify(token as string, SECRET as string) as JwtPayload;
-    req.user = decoded;
-    return mext();
+
+    console.log("Decoded User:", payload);
+    
+    req.user = payload;
+    return next();
   } catch (e) {
     return res.status(401).json({
-      message: "Invalid or expired token",
+      message: `Invalid token: ${e instanceof Error ? e.message : "Unknown error"}`,
     });
   }
 }

@@ -1,12 +1,14 @@
 // import {prismaClient} from '@repo/db/index.js'
 // import axios from "axios";
 import { prismaClient } from "@repo/db/client";
+import cookieParser from 'cookie-parser'
 import { NodeRegistry } from "@repo/nodes/nodeClinet";
 import express from "express";
 import { userRouter } from "./routes/userRoutes/userRoutes.js";
 const app = express()
 
 app.use(express.json())
+app.use(cookieParser());
 // const main = async () => {
 //   try {
 //     const users = await prismaClient.user.findMany();
