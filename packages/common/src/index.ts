@@ -28,11 +28,12 @@ export const NodeSchema = z.object({
   WorkflowId: z.string(),
 });
 
-export const Workflow = z.object({
-    Name : z.string(),
-    UserId : z.string(),
-    config : z.string()
-
+export const WorkflowSchmea = z.object({
+    Name: z.string(),
+    UserId: z.string(),
+    Config: z.any(),
+    AvailableTriggerId: z.string(),
+    AvailableNodes: z.array(z.any()),
 })
 
 

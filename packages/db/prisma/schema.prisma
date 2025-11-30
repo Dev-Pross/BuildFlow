@@ -111,7 +111,7 @@ model Workflow {
   config      Json
 
   nodes      Node[]
-  trigger    Trigger?
+  Trigger    Trigger?
   user       User                @relation(fields: [userId], references: [id])
   executions WorkflowExecution[]
 }
