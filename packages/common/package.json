@@ -1,22 +1,24 @@
 {
-  "name": "@repo/workder",
+  "name": "@repo/common",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsc -b && node dist/index.js"
+    "build" : "tsc -b",
+    "dev" : "npm run build && node dist/index.js"
   },
-  "type": "module",
   "keywords": [],
   "devDependencies": {
-    "@repo/db": "workspace:*",
     "@workspace/typescript-config": "workspace:*"
+  },
+  "exports" : {
+    "./zod" : "./dist/index.js"
   },
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "kafkajs": "^2.2.4"
+    "zod": "^3.25.76"
   }
 }

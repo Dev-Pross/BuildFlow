@@ -7,60 +7,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/* ------------------------
-      USER & CREDENTIALS
-   ------------------------ */
+/**
+ * ------------------------
+ * USER & CREDENTIALS
+ * ------------------------
+ */
 
 model User {
-  id          String        @id @default(uuid())
-  name        String?
-  email       String        @unique
-  password    String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id        String   @id @default(uuid())
+  // id String @id @default(uuid()) @db.Uuid
+  name      String?
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   credentials Credential[]
   workflows   Workflow[]
 }
 
 model Credential {
-  id        String   @id @default(uuid())
-  userId    String
-  type      String
-  config    Json
-  nodeId    String?
+  id     String  @id @default(uuid())
+  userId String
+  type   String
+  config Json
+  nodeId String?
 
-  node Node?     @relation(fields: [nodeId], references: [id])
-  user User      @relation(fields: [userId], references: [id])
+  node Node? @relation(fields: [nodeId], references: [id])
+  user User  @relation(fields: [userId], references: [id])
 }
 
-/* ------------------------
-           TRIGGERS
-   ------------------------ */
+/**
+ * ------------------------
+ * TRIGGERS
+ * ------------------------
+ */
 
 model Trigger {
-  id         String            @id @default(uuid())
-  name       String
-  typeId     String
-  config     Json
-  workflowId String?           @unique
+  id                 String  @id @default(uuid())
+  name               String
+  AvailableTriggerID String
+  config             Json
+  workflowId         String? @unique
 
-  triggerType AvailableTrigger @relation(fields: [typeId], references: [id])
+  triggerType AvailableTrigger @relation(fields: [AvailableTriggerID], references: [id])
   workflow    Workflow?        @relation(fields: [workflowId], references: [id])
 }
 
 model AvailableTrigger {
-  id       String     @id @default(uuid())
-  name     String
-  type     String     @unique
-  config   Json
+  id     String @id @default(uuid())
+  name   String
+  type   String @unique
+  config Json
 
   triggers Trigger[]
 }
 
-/* ------------------------
-           NODES
-   ------------------------ */
+/**
+ * ------------------------
+ * NODES
+ * ------------------------
+ */
 
 model AvailableNode {
   id          String  @id @default(uuid())
@@ -68,97 +75,107 @@ model AvailableNode {
   type        String  @unique
   config      Json
   authType    String?
-  requireAuth Boolean
+  requireAuth Boolean?
   description String?
   nodes       Node[]
 }
 
 model Node {
-  id         String         @id @default(uuid())
-  name       String
-  typeId     String
-  config     Json
-  position   Int
-  workflowId String?
+  id             String  @id @default(uuid())
+  name           String
+  AvailabeNodeID String
+  config         Json
+  position       Int
+  workflowId     String?
 
-  type      AvailableNode   @relation(fields: [typeId], references: [id])
-  workflow  Workflow?       @relation(fields: [workflowId], references: [id])
+  type        AvailableNode   @relation(fields: [AvailabeNodeID], references: [id])
+  workflow    Workflow?       @relation(fields: [workflowId], references: [id])
   credentials Credential[]
-  executions NodeExecution[]
+  executions  NodeExecution[]
 }
 
-/* ------------------------
-          WORKFLOW
-   ------------------------ */
+/**
+ * ------------------------
+ * WORKFLOW
+ * ------------------------
+ */
 
 model Workflow {
-  id          String             @id @default(uuid())
+  id          String         @id @default(uuid())
   name        String
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
   description String
-  status      WorkflowStatus
+  status      WorkflowStatus?
   userId      String
   config      Json
 
-  nodes       Node[]
-  trigger     Trigger?
-  user        User               @relation(fields: [userId], references: [id])
-  executions  WorkflowExecution[]
+  nodes      Node[]
+  trigger    Trigger?
+  user       User                @relation(fields: [userId], references: [id])
+  executions WorkflowExecution[]
 }
 
-/* ------------------------
-       WORKFLOW EXECUTION
-   ------------------------ */
+/**
+ * ------------------------
+ * WORKFLOW EXECUTION
+ * ------------------------
+ */
 
 model WorkflowExecution {
-  id            String                @id @default(uuid())
-  workflowId    String
-  status        WorkflowStatus
-  startAt       DateTime              @default(now())
-  completedAt   DateTime?
-  error         String?
-  metadata      Json
+  id          String         @id @default(uuid())
+  workflowId  String
+  status      WorkflowStatus
+  startAt     DateTime       @default(now())
+  completedAt DateTime?
+  error       String?
+  metadata    Json
 
-  workflow      Workflow              @relation(fields: [workflowId], references: [id])
+  workflow       Workflow                @relation(fields: [workflowId], references: [id])
   executionTable WorkflowExecutionTable?
   nodeExecutions NodeExecution[]
 }
 
-/* ------------------------
-          NODE EXECUTION
-   ------------------------ */
+/**
+ * ------------------------
+ * NODE EXECUTION
+ * ------------------------
+ */
 
 model NodeExecution {
-  id              String             @id @default(uuid())
-  workflowExecId  String
-  nodeId          String
-  status          WorkflowStatus
-  startedAt       DateTime           @default(now())
-  completedAt     DateTime?
-  inputData       Json?
-  outputData      Json?
-  error           String?
-  retries         Int                @default(0)
+  id             String         @id @default(uuid())
+  workflowExecId String
+  nodeId         String
+  status         WorkflowStatus
+  startedAt      DateTime       @default(now())
+  completedAt    DateTime?
+  inputData      Json?
+  outputData     Json?
+  error          String?
+  retries        Int            @default(0)
 
   workflowExecution WorkflowExecution @relation(fields: [workflowExecId], references: [id])
-  node             Node              @relation(fields: [nodeId], references: [id])
+  node              Node              @relation(fields: [nodeId], references: [id])
 }
 
-/* ------------------------
-     WORKFLOW EXEC TABLE
-   ------------------------ */
+/**
+ * ------------------------
+ * WORKFLOW EXEC TABLE
+ * ------------------------
+ */
 
 model WorkflowExecutionTable {
-  id                  String             @id @default(uuid())
-  workflowExecutionId String             @unique
+  id                  String @id @default(uuid())
+  workflowExecutionId String @unique
 
-  workflowExecution WorkflowExecution    @relation(fields: [workflowExecutionId], references: [id])
+  workflowExecution WorkflowExecution @relation(fields: [workflowExecutionId], references: [id])
 }
 
-/* ------------------------
-         ENUMS
-   ------------------------ */
+/**
+ * ------------------------
+ * ENUMS
+ * ------------------------
+ */
 
 enum WorkflowStatus {
   Start

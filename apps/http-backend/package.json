@@ -11,8 +11,9 @@
   },
   "devDependencies": {
     "@repo/db": "workspace:*",
+    "@repo/nodes": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "@repo/nodes": "workspace:*"
+    "@repo/common" : "workspace:*"
   },
   "type": "module",
   "keywords": [],
@@ -22,7 +23,10 @@
     "@repo/nodes": "workspace:*",
     "@types/axios": "^0.14.4",
     "@types/express": "^5.0.5",
+    "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.13.2",
-    "express": "^5.1.0"
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2"
   }
 }

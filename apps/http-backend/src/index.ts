@@ -5,6 +5,8 @@ import { NodeRegistry } from "@repo/nodes/nodeClinet";
 import express from "express";
 import { userRouter } from "./routes/userRoutes/userRoutes.js";
 const app = express()
+
+app.use(express.json())
 // const main = async () => {
 //   try {
 //     const users = await prismaClient.user.findMany();
@@ -19,7 +21,7 @@ const app = express()
 // });
 
 app.use("/user" , userRouter)
-const PORT= 3000
+const PORT= 3002
 async function startServer() {
   await NodeRegistry.registerAll()
 
@@ -28,5 +30,5 @@ async function startServer() {
 	 })
   }
 
-  startServer()
 
+   startServer()

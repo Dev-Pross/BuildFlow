@@ -1,5 +1,5 @@
 {
-  "name": "processor",
+  "name": "@repo/processor",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
