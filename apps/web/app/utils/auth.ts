@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prismaClient } from "@repo/db/client";
 
 export const AuthOptions: NextAuthOptions = {
+  debug : true,
   providers: [
     CredentialsProvider({
       name: "Credentials",
