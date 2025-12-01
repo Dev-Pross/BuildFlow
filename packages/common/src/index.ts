@@ -1,15 +1,20 @@
 import z from "zod";
 
+
+export const BACKEND_URL="http:localhost:3002"
+
 export const AvailableTriggers = z.object({
   Name: z.string(),
-  Type: z.string(),
-  Config: z.any(),
+  AvailableTriggerID: z.string().optional(),
+  Config: z.any().optional(),
+  Type : z.string()
 });
 
 export const AvailableNodes = z.object({
   Name: z.string(),
-  Type: z.string(),
+  AvailableNodeId: z.string().optional(),
   Config: z.any(),
+  Type : z.string()
 });
 
 export const TriggerSchema = z.object({
@@ -28,15 +33,20 @@ export const NodeSchema = z.object({
   WorkflowId: z.string(),
 });
 
-export const WorkflowSchmea = z.object({
-    Name: z.string(),
-    UserId: z.string(),
-    Config: z.any(),
-    AvailableTriggerId: z.string(),
-    AvailableNodes: z.array(z.any()),
-})
 
-
+export const WorkflowSchema = z.object({
+  Name: z.string(),
+  UserId: z.string(),
+  Config: z.any(),
+  AvailableTriggerId: z.string(),
+  AvailableNodes: z.array(
+    z.object({
+      Name: z.string(),
+      AvailableNodeId: z.string(),
+      Config: z.any(),
+    })
+  ),
+});
 
 export enum statusCodes {
   OK = 200,

@@ -70,9 +70,9 @@ model AvailableTrigger {
  */
 
 model AvailableNode {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  type        String  @unique
+  type        String   @unique
   config      Json
   authType    String?
   requireAuth Boolean?
@@ -88,10 +88,10 @@ model Node {
   position       Int
   workflowId     String?
 
-  type        AvailableNode   @relation(fields: [AvailabeNodeID], references: [id])
-  workflow    Workflow?       @relation(fields: [workflowId], references: [id])
-  credentials Credential[]
-  executions  NodeExecution[]
+  AvailabeNodeId AvailableNode   @relation(fields: [AvailabeNodeID], references: [id])
+  workflow       Workflow?       @relation(fields: [workflowId], references: [id])
+  credentials    Credential[]
+  executions     NodeExecution[]
 }
 
 /**
@@ -101,10 +101,10 @@ model Node {
  */
 
 model Workflow {
-  id          String         @id @default(uuid())
+  id          String          @id @default(uuid())
   name        String
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
   description String
   status      WorkflowStatus?
   userId      String
