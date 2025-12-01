@@ -10,10 +10,10 @@
     "start": "npm run build && npm run dev"
   },
   "devDependencies": {
+    "@repo/common": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/nodes": "workspace:*",
-    "@workspace/typescript-config": "workspace:*",
-    "@repo/common" : "workspace:*"
+    "@workspace/typescript-config": "workspace:*"
   },
   "type": "module",
   "keywords": [],
@@ -22,11 +22,14 @@
   "dependencies": {
     "@repo/nodes": "workspace:*",
     "@types/axios": "^0.14.4",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.13.2",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "next-auth": "^4.24.13"
   }
 }
