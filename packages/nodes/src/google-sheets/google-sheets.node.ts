@@ -3,7 +3,6 @@ import GoogleSheetsNodeExecutor from "./google-sheets.executor.js";
 
 export class GoogleSheetNode {
     static definition = {
-        id: "",
         name: "Google Sheet",
         type: "google_sheet",
         description: 'Read and write data to Google Sheets',

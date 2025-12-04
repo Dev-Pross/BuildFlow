@@ -2,7 +2,6 @@ import { prismaClient } from "@repo/db";
 import { GoogleSheetNode } from "../google-sheets/google-sheets.node.js";
 
 interface NodeDefinition{
-    id: string,
     name:string,
     type: string,
     description: string,
@@ -20,15 +19,23 @@ class NodeRegistry{
 
         try{
             await prismaClient.availableNode.upsert({
-                where:{ type: definition.type},
+                create: {
+                    name: definition.name,
+                    type: definition.type,
+                    description: definition.description,
+                    config: definition.config,
+                    requireAuth: definition.requireAuth,
+                    authType: definition.authType
+                },
                 update: {
                     ...definition
                 },
-                create: definition
+                
+                where:{ type: definition.type}
             });
 
             this.registered.add(definition.type);
-            console.log(`✅ Registered node: ${definition.name}`);
+            console.log(`✅ Registered node: ${definition}`);
         }
         catch(e){
             console.error(`❌ Failed to register ${definition.name}:`, e);

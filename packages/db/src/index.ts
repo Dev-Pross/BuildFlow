@@ -1,11 +1,8 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-// import { PrismaClient } from "./generated/client.js";
-// export { Prisma } from "./generated/client.js"; // <-- export Prisma
-
-
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "./generated/client/index.js";
+export { Prisma } from "./generated/client/index.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -20,4 +17,4 @@ console.debug("packages/db: DATABASE_URL present=", !!process.env.DATABASE_URL);
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const prismaClient =
-  globalForPrisma.prisma ?? (globalForPrisma.prisma = new PrismaClient());
+  globalForPrisma.prisma ?? (globalForPrisma.prisma = new PrismaClient({}));
