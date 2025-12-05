@@ -5,8 +5,11 @@ import { AuthOptions } from "@/app/utils/auth";
 export default async function Home() {
   const session = await getServerSession(AuthOptions);
 
-  return (
+  return (  
     <div>
+      <div className="text-4xl">
+        Hello world 
+      </div>
       <div className="text-6xl">
         Hello world
         <p>{JSON.stringify(session?.user)}</p>
