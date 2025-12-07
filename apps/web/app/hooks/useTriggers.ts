@@ -18,6 +18,8 @@ export function useTriggers(shouldFetch: boolean) {
       try {
         const response = await getAvailableTriggers();
         setTriggers(response.Data);
+        console.log(response.Data);
+        console.log(JSON.stringify(response));
       } catch (err) {
         setError("Error while fetching triggers");
       } finally {

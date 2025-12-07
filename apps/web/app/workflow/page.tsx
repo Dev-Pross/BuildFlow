@@ -1,7 +1,5 @@
 "use client";
-import { useState } from "react";
-import PlaceholderNode from "../components/nodes/PlaceHolder";
-import SheetDemo from "../components/nodes/TriggerSidebar";
+
 import WorkFlow from "../components/nodes/WorkFlow";
 // import CreateWorkFlow from "../components/workflow";
 

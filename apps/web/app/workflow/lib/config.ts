@@ -1,6 +1,5 @@
 import { BACKEND_URL } from "@repo/common/zod";
-import axios from "axios";
-import { any, config } from "zod/v4";
+import axios from "axios"
 export const getAvailableTriggers = async () => {
   try {
     const response = await axios.get(
