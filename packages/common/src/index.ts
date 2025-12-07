@@ -1,7 +1,7 @@
 import z from "zod";
 
 
-export const BACKEND_URL="http:localhost:3002"
+export const BACKEND_URL="http://localhost:3002";
 
 export const AvailableTriggers = z.object({
   Name: z.string(),

@@ -1,13 +1,11 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { PrismaClient } from "./generated/client/index.js";
-export { Prisma } from "./generated/client/index.js";
+import { PrismaClient } from "@prisma/client";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
-// Load .env explicitly before importing/constructing Prisma
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 // Debug — remove after confirming it works

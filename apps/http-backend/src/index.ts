@@ -5,7 +5,15 @@ import cookieParser from 'cookie-parser'
 import { NodeRegistry } from "@repo/nodes/nodeClinet";
 import express from "express";
 import { userRouter } from "./routes/userRoutes/userRoutes.js";
+import cors from "cors"
+
 const app = express()
+
+const allowedOrigins = ['http://localhost:3000'];
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 
 app.use(express.json())
 app.use(cookieParser());

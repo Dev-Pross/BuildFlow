@@ -64,72 +64,79 @@ router.post("/createNode", async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get("/getAvailableNodes",userMiddleware , async (req: AuthRequest, res: Response) => {
-  if(!req.user) {
-    return  res.status(statusCodes.UNAUTHORIZED).json({
-      message : "User has to be logged in , This is from getNodesEnd pont"
-    })
-  }
-  const userID = req.user.id
-  // console.log(userID)
-  try {
-    const Data = await prismaClient.availableNode.findMany();
-    return res.status(statusCodes.OK).json({
-      message: "Availabe Nodes Fetched Succesfuuly",
-      Data: Data,
-    });
-  } catch (e) {
-    console.log("Error From getting the data from Availabele Nodes", e);
-    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-      message: "Internal Server Error From getting Availabe Nodes",
-    });
-  }
-});
-
-router.post("/createTriggers",userMiddleware , async (req: AuthRequest, res: Response) => {
-  try {
-    
-    const Data = req.body;
-    const ParsedData = AvailableTriggers.safeParse(Data);
-    if (!ParsedData.success) {
-      return res.status(statusCodes.BAD_REQUEST).json({
-        message: "Incorrect Inputs from",
+router.get(
+  "/getAvailableNodes",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    if (!req.user) {
+      return res.status(statusCodes.UNAUTHORIZED).json({
+        message: "User has to be logged in , This is from getNodesEnd pont",
       });
     }
-    const createTrigger = await prismaClient.availableTrigger.create({
-      data: {
-        name: ParsedData.data.Name,
-        config: ParsedData.data.Config,
-        type: ParsedData.data.Type,
-      },
-    });
-    return res.status(statusCodes.CREATED).json({
-      message: "Trigger Created Succesfully",
-      Data: createTrigger,
-    });
-  } catch (e) {
-    console.log("There is error in creating Triggers in Avaiblble Triggers", e);
-    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-      message: "Internal server error in Createring Triggers",
-    });
+    const userID = req.user.id;
+    // console.log(userID)
+    try {
+      const Data = await prismaClient.availableNode.findMany();
+      return res.status(statusCodes.OK).json({
+        message: "Availabe Nodes Fetched Succesfuuly",
+        Data: Data,
+      });
+    } catch (e) {
+      console.log("Error From getting the data from Availabele Nodes", e);
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal Server Error From getting Availabe Nodes",
+      });
+    }
   }
-});
+);
+
+router.post(
+  "/createTriggers",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const Data = req.body;
+      const ParsedData = AvailableTriggers.safeParse(Data);
+      if (!ParsedData.success) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Incorrect Inputs from",
+        });
+      }
+      const createTrigger = await prismaClient.availableTrigger.create({
+        data: {
+          name: ParsedData.data.Name,
+          config: ParsedData.data.Config,
+          type: ParsedData.data.Type,
+        },
+      });
+      return res.status(statusCodes.CREATED).json({
+        message: "Trigger Created Succesfully",
+        Data: createTrigger,
+      });
+    } catch (e) {
+      console.log(
+        "There is error in creating Triggers in Avaiblble Triggers",
+        e
+      );
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal server error in Createring Triggers",
+      });
+    }
+  }
+);
 
 router.get(
   "/getAvailableTriggers",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
+      console.log("RequestRecieved  from the frontend");
       if (!req.user)
         return res
           .status(statusCodes.BAD_GATEWAY)
           .json({ message: "User isnot logged in /not authorized" });
 
-      const userId = req.user.id;
-
-      const Data = await prismaClient.availableTrigger.findMany({
-        where : userId 
-      });
+      const Data = await prismaClient.availableTrigger.findMany();
       return res.status(statusCodes.OK).json({
         message: "Availabe Triggers Fetched Succesfuuly",
         Data: Data,
