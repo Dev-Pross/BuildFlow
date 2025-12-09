@@ -1,21 +1,19 @@
+import { Handle, Position } from "@xyflow/react";
 
-"use client";
-interface placeholderNode {
+interface PlaceholderNodeProps {
   data: {
     label: string;
-    onclick: () => void;
   };
 }
 
-function PlaceholderNode({ data }: placeholderNode) {
+const PlaceholderNode = ({ data }: PlaceholderNodeProps) => {
   return (
-    <div
-      className="flex flex-col items-center justify-center h-full w-full bg-gray-600 text-white text-2xl"
-      onClick={data.onclick}
-    >
-      <p className="text-white text-3xl mb- border-5 border-black  rounded-e-2xl p-2">{data.label} + </p>
+    <div className="flex items-center justify-center w-24 h-24 bg-gray-700 border-2 border-dashed border-gray-500 rounded-lg cursor-pointer hover:border-blue-500">
+      <span className="text-4xl text-gray-300">+</span>
+      <Handle type="target" position={Position.Left} /> 
+      <Handle type="source" position={Position.Right} />  
     </div>
   );
-}
+};
 
 export default PlaceholderNode;
