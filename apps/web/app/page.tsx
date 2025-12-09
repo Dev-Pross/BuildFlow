@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { AuthOptions } from "@/app/utils/auth";
+import { AuthOptions } from "@/app/api/auth/utils/auth";
 
 
 export default async function Home() {
