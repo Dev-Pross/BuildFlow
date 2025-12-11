@@ -57,11 +57,11 @@ class GoogleOAuthService{
 
     async saveCredentials(userId: string, tokens: OAuthTokens, nodeId?: string): Promise<void> {
         try{
-            const credentialId = `cred_google_${userId}_${Date.now()}`
+            // const credentialId = `cred_google_${userId}_${Date.now()}`
             
             await this.prisma.credential.create({
                 data:{
-                    id:credentialId,
+                    // id:credentialId,
                     userId: userId,
                     type: 'google_oauth',
                     config: JSON.parse(JSON.stringify(tokens)),
@@ -96,6 +96,28 @@ class GoogleOAuthService{
         }
         catch(err){
             throw new Error(`Failed to get credentials: ${err instanceof Error ? err.message : "unknown error"}`)
+        }
+    }
+
+    async getAllCredentials(userId: string): Promise<Array<{id: string, createdAt?: Date}>>{
+        try{
+            const credentials = await this.prisma.credential.findMany({
+                where:{
+                    userId: userId,
+                    type:'google_oauth'
+                },
+                orderBy:{
+                    id: 'desc'
+                },
+                select: {
+                    id: true
+                }
+            });
+
+            return credentials;
+        }
+        catch(err){
+            throw new Error(`Failed to get all credentials: ${err instanceof Error ? err.message : "unknown error"}`)
         }
     }
 
