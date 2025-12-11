@@ -1,5 +1,6 @@
-import { google, sheets_v4 } from 'googleapis';
+import { google, sheets_v4, drive_v3 } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
+import { OAuthTokens } from '../common/google-oauth-service';
 
 interface GoogleSheetsCredentials{
     access_token: string,
@@ -16,6 +17,7 @@ interface ReadRowsParams{
 class GoogleSheetsService{
     private sheets : sheets_v4.Sheets;
     private auth: OAuth2Client;
+    private drive: drive_v3.Drive;
     constructor(credentials: GoogleSheetsCredentials){
         this.auth = new google.auth.OAuth2(
             process.env.GOOGLE_CLIENT_ID,
@@ -35,7 +37,58 @@ class GoogleSheetsService{
             auth: this.auth
         });
 
+        this.drive = google.drive({
+            version: 'v3',
+            auth: this.auth
+        })
+
     }
+
+    async getSheets(): Promise<any>{
+        const files = await this.drive.files.list({
+            q: "mimeType='application/vnd.google-apps.spreadsheet'",
+            spaces: 'drive',
+            pageSize: 10,
+            fields: 'files(id, name, createdTime)',
+        })
+
+        if(files){
+            return {
+                success: true,
+                data: files
+            }
+        }
+        return {
+            success: false,
+            data: null
+        }
+    }
+
+    async getSheetTabs(spreadsheetId: string): Promise<any>{
+        try{
+            const response = await this.sheets.spreadsheets.get({
+                spreadsheetId: spreadsheetId,
+                fields: 'sheets.properties'
+            });
+
+            const tabs = response.data.sheets?.map(sheet => ({
+                id: sheet.properties?.sheetId,
+                name: sheet.properties?.title
+            })) || [];
+
+            return {
+                success: true,
+                data: tabs
+            };
+        }
+        catch(error){
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to fetch sheet tabs'
+            };
+        }
+    }
+
     async readRows(params: ReadRowsParams): Promise<any[][]>{
         try{
             const response = await this.sheets.spreadsheets.values.get({

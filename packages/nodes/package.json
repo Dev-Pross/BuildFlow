@@ -12,8 +12,9 @@
     "clean": "rm -rf dist"
   },
   "keywords": [],
-  "exports" : {
-    "./nodeClinet" : "./dist/index.js"
+  "exports": {
+    ".": "./dist/index.js",
+    "./nodeClient": "./dist/index.js"
   },
   "author": "",
   "license": "ISC",
