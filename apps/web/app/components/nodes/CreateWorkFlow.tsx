@@ -4,150 +4,204 @@ import "@xyflow/react/dist/style.css";
 import { ReactFlow } from "@xyflow/react";
 import PlaceholderNode from "./PlaceHolder";
 import { TriggerNode } from "./TriggerNode";
+
 import { TriggerSideBar } from "./TriggerSidebar";
+import ActionSideBar from "../Actions/ActionSidebar";
+import ActionNode from "../Actions/ActionNode";
+
 interface NodeType {
-    id: string;
-    type: "placeholder" | "trigger";
-    position: { x: number; y: number };
-    data: {
-      label: string;
-      name?:  string;
-      icon?: string;
-      type?:  string;
-      config?: Record<string, unknown>;
-    };
-  }
-  interface EdgeType {
-    id: string;
-    source: string;
-    target: string;
-  }
-  
+  id: string;
+  type: "placeholder" | "trigger" | "action";
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    name?: string;
+    icon?: string;
+    type?: string;
+    config?: Record<string, unknown>;
+  };
+}
+
+interface EdgeType {
+  id: string;
+  source: string;
+  target: string;
+}
+
 export const CreateWorkFlow = () => {
-  const [sidebaropen, setSideBarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [actionSidebarOpen, setActionSidebarOpen] = useState(false);
+
   const [nodes, setNodes] = useState<NodeType[]>([
     {
       id: "1",
       type: "placeholder",
-      position: { x: 0, y: 0 },
+      position: { x: 100, y: 200 },
       data: {
-        label: "Select This one",
-        icon: "→",
+        label: "+",
       },
-    },  
+    },
   ]);
+
   const [edges, setEdges] = useState<EdgeType[]>([]);
 
-  const nodeType = {
+  const nodeTypes = {
     placeholder: PlaceholderNode,
     trigger: TriggerNode,
+    action: ActionNode,
   };
-//   const handleSelectTrigger = (trigger: { id: string; name: string; type: string; icon?: string }) => {
-//     const edgeId = `e-trigger-${trigger.id}-placeholder-${Date.now()}`;
-//     const placeholderId = `placeholder-${Date.now()}`;
 
-//     setNodes((currentNodes) => {
-//       const placeholderNode = currentNodes.find((n) => n.type === "placeholder");
-//       if (!placeholderNode) return currentNodes;
-
-//       const triggerNode: NodeType = {
-//         id: `trigger-${trigger.id}`,
-//         type: "trigger",
-//         position: placeholderNode.position,
-//         data: {
-//           label: trigger.name,
-//           name: trigger.name,
-//           icon: trigger.icon || "⚡",
-//           type: trigger.type,
-//         },
-//       };
-
-//       const newPlaceholder: NodeType = {
-//         id: placeholderId,
-//         type: "placeholder",
-//         position: {
-//           x: placeholderNode.position.x + 200,
-//           y: placeholderNode.position.y,
-//         },
-//         data: {
-//           label: "+",
-//         },
-//       };
-
-//       return [triggerNode, newPlaceholder];
-//     });
-
-//     // TypeScript expects you to define a type for edges.
-//     // We'll use a generic structure: id (string), source (string), target (string)
-//     setEdges([
-//         {
-//           id: edgeId,
-//           source: `trigger-${trigger.id}`,
-//           target: placeholderId,
-//         }
-//       ]);
-//   };
-  
-
-const handleSelectTrigger = (trigger:  { id: string; name: string; type: string; icon?: string }) => {
-    const timestamp = Date.now();  // ✅ Call ONCE
+  // Handle trigger selection
+  const handleSelectTrigger = (trigger: {
+    id: string;
+    name: string;
+    type: string;
+    icon?: string;
+  }) => {
+    const timestamp = Date.now();
     const placeholderId = `placeholder-${timestamp}`;
     const triggerNodeId = `trigger-${trigger.id}`;
     const edgeId = `e-${triggerNodeId}-${placeholderId}`;
-  
+
     setNodes((currentNodes) => {
-      const placeholderNode = currentNodes.find((n) => n.type === "placeholder");
+      const placeholderNode = currentNodes.find(
+        (n) => n.type === "placeholder"
+      );
       if (!placeholderNode) return currentNodes;
-  
+
       const triggerNode: NodeType = {
-        id:   triggerNodeId,  // ✅ Use variable
+        id: triggerNodeId,
         type: "trigger",
-        position:   placeholderNode.position,
+        position: placeholderNode.position,
         data: {
           label: trigger.name,
           name: trigger.name,
           icon: trigger.icon || "⚡",
-          type:   trigger.type,
+          type: trigger.type,
         },
       };
-  
-      const newPlaceholder:   NodeType = {
-        id:  placeholderId,  // ✅ Use variable
+
+      const newPlaceholder: NodeType = {
+        id: placeholderId,
         type: "placeholder",
         position: {
-          x: placeholderNode.position.x + 200,
+          x: placeholderNode.position.x + 250,
           y: placeholderNode.position.y,
         },
         data: { label: "+" },
       };
-  
+
       return [triggerNode, newPlaceholder];
     });
-  
+
     setEdges([
       {
-        id:   edgeId,
-        source: triggerNodeId,  // ✅ Matches trigger node
-        target: placeholderId,   // ✅ Matches placeholder node
-      }
+        id: edgeId,
+        source: triggerNodeId,
+        target: placeholderId,
+      },
     ]);
   };
-return (
+
+  const handleSelectAction = (action: {
+    id: string;
+    name: string;
+    type: string;
+    icon?: string;
+  }) => {
+    const timestamp = Date.now();
+    const newPlaceholderId = `placeholder-${timestamp}`;
+    const actionNodeId = `action-${action.id}-${timestamp}`;
+
+    setNodes((currentNodes) => {
+      const placeholderNode = currentNodes.find(
+        (n) => n.type === "placeholder"
+      );
+      if (!placeholderNode) return currentNodes;
+
+      const previousNodeId = edges.find(
+        (e) => e.target === placeholderNode.id
+      )?.source;
+
+      const actionNode: NodeType = {
+        id: actionNodeId,
+        type: "action",
+        position: placeholderNode.position,
+        data: {
+          label: action.name,
+          name: action.name,
+          icon: action.icon || "⚙️",
+          type: action.type,
+        },
+      };
+
+      const newPlaceholder: NodeType = {
+        id: newPlaceholderId,
+        type: "placeholder",
+        position: {
+          x: placeholderNode.position.x + 250,
+          y: placeholderNode.position.y,
+        },
+        data: { label: "+" },
+      };
+
+      const otherNodes = currentNodes.filter(
+        (n) => n.id !== placeholderNode.id
+      );
+      return [...otherNodes, actionNode, newPlaceholder];
+    });
+
+    setEdges((currentEdges) => {
+      const edgeToPlaceholder = currentEdges.find((e) =>
+        e.target.startsWith("placeholder")
+      );
+
+      const updatedEdges = currentEdges.map((e) => {
+        if (edgeToPlaceholder && e.id === edgeToPlaceholder.id) {
+          return { ...e, target: actionNodeId };
+        }
+        return e;
+      });
+
+      return [
+        ...updatedEdges,
+        {
+          id: `e-${actionNodeId}-${newPlaceholderId}`,
+          source: actionNodeId,
+          target: newPlaceholderId,
+        },
+      ];
+    });
+  };
+
+  return (
     <div style={{ width: "100%", height: "100vh" }}>
       <ReactFlow
-        nodeTypes={nodeType}
+        nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}
         onNodeClick={(event, node) => {
           if (node.type === "placeholder") {
-            setSideBarOpen(true);
+            const hasTrigger = nodes.some((n) => n.type === "trigger");
+            if (hasTrigger) {
+              setActionSidebarOpen(true);
+            } else {
+              setSidebarOpen(true);
+            }
           }
         }}
-      ></ReactFlow>
-        <TriggerSideBar
-        isOpen={sidebaropen}
-        onClose={() => setSideBarOpen(false)}
+      />
+
+      <TriggerSideBar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         onSelectTrigger={handleSelectTrigger}
+      />
+
+      <ActionSideBar
+        isOpen={actionSidebarOpen}
+        onClose={() => setActionSidebarOpen(false)}
+        onSelectAction={handleSelectAction}
       />
     </div>
   );
