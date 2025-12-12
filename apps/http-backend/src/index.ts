@@ -2,14 +2,16 @@
 // import axios from "axios";
 import { prismaClient } from "@repo/db/client";
 import cookieParser from 'cookie-parser'
-import { NodeRegistry } from "@repo/nodes/nodeClinet";
+
+
+import { NodeRegistry } from "@repo/nodes/nodeClient";
 import express from "express";
 import { userRouter } from "./routes/userRoutes/userRoutes.js";
 import cors from "cors"
 
 const app = express()
 
-const allowedOrigins = ['http://localhost:3000'];
+const allowedOrigins = ['http://localhost:3000' , 'http://localhost:3001' ];
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,

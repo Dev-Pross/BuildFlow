@@ -1,14 +1,12 @@
 import { getServerSession } from "next-auth";
 import { AuthOptions } from "@/app/api/auth/utils/auth";
 
-
 export default async function Home() {
   const session = await getServerSession(AuthOptions);
-
-  return (  
+  return (
     <div>
       <div className="text-4xl">
-        Hello world 
+        Hello world
       </div>
       <div className="text-6xl">
         Hello world

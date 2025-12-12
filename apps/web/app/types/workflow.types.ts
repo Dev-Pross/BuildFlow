@@ -25,5 +25,6 @@ export interface AvailabeAction {
   id: string;
   name: string;
   type: string;
-  config: JSON;
+  config: Record<string, unknown>;
+
 }
