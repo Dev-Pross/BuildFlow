@@ -3,7 +3,7 @@ import { GoogleOAuthService } from "../common/google-oauth-service.js";
 import { GoogleSheetsService, GoogleSheetsCredentials } from "./google-sheets.service.js";
 
 interface NodeExecutionContext{
-    nodeId: string,
+    credId: string,
     userId: string,
     config?: any,    //sheet id / range...
     inputData?: any // previous node data
@@ -51,10 +51,16 @@ class GoogleSheetsNodeExecutor{
         return this.ensureSheetService(context);
     }
 
-    async getAllCredentials(userId: string) {
+    async getAllCredentials(userId: string, type: string) {
         try {
-            return await this.oauthService.getAllCredentials(userId);
+            
+            const credentials =  await this.oauthService.getAllCredentials(userId, type);
+            console.log("log from executor - ",credentials)
+            if(credentials.length > 0) return credentials
+            else return (this.oauthService.getAuthUrl(userId))
+            
         } catch (e) {
+            console.log(`Error in fetching credentials: ${e}`);
             return [];
         }
     }
@@ -82,8 +88,8 @@ class GoogleSheetsNodeExecutor{
 
     private async ensureSheetService(context: NodeExecutionContext): Promise<{ credentialId: string } | NodeExecutionResult> {
         try {
-            const credentials = await this.oauthService.getCredentials(context.userId, context.nodeId);
-
+            const credentials = await this.oauthService.getCredentials(context.userId, context.credId);
+            console.log("credentails from sheet.executor: ",credentials)
             if (!credentials) {
                 return {
                     success: false,

@@ -74,20 +74,21 @@ class GoogleOAuthService{
         }
     }
 
-    async getCredentials(userId: string, nodeId?: string): Promise<{id: string, tokens: OAuthTokens} | null>{
+    async getCredentials(userId: string, credId: string): Promise<{id: string, tokens: OAuthTokens} | null>{
 
         try{
+            console.log("user id: ",userId," & ",credId," from oauth service")
             const credentials = await this.prisma.credential.findFirst({
                 where:{
-                    userId: userId,
+                    id:credId,
+                    // userId: userId,
                     type:'google_oauth',
-                    ...(nodeId && {nodeId})
                 },
                 orderBy:{
                     id: 'desc'
                 }
             });
-
+            console.log("credentails from oauth service: ",credentials)
             if(!credentials) return null;
             return {
                 id: credentials.id,  
@@ -99,21 +100,15 @@ class GoogleOAuthService{
         }
     }
 
-    async getAllCredentials(userId: string): Promise<Array<{id: string, createdAt?: Date}>>{
+    async getAllCredentials(userId: string, type: string): Promise<Array<any>>{
         try{
             const credentials = await this.prisma.credential.findMany({
                 where:{
                     userId: userId,
-                    type:'google_oauth'
+                    type: type
                 },
-                orderBy:{
-                    id: 'desc'
-                },
-                select: {
-                    id: true
-                }
             });
-
+            console.log("logs from service - ",credentials)
             return credentials;
         }
         catch(err){

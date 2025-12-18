@@ -8,6 +8,8 @@ import { TriggerNode } from "./TriggerNode";
 import { TriggerSideBar } from "./TriggerSidebar";
 import ActionSideBar from "../Actions/ActionSidebar";
 import ActionNode from "../Actions/ActionNode";
+import { GoogleSheetFormClient } from "./GoogleSheetFormClient";
+import { useCredentials } from "@/app/hooks/useCredential";
 
 interface NodeType {
   id: string;
@@ -31,6 +33,8 @@ interface EdgeType {
 export const CreateWorkFlow = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [actionSidebarOpen, setActionSidebarOpen] = useState(false);
+  const [credType, setCredType] = useState<string>("");
+  const [loadSheet, setLoadSheet] = useState<boolean>(false) 
 
   const [nodes, setNodes] = useState<NodeType[]>([
     {
@@ -102,6 +106,13 @@ export const CreateWorkFlow = () => {
       },
     ]);
   };
+
+  function getCredentials(type: string){
+    // if(credData){
+    //   console.log(creds.nodeId)
+    //   setNodeId(creds.nodeId)
+    // }
+  }
 
   const handleSelectAction = (action: {
     id: string;
@@ -180,7 +191,7 @@ export const CreateWorkFlow = () => {
         nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}
-        onNodeClick={(event, node) => {
+        onNodeClick={async(event, node) => {
           if (node.type === "placeholder") {
             const hasTrigger = nodes.some((n) => n.type === "trigger");
             if (hasTrigger) {
@@ -189,6 +200,19 @@ export const CreateWorkFlow = () => {
               setSidebarOpen(true);
             }
           }
+          if(node.type === 'action' || node.type === 'trigger'){
+            if(node.data.name === 'Google Sheet' ){
+              console.log("sheet called")
+              console.log(node.id)
+              // setNodeId("550e8400-e29b-41d4-a716-446655440000")
+              // getCredentials(node.data.type ? node.data.type : "")
+              // setNodeId(node.id.split("trigger-")[1] || "")
+              // if(cred)  setLoadSheet(true)
+              setCredType(node.data.type === "google_sheet" ? "google_oauth" : "")
+              setLoadSheet(!loadSheet)
+              console.log("hook called")
+            }
+          } 
         }}
       />
 
@@ -203,6 +227,11 @@ export const CreateWorkFlow = () => {
         onClose={() => setActionSidebarOpen(false)}
         onSelectAction={handleSelectAction}
       />
+
+      {loadSheet && 
+      <GoogleSheetFormClient
+      type={credType}/>
+      }
     </div>
   );
 };

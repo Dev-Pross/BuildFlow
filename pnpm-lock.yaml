@@ -75,6 +75,9 @@ importers:
       express:
         specifier: ^5.1.0
         version: 5.1.0
+      googleapis:
+        specifier: ^166.0.0
+        version: 166.0.0
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2

@@ -4,7 +4,6 @@ import { GoogleSheetsNodeExecutor } from '@repo/nodes';
 
 interface SaveConfigFormData {
   userId: string;
-  nodeId: string;
   credentialId: string;
   spreadsheetId: string;
   sheetName: string;
@@ -17,13 +16,12 @@ export async function handleSaveConfig(formData: SaveConfigFormData) {
 
   const context = {
     userId: formData.userId,
-    nodeId: formData.nodeId,
+    credId: formData.credentialId,
     config: {
       operation: formData.operation,
       spreadsheetId: formData.spreadsheetId,
       range: formData.range,
       sheetName: formData.sheetName,
-      credentialId: formData.credentialId,
     },
   };
 
