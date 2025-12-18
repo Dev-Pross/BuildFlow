@@ -8,6 +8,8 @@ import { NodeRegistry } from "@repo/nodes/nodeClient";
 import express from "express";
 import { userRouter } from "./routes/userRoutes/userRoutes.js";
 import cors from "cors"
+import { sheetRouter } from "./routes/nodes.routes.js";
+import { googleAuth } from "./routes/google_callback.js";
 
 const app = express()
 
@@ -33,6 +35,8 @@ app.use(cookieParser());
 // });
 
 app.use("/user" , userRouter)
+app.use('/node', sheetRouter)
+app.use('/google', googleAuth)
 const PORT= 3002
 async function startServer() {
   await NodeRegistry.registerAll()

@@ -8,6 +8,8 @@ import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { handleSaveConfig } from './actions';
+import { useCredentials } from '@/app/hooks/useCredential';
+import { BACKEND_URL } from '@repo/common/zod';
 
 interface GoogleSheetFormClientProps {
   initialData: {
@@ -19,7 +21,7 @@ interface GoogleSheetFormClientProps {
   nodeId: string;
 }
 
-export function GoogleSheetFormClient({ initialData, userId, nodeId }: GoogleSheetFormClientProps) {
+export function GoogleSheetFormClient(type:{type: string}) {
   const [selectedCredential, setSelectedCredential] = useState<string>('');
   const [documents, setDocuments] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedDocument, setSelectedDocument] = useState<string>('');
@@ -30,6 +32,17 @@ export function GoogleSheetFormClient({ initialData, userId, nodeId }: GoogleShe
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<any>(null);
+  const [credId, setCredId] = useState<string>();
+  // const [authUrl, setAuthUrl] = useState<string>()
+  const userId = ""// get it from redux
+  const credType = type.type
+ 
+  const {cred: response, authUrl}  = useCredentials(credType)
+  console.log('response from form client', typeof(response))
+
+  console.log(response," response from client after hook")
+  console.log(authUrl," authurl")
+ 
 
   // Fetch documents when credential is selected
   const handleCredentialChange = async (credentialId: string) => {
@@ -40,17 +53,18 @@ export function GoogleSheetFormClient({ initialData, userId, nodeId }: GoogleShe
     setSelectedSheet('');
     
     if (!credentialId || credentialId === 'create-new') return;
-
+    setCredId(credentialId)
     setLoading(true);
     try {
-      const response = await fetch('/api/google-sheets/documents', {
-        method: 'POST',
+      const response = await fetch(`${BACKEND_URL}/node/getDocuments/${credentialId}`, {
+        method: 'GET',
+        credentials:"include",
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, nodeId, credentialId })
       });
       const data = await response.json();
-      if (data.success) {
-        setDocuments(data.data || []);
+     
+      if (data.files.length >0) {
+        setDocuments(data.files || []);
       }
     } catch (error) {
       console.error('Failed to fetch documents:', error);
@@ -69,14 +83,15 @@ export function GoogleSheetFormClient({ initialData, userId, nodeId }: GoogleShe
 
     setLoading(true);
     try {
-      const response = await fetch('/api/google-sheets/tabs', {
-        method: 'POST',
+      const response = await fetch(`${BACKEND_URL}/node/getSheets/${credId}/${documentId}`, {
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, nodeId, spreadsheetId: documentId })
+        credentials:"include",
       });
       const data = await response.json();
-      if (data.success) {
-        setSheets(data.data || []);
+      //  console.log(data," from clint")
+      if (data.files.data.length > 0) {
+        setSheets(data.files.data || []);
       }
     } catch (error) {
       console.error('Failed to fetch sheet tabs:', error);
@@ -88,7 +103,7 @@ export function GoogleSheetFormClient({ initialData, userId, nodeId }: GoogleShe
   const handleSaveClick = () => {
     const config = {
       userId,
-      nodeId,
+      // nodeId,
       credentialId: selectedCredential,
       spreadsheetId: selectedDocument,
       sheetName: selectedSheet,
@@ -122,26 +137,21 @@ export function GoogleSheetFormClient({ initialData, userId, nodeId }: GoogleShe
             <SelectValue placeholder="Select credential" />
           </SelectTrigger>
           <SelectContent>
-            {!initialData.hasCredentials && initialData.authUrl ? (
-              <SelectItem value="create-new">
-                <Link href={initialData.authUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+            {authUrl ? (
+              // <SelectItem value="create-new">
+                <a href={authUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500">
                   + Create new credential
-                </Link>
-              </SelectItem>
+                </a>
+              // </SelectItem>
             ) : (
               <>
-                {initialData.credentials.map((cred) => (
+                {
+                response?.map((cred: any) => (
                   <SelectItem key={cred.id} value={cred.id}>
                     Google Account ({cred.id.slice(0, 8)}...)
                   </SelectItem>
-                ))}
-                {initialData.authUrl && (
-                  <SelectItem value="create-new">
-                    <a href={initialData.authUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500">
-                      + Add another account
-                    </a>
-                  </SelectItem>
-                )}
+                ))
+                }
               </>
             )}
           </SelectContent>
