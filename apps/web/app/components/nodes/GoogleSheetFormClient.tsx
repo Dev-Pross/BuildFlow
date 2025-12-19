@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { handleSaveConfig } from './actions';
 import { useCredentials } from '@/app/hooks/useCredential';
 import { BACKEND_URL } from '@repo/common/zod';
+import { useAppSelector } from '@/app/hooks/redux';
 
 interface GoogleSheetFormClientProps {
   initialData: {
@@ -34,7 +35,8 @@ export function GoogleSheetFormClient(type:{type: string}) {
   const [result, setResult] = useState<any>(null);
   const [credId, setCredId] = useState<string>();
   // const [authUrl, setAuthUrl] = useState<string>()
-  const userId = ""// get it from redux
+  const userId = useAppSelector(s=>s.user.userId) || ""
+  console.log(userId, 'id from client')
   const credType = type.type
  
   const {cred: response, authUrl}  = useCredentials(credType)
@@ -43,7 +45,24 @@ export function GoogleSheetFormClient(type:{type: string}) {
   console.log(response," response from client after hook")
   console.log(authUrl," authurl")
  
-
+  const openAuthWindow = (url: string) => {
+    if (!url) return;
+    const width = 520;
+    const height = 650;
+    const screenLeft = (window as any).screenLeft ?? window.screenX ?? 0;
+    const screenTop = (window as any).screenTop ?? window.screenY ?? 0;
+    const screenWidth = window.innerWidth ?? document.documentElement.clientWidth ?? screen.width;
+    const screenHeight = window.innerHeight ?? document.documentElement.clientHeight ?? screen.height;
+    const left = Math.round(screenLeft + (screenWidth - width) / 2);
+    const top = Math.round(screenTop + (screenHeight - height) / 2);
+    const features = `popup=yes,toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,copyhistory=no,width=${width},height=${height},top=${top},left=${left}`;
+    const win = window.open(url, 'google-oauth', features);
+    if (!win) {
+      window.location.href = url;
+      return;
+    }
+    try { win.focus?.(); } catch {}
+  };
   // Fetch documents when credential is selected
   const handleCredentialChange = async (credentialId: string) => {
     setSelectedCredential(credentialId);
@@ -139,9 +158,9 @@ export function GoogleSheetFormClient(type:{type: string}) {
           <SelectContent>
             {authUrl ? (
               // <SelectItem value="create-new">
-                <a href={authUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+                <div onClick={()=>{openAuthWindow(authUrl)}} className="text-blue-500 cursor-default">
                   + Create new credential
-                </a>
+                </div>
               // </SelectItem>
             ) : (
               <>
