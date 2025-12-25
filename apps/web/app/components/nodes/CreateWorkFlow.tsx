@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import { ReactFlow } from "@xyflow/react";
 import PlaceholderNode from "./PlaceHolder";
@@ -9,7 +9,10 @@ import { TriggerSideBar } from "./TriggerSidebar";
 import ActionSideBar from "../Actions/ActionSidebar";
 import ActionNode from "../Actions/ActionNode";
 import { GoogleSheetFormClient } from "./GoogleSheetFormClient";
-import { useCredentials } from "@/app/hooks/useCredential";
+import { getEmptyWorkflow } from "@/app/workflow/lib/dbHandler";
+import { useDispatch } from "react-redux";
+import { workflowActions, workflowReducer } from "@/store/slices/workflowSlice";
+
 
 interface NodeType {
   id: string;
@@ -35,6 +38,7 @@ export const CreateWorkFlow = () => {
   const [actionSidebarOpen, setActionSidebarOpen] = useState(false);
   const [credType, setCredType] = useState<string>("");
   const [loadSheet, setLoadSheet] = useState<boolean>(false) 
+  const dispatch = useDispatch();
 
   const [nodes, setNodes] = useState<NodeType[]>([
     {
@@ -107,12 +111,21 @@ export const CreateWorkFlow = () => {
     ]);
   };
 
-  function getCredentials(type: string){
-    // if(credData){
-    //   console.log(creds.nodeId)
-    //   setNodeId(creds.nodeId)
-    // }
-  }
+  useEffect(()=>{
+    async function getEmptyWorkflowID(){
+      const workflow = await getEmptyWorkflow()
+      
+      if(workflow){
+        const {id, isEmpty} = workflow
+        dispatch(workflowActions.setWorkflowId(id))
+        dispatch(workflowActions.setWorkflowStatus(isEmpty))
+      }
+      else{
+        const newWorkflow 
+      }
+    }
+    getEmptyWorkflowID()
+  },[dispatch])
 
   const handleSelectAction = (action: {
     id: string;
