@@ -27,7 +27,7 @@ export const TriggerSchema = z.object({
 
 export const NodeSchema = z.object({
   Name: z.string(),
-  AvailabeNodeId: z.string(),
+  AvailableNodeId: z.string(),
   Config: z.any(),
   Position: z.number(),
   WorkflowId: z.string(),
@@ -38,14 +38,7 @@ export const WorkflowSchema = z.object({
   Name: z.string(),
   UserId: z.string(),
   Config: z.any(),
-  AvailableTriggerId: z.string(),
-  AvailableNodes: z.array(
-    z.object({
-      Name: z.string(),
-      AvailableNodeId: z.string(),
-      Config: z.any(),
-    })
-  ),
+
 });
 
 export enum statusCodes {

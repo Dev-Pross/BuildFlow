@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/routes/nodes.routes.ts","./src/routes/userRoutes/userMiddleware.ts","./src/routes/userRoutes/userRoutes.ts"],"version":"5.7.3"}
+{"root":["./src/index.ts","./src/routes/google_callback.ts","./src/routes/nodes.routes.ts","./src/routes/userroutes/usermiddleware.ts","./src/routes/userroutes/userroutes.ts"],"version":"5.7.3"}
