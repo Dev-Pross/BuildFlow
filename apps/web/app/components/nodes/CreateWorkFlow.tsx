@@ -44,9 +44,9 @@ export const CreateWorkFlow = () => {
   const dispatch = useDispatch();
   const userId = useAppSelector(s=>s.user.userId)
   const workflowId = useAppSelector(s=>s.workflow.workflow_id)
-  const existingTrigger = useAppSelector(s=>s.workflow.trigger?.name)
+  const existingTrigger = useAppSelector(s=>s.workflow.trigger)
   const existingNodes = useAppSelector(s=>s.workflow.nodes)
-  console.log(`workflow from redux, TRigger: ${existingTrigger}, Nodes: ${existingNodes}`)
+  // console.log(`workflow from redux, TRigger: ${existingTrigger}, Nodes: ${existingNodes}`)
 
   const [nodes, setNodes] = useState<NodeType[]>([
     {
@@ -149,6 +149,71 @@ export const CreateWorkFlow = () => {
     getWorkflowData();
   },[dispatch, userId, workflowId])
 
+  useEffect(()=>{
+    async function loadWorkflow(){
+      const START_X = 100;
+      const GAP = 250;
+      const Y = 200;
+
+      const newNodes: NodeType[] = [];
+      const newEdges: EdgeType[] = [];
+
+      if(existingTrigger){
+        newNodes.push({
+          id: `trigger-${existingTrigger.dbId}`,
+          type: 'trigger' as const,
+          position: { x: START_X, y: Y},
+          data:{
+            label: existingTrigger.name,
+            name: existingTrigger.name,
+            type: existingTrigger.name.split(" - ")[0],
+            icon: '📊',
+            config: existingTrigger.config,
+          }
+        })
+      }
+
+      existingNodes.forEach((node, index)=>{
+        const nodeId = `action-${node.dbId}-${index}`;
+
+        newNodes.push({
+          id: nodeId,
+          type: 'action' as const,
+          position: { x: START_X + (index + 1) * GAP, y: Y},
+          data:{
+            label: node.name,
+            name: node.name,
+            icon: '⚙️',
+            type: node.name.split(" - ")[0],
+            config: node.config,
+          }
+        });
+      });
+
+      const placeholderIndex = newNodes.length;
+      newNodes.push({
+        id: `placeholder-${Date.now()}`,
+        type: 'placeholder' as const,
+        position: { x: START_X + placeholderIndex * GAP, y: Y},
+        data: { label: '+' }
+      });
+      
+      for(let i=0; i<newNodes.length - 1; i++){
+        newEdges.push({
+          id: `edge-${i}`,
+          source: newNodes[i]?.id || '',
+          target: newNodes[i+1]?.id || ''
+        });
+      }
+
+      setNodes(newNodes);
+      setEdges(newEdges)
+    }
+
+    loadWorkflow()
+  },[existingNodes, existingTrigger])
+
+
   const handleSelectAction = (action: {
     id: string;
     name: string;
@@ -227,6 +292,7 @@ export const CreateWorkFlow = () => {
         nodes={nodes}
         edges={edges}
         onNodeClick={async(event, node) => {
+          console.log("Node clicked:", node.id, node.type, node.data);
           if (node.type === "placeholder") {
             const hasTrigger = nodes.some((n) => n.type === "trigger");
             if (hasTrigger) {
@@ -236,17 +302,14 @@ export const CreateWorkFlow = () => {
             }
           }
           if(node.type === 'action' || node.type === 'trigger'){
-            if(node.data.name === 'Google Sheet' ){
-              console.log("sheet called")
-              console.log(node.id)
-              // setNodeId("550e8400-e29b-41d4-a716-446655440000")
-              // getCredentials(node.data.type ? node.data.type : "")
-              // setNodeId(node.id.split("trigger-")[1] || "")
-              // if(cred)  setLoadSheet(true)
+            // Check by type instead of name (more reliable)
+            if(node.data.type?.includes('google_sheet') || node.data.type === "Google sheet"){
+              console.log("Google Sheet node clicked")
+              console.log("Node ID:", node.id)
               setNodeIDType(node.id)
-              setCredType(node.data.type === "google_sheet" ? "google_oauth" : "")
+              setCredType(node.data.type.includes("google sheet") || node.data.type.includes("google_sheet") ? "google_oauth" : "")
               setLoadSheet(!loadSheet)
-              console.log("hook called")
+              console.log("Form opened")
             }
           } 
         }}
