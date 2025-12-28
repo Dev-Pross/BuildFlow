@@ -22,7 +22,7 @@ interface GoogleSheetFormClientProps {
   nodeId: string;
 }
 
-export function GoogleSheetFormClient(type:{type: string}) {
+export function GoogleSheetFormClient(type:{type: string, nodeType: string}) {
   const [selectedCredential, setSelectedCredential] = useState<string>('');
   const [documents, setDocuments] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedDocument, setSelectedDocument] = useState<string>('');
@@ -36,9 +36,14 @@ export function GoogleSheetFormClient(type:{type: string}) {
   const [credId, setCredId] = useState<string>();
   // const [authUrl, setAuthUrl] = useState<string>()
   const userId = useAppSelector(s=>s.user.userId) || ""
+  const workflowId = useAppSelector(s=>s.workflow.workflow_id) || ''
   console.log(userId, 'id from client')
   const credType = type.type
- 
+  const nodeType = type.nodeType.split("~")[0] || ""
+  console.log('checking nodeType: ', nodeType);
+  
+  const nodeId = type.nodeType.split("~")[1] || ""
+  console.log('checking node id: ',nodeId)
   const {cred: response, authUrl}  = useCredentials(credType)
   console.log('response from form client', typeof(response))
 
@@ -121,8 +126,11 @@ export function GoogleSheetFormClient(type:{type: string}) {
 
   const handleSaveClick = () => {
     const config = {
-      userId,
-      // nodeId,
+      userId:userId,
+      node_Trigger:nodeId,
+      workflowId,
+      type:nodeType,
+      name: `Google sheet - ${nodeType}`,
       credentialId: selectedCredential,
       spreadsheetId: selectedDocument,
       sheetName: selectedSheet,
@@ -134,14 +142,14 @@ export function GoogleSheetFormClient(type:{type: string}) {
       console.log('Sending config:', config);
       const res = await handleSaveConfig(config);
       console.log('Full response:', res);
-      console.log('Success:', res.success);
-      console.log('Output:', res.output);
-      console.log('Error:', res.error);
-      setResult(res);
+      // console.log('Success:', res.success);
+      // console.log('Output:', res.output);
+      // console.log('Error:', res.error);
+      // setResult(res);
       if (res.success) {
         toast.success("Configuration saved!");
-      } else if (res.error) {
-        toast.error(res.error);
+      } else {
+        toast.error(res.data);
       }
     });
   }
