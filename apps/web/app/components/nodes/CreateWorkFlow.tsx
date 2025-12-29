@@ -40,7 +40,8 @@ export const CreateWorkFlow = () => {
   const [actionSidebarOpen, setActionSidebarOpen] = useState(false);
   const [credType, setCredType] = useState<string>("");
   const [nodeIDType, setNodeIDType] = useState<string>('')
-  const [loadSheet, setLoadSheet] = useState<boolean>(false) 
+  const [loadSheet, setLoadSheet] = useState<boolean>(false)
+  const [selectedNodeConfig, setSelectedNodeConfig] = useState<any>(undefined);
   const dispatch = useDispatch();
   const userId = useAppSelector(s=>s.user.userId)
   const workflowId = useAppSelector(s=>s.workflow.workflow_id)
@@ -314,6 +315,8 @@ export const CreateWorkFlow = () => {
               console.log("Node ID:", node.id)
               setNodeIDType(node.id)
               setCredType("google_oauth")
+              console.log("config from node: ", node.data.config)
+              setSelectedNodeConfig(node.data.config)
               setLoadSheet(!loadSheet)
               console.log("Form opened")
             }
@@ -334,7 +337,17 @@ export const CreateWorkFlow = () => {
       />
 
       {loadSheet && 
-      <GoogleSheetFormClient type={credType} nodeType={nodeIDType}/>
+      <GoogleSheetFormClient 
+        type={credType} 
+        nodeType={nodeIDType}
+        initialData={selectedNodeConfig ? {
+          range: selectedNodeConfig.range as string,
+          operation: selectedNodeConfig.operation as string,
+          sheetName: selectedNodeConfig.sheetName as string,
+          spreadSheetId: selectedNodeConfig.spreadsheetId as string,
+          credentialId: selectedNodeConfig.credId as string,
+        } : undefined}
+      />
       }
     </div>
   );
