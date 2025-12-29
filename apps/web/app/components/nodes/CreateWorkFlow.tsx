@@ -150,14 +150,19 @@ export const CreateWorkFlow = () => {
   },[dispatch, userId, workflowId])
 
   useEffect(()=>{
-    async function loadWorkflow(){
+    // Guard: only rebuild nodes/edges if there's actual stored data
+    if (existingNodes.length === 0 && !existingTrigger) {
+      return; // Keep the current placeholder state
+    }
+
+    function loadWorkflow(){
       const START_X = 100;
       const GAP = 250;
       const Y = 200;
 
       const newNodes: NodeType[] = [];
       const newEdges: EdgeType[] = [];
-
+      const type = existingTrigger?.name.split(" - ")[0]
       if(existingTrigger){
         newNodes.push({
           id: `trigger-${existingTrigger.dbId}`,
@@ -166,7 +171,7 @@ export const CreateWorkFlow = () => {
           data:{
             label: existingTrigger.name,
             name: existingTrigger.name,
-            type: existingTrigger.name.split(" - ")[0],
+            type: type,
             icon: '📊',
             config: existingTrigger.config,
           }
@@ -175,7 +180,7 @@ export const CreateWorkFlow = () => {
 
       existingNodes.forEach((node, index)=>{
         const nodeId = `action-${node.dbId}-${index}`;
-
+        const type = node.name.split(" - ")[0]
         newNodes.push({
           id: nodeId,
           type: 'action' as const,
@@ -184,7 +189,7 @@ export const CreateWorkFlow = () => {
             label: node.name,
             name: node.name,
             icon: '⚙️',
-            type: node.name.split(" - ")[0],
+            type: type,
             config: node.config,
           }
         });
