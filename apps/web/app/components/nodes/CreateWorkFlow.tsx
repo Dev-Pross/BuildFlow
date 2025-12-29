@@ -10,7 +10,7 @@ import ActionSideBar from "../Actions/ActionSidebar";
 import ActionNode from "../Actions/ActionNode";
 import { GoogleSheetFormClient } from "./GoogleSheetFormClient";
 import { useDispatch } from "react-redux";
-import { workflowActions, workflowReducer } from "@/store/slices/workflowSlice";
+import { workflowActions } from "@/store/slices/workflowSlice";
 import { createWorkflow, getEmptyWorkflow, getworkflowData } from "@/app/workflow/lib/config";
 import { useAppSelector } from '@/app/hooks/redux';
 
@@ -303,11 +303,12 @@ export const CreateWorkFlow = () => {
           }
           if(node.type === 'action' || node.type === 'trigger'){
             // Check by type instead of name (more reliable)
-            if(node.data.type?.includes('google_sheet') || node.data.type === "Google sheet"){
+            const nodeType = node.data.type?.toLowerCase() || '';
+            if(nodeType.includes('google_sheet') || nodeType.includes('google sheet')){
               console.log("Google Sheet node clicked")
               console.log("Node ID:", node.id)
               setNodeIDType(node.id)
-              setCredType(node.data.type.includes("google sheet") || node.data.type.includes("google_sheet") ? "google_oauth" : "")
+              setCredType("google_oauth")
               setLoadSheet(!loadSheet)
               console.log("Form opened")
             }
