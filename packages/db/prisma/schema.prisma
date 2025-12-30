@@ -54,20 +54,20 @@ model AvailableNode {
   authType    String?
   requireAuth Boolean?
   description String?
-  nodes       Node[]
+  Node        Node[]
 }
 
 model Node {
-  id             String          @id @default(uuid())
-  name           String
-  config         Json
-  position       Int
-  workflowId     String?
-  AvailabeNodeID String
-  credentials    Credential[]
-  AvailabeNodeId AvailableNode   @relation(fields: [AvailabeNodeID], references: [id])
-  workflow       Workflow?       @relation(fields: [workflowId], references: [id])
-  executions     NodeExecution[]
+  id              String          @id @default(uuid())
+  name            String
+  config          Json
+  position        Int
+  workflowId      String?
+  AvailableNodeID String
+  credentials     Credential[]
+  AvailableNode   AvailableNode   @relation(fields: [AvailableNodeID], references: [id])
+  workflow        Workflow?       @relation(fields: [workflowId], references: [id])
+  executions      NodeExecution[]
 }
 
 model Workflow {
@@ -79,6 +79,7 @@ model Workflow {
   config      Json
   updatedAt   DateTime            @updatedAt
   status      WorkflowStatus?
+  isEmpty     Boolean?            @default(true)
   nodes       Node[]
   Trigger     Trigger?
   user        User                @relation(fields: [userId], references: [id])

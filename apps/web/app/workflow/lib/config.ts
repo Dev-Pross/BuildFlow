@@ -1,6 +1,6 @@
 import { BACKEND_URL } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
-import axios from "axios"
+import axios from "axios";
 export const getAvailableTriggers = async () => {
   try {
     const response = await axios.get(
@@ -11,7 +11,7 @@ export const getAvailableTriggers = async () => {
     );
     console.log(response.data.Data);
     console.log(response.data);
- 
+
     const Data = JSON.stringify(response.data.Data);
     console.log(Data);
     console.log("This is the name from the", response.data.Data);
@@ -24,22 +24,20 @@ export const getAvailableTriggers = async () => {
   }
 };
 
-export const getCredentials = async(type: string)=>{
-  try{
-   
+export const getCredentials = async (type: string) => {
+  try {
     const response = await axios.get(
       `${BACKEND_URL}/user/getCredentials/${type}`,
       {
         withCredentials: true,
       }
     );
-    console.log("response from config: ",response);
-    
+    console.log("response from config: ", response);
+
     const Data = JSON.stringify(response.data.Data);
     return response.data.Data;
-  }
-  catch(e){
+  } catch (e) {
     console.error("Error fetching credentials:", e);
     throw e;
   }
-}
+};

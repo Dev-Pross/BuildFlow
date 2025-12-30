@@ -65,7 +65,8 @@ router.post("/createNode", async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get("/getAvailableNodes",
+router.get(
+  "/getAvailableNodes",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     if (!req.user) {
@@ -90,7 +91,8 @@ router.get("/getAvailableNodes",
   }
 );
 
-router.post("/createTriggers",
+router.post(
+  "/createTriggers",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -124,7 +126,8 @@ router.post("/createTriggers",
   }
 );
 
-router.get("/getAvailableTriggers",
+router.get(
+  "/getAvailableTriggers",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -148,46 +151,50 @@ router.get("/getAvailableTriggers",
   }
 );
 
-router.get('/getCredentials/:type',
+router.get(
+  "/getCredentials/:type",
   userMiddleware,
-  async (req: AuthRequest, res) =>{
-    try{
-      console.log("user from getcredentials: ",req.user)
-      if(!req.user){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "User is not Loggedin"
-          })
-        }
-        const userId = req.user.sub;
-        const type = req.params.type
-        console.log(userId," -userid")
-        if(!type || !userId){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "Incorrect type Input",
-          });
-        }
-        const executor = new GoogleSheetsNodeExecutor()
-        const response = await executor.getAllCredentials(userId,type)
-        // console.log( typeof(response));
-        // console.log("response: ",response)
-        const authUrl = typeof response === 'string' ? response : null
-        // console.log(authUrl);
-        
-        const credentials = response instanceof Object ? response : null
-        // console.log(credentials)
-        if(authUrl){
-          return res.status(statusCodes.OK).json({
-          message: "Credentials not found create credentials using this auth url",
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("user from getcredentials: ", req.user);
+      if (!req.user) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "User is not Loggedin",
+        });
+      }
+      const userId = req.user.sub;
+      const type = req.params.type;
+      console.log(userId, " -userid");
+      if (!type || !userId) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Incorrect type Input",
+        });
+      }
+      const executor = new GoogleSheetsNodeExecutor();
+      const response = await executor.getAllCredentials(userId, type);
+      // console.log( typeof(response));
+      // console.log("response: ",response)
+      const authUrl = typeof response === "string" ? response : null;
+      // console.log(authUrl);
+
+      const credentials = response instanceof Object ? response : null;
+      // console.log(credentials)
+      if (authUrl) {
+        return res.status(statusCodes.OK).json({
+          message:
+            "Credentials not found create credentials using this auth url",
           Data: authUrl,
         });
-        }
-        else return res.status(statusCodes.OK).json({
+      } else
+        return res.status(statusCodes.OK).json({
           message: "Credentials Fetched succesfully",
           Data: credentials,
         });
-    }
-    catch(e){
-      console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
+    } catch (e) {
+      console.log(
+        "Error Fetching the credentials ",
+        e instanceof Error ? e.message : "Unkown reason"
+      );
       return res
         .status(statusCodes.INTERNAL_SERVER_ERROR)
         .json({ message: "Internal server from fetching the credentials" });
@@ -195,8 +202,8 @@ router.get('/getCredentials/:type',
   }
 );
 
-
-router.post("/create/workflow",
+router.post(
+  "/create/workflow",
   userMiddleware,
   async (req: AuthRequest, res) => {
     try {
@@ -285,7 +292,8 @@ router.post("/create/workflow",
   }
 );
 
-router.get("/workflows",
+router.get(
+  "/workflows",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -313,7 +321,8 @@ router.get("/workflows",
   }
 );
 
-router.get("/workflow/:workflowId",
+router.get(
+  "/workflow/:workflowId",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
