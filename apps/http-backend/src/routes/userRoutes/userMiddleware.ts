@@ -21,7 +21,7 @@ export async function userMiddleware(
   next: NextFunction
 ) {
   try {
-    console.log(req.cookies);
+    // console.log(req.cookies);
     const payload = await getToken({ req, secret: SECRET });
 
     if (!payload) {
