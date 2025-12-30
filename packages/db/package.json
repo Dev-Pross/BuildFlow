@@ -6,7 +6,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "prisma generate && tsc -b ",
-
     "dev": "node dist/index.js",
     "run": "npm run build && npm run dev"
   },
@@ -19,6 +18,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^6.19.0",
     "@types/dotenv": "^8.2.3",
     "dotenv": "^17.2.3",

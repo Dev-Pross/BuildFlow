@@ -9,9 +9,11 @@ import { TriggerSideBar } from "./TriggerSidebar";
 import ActionSideBar from "../Actions/ActionSidebar";
 import ActionNode from "../Actions/ActionNode";
 import { GoogleSheetFormClient } from "./GoogleSheetFormClient";
-import { getEmptyWorkflow } from "@/app/workflow/lib/dbHandler";
 import { useDispatch } from "react-redux";
 import { workflowActions, workflowReducer } from "@/store/slices/workflowSlice";
+import { createWorkflow, getEmptyWorkflow, getworkflowData } from "@/app/workflow/lib/config";
+import { useAppSelector } from '@/app/hooks/redux';
+
 
 interface NodeType {
   id: string;
@@ -38,6 +40,11 @@ export const CreateWorkFlow = () => {
   const [credType, setCredType] = useState<string>("");
   const [loadSheet, setLoadSheet] = useState<boolean>(false);
   const dispatch = useDispatch();
+  const userId = useAppSelector(s=>s.user.userId)
+  const workflowId = useAppSelector(s=>s.workflow.workflow_id)
+  const existingTrigger = useAppSelector(s=>s.workflow.trigger?.name)
+  const existingNodes = useAppSelector(s=>s.workflow.nodes)
+  console.log(`workflow from redux, TRigger: ${existingTrigger}, Nodes: ${existingNodes}`)
 
   const [nodes, setNodes] = useState<NodeType[]>([
     {
@@ -67,7 +74,7 @@ export const CreateWorkFlow = () => {
   }) => {
     const timestamp = Date.now();
     const placeholderId = `placeholder-${timestamp}`;
-    const triggerNodeId = `trigger-${trigger.id}`;
+    const triggerNodeId = `trigger~${trigger.id}`;
     const edgeId = `e-${triggerNodeId}-${placeholderId}`;
 
     setNodes((currentNodes) => {
@@ -133,7 +140,7 @@ export const CreateWorkFlow = () => {
   }) => {
     const timestamp = Date.now();
     const newPlaceholderId = `placeholder-${timestamp}`;
-    const actionNodeId = `action-${action.id}-${timestamp}`;
+    const actionNodeId = `action~${action.id}`;
 
     setNodes((currentNodes) => {
       const placeholderNode = currentNodes.find(
