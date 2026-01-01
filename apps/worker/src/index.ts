@@ -21,6 +21,7 @@ async function main() {
         partition,
         offset: message.offset,
         value: message.value?.toString(),
+        topic
       });
       await new Promise((r) => setTimeout(r, 5000));
 
