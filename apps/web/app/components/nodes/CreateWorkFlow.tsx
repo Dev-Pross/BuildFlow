@@ -131,7 +131,7 @@ export const CreateWorkFlow = () => {
       }
       else{
         if (!userId) return
-        const newWorkflow = await createWorkflow(userId)
+        const newWorkflow = await createWorkflow()
         dispatch(workflowActions.setWorkflowId(newWorkflow.id))
         dispatch(workflowActions.setWorkflowStatus(newWorkflow.isEmpty))
       }
@@ -146,7 +146,7 @@ export const CreateWorkFlow = () => {
         // console.log(`workfklow from redux: ${workflow.data}`)
       }
     }
-    if(!workflowId) getEmptyWorkflowID()
+    // if(!workflowId) getEmptyWorkflowID()
     getWorkflowData();
   },[dispatch, userId, workflowId])
 
@@ -292,8 +292,8 @@ export const CreateWorkFlow = () => {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
-      <ReactFlow
+    <div style={{ width: "100%", height: "100%" }}>
+      <ReactFlow  fitViewOptions={{minZoom:0.1}}
         nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}
@@ -340,6 +340,7 @@ export const CreateWorkFlow = () => {
       <GoogleSheetFormClient 
         type={credType} 
         nodeType={nodeIDType}
+        position={existingNodes.length + 1}
         initialData={selectedNodeConfig ? {
           range: selectedNodeConfig.range as string,
           operation: selectedNodeConfig.operation as string,

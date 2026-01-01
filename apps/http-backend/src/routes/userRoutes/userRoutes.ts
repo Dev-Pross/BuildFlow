@@ -200,6 +200,31 @@ router.get('/getCredentials/:type',
   }
 );
 
+router.get('/getAllCreds', userMiddleware, async(req: AuthRequest, res:Response) =>{
+  try{
+      if(!req.user){
+          return res.status(statusCodes.BAD_REQUEST).json({
+            message: "User is not Loggedin"
+          })
+        }
+        const userId = req.user.sub;
+        const creds = await prismaClient.credential.findMany({
+          where:{ userId: userId}
+        })
+        if(creds){
+          return res.status(statusCodes.OK).json({
+            message: "Fetched all credentials of the User!",
+            data: creds
+          })
+        } 
+      }
+      catch(e){
+        console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
+        return res
+          .status(statusCodes.INTERNAL_SERVER_ERROR)
+          .json({ message: "Internal server from fetching the credentials" });
+      }
+})
 // ----------------------------------- CREATE WORKFLOW ---------------------------------
 
 router.post("/create/workflow",
@@ -341,7 +366,7 @@ router.get("/workflow/:workflowId",
         Data: getWorkflow,
       });
     } catch (error: any) {
-      console.log("Error Fetching the workflow ", error.meesage);
+      console.log("Error Fetching the workflow ", error.message);
       return res
         .status(statusCodes.INTERNAL_SERVER_ERROR)
         .json({ message: "Internal server from fetching the workflow" });
@@ -371,6 +396,12 @@ router.post('/create/trigger', userMiddleware, async(req: AuthRequest, res: Resp
           config: dataSafe.data.Config,
           workflowId: dataSafe.data.WorkflowId,
           // trigger type pettla db lo ledu aa column
+        }
+      })
+      await prismaClient.workflow.update({
+        where:{ id: dataSafe.data.WorkflowId },
+        data:{
+          isEmpty: false
         }
       })
 

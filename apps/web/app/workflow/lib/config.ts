@@ -1,6 +1,7 @@
 import { BACKEND_URL } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
 import axios from "axios"
+const date = new Date()
 export const getAvailableTriggers = async () => {
   try {
     const response = await axios.get(
@@ -44,15 +45,42 @@ export const getCredentials = async(type: string)=>{
   }
 }
 
-const date = new Date()
+export const getAllCredentials = async()=>{
+  try{
+    const res = await axios.get(`${BACKEND_URL}/user/getAllCreds`, {
+      withCredentials: true
+    })
+    const data = res.data.data
+    console.log("credentails: ",data)
+    return data
+  }
+  catch(e){
+    console.error("Error fetching credentials:", e);
+    throw e;
+  }
+}
 
 
-export const createWorkflow = async(userId: string)=>{
+export const getAllWorkflows = async()=>{
+  try{
+    const res = await axios.get(`${BACKEND_URL}/user/workflows`,{
+      withCredentials: true
+    })
+    const data = res.data.Data
+    console.log("workflows: ",data)
+    return data
+  }catch(e){
+    console.error("Error fetching credentials:", e);
+    throw e;
+  }
+}
+
+export const createWorkflow = async()=>{
     try{
       const response = await axios.post(`${BACKEND_URL}/user/create/workflow`,
         {
           Name:`workflow-${date.getTime()}`,
-          UserId: userId,
+          // UserId: userId,
           Config: {}
         },{
           headers: {

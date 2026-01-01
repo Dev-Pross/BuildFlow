@@ -3,12 +3,16 @@ import {createSlice, PayloadAction } from '@reduxjs/toolkit'
 export type AuthStatus = 'Authenticated' | 'Unauthenticated'
 export interface UserSlice {
     userId: string | null;
-    status: AuthStatus
+    status: AuthStatus;
+    email: string | null;
+    name: string | null;
 }
 
 const initialState: UserSlice = {
     userId: null,
-    status: 'Unauthenticated'
+    status: 'Unauthenticated',
+    email: null,
+    name: null
 };
 
 const userSlice = createSlice({
@@ -20,6 +24,12 @@ const userSlice = createSlice({
         },
         setUserStatus(state, action: PayloadAction<AuthStatus>){
             state.status = action.payload;
+        },
+        setUserName(state, action: PayloadAction<string | null>){
+            state.name = action.payload
+        },
+        setEmail(state, action: PayloadAction<string | null>){
+            state.email = action.payload
         },
         clearUser(){
             return initialState;

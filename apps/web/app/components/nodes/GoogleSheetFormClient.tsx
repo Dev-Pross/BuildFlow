@@ -15,6 +15,8 @@ import { useAppSelector } from '@/app/hooks/redux';
 interface GoogleSheetFormClientProps {
   type: string;
   nodeType: string;
+
+  position: number;
   initialData?: {
     range?: string;
     operation?: string;
@@ -24,7 +26,7 @@ interface GoogleSheetFormClientProps {
   };
 }
 
-export function GoogleSheetFormClient({ type, nodeType, initialData }: GoogleSheetFormClientProps) {
+export function GoogleSheetFormClient({ type, nodeType, position, initialData }: GoogleSheetFormClientProps) {
   const [selectedCredential, setSelectedCredential] = useState<string>(initialData?.credentialId || '');
   const [documents, setDocuments] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedDocument, setSelectedDocument] = useState<string>(initialData?.spreadSheetId || '');
@@ -190,6 +192,7 @@ export function GoogleSheetFormClient({ type, nodeType, initialData }: GoogleShe
       node_Trigger:nodeId,
       workflowId,
       type:nodeTypeParsed,
+      position: position,
       name: `Google sheet - ${nodeTypeParsed}`,
       credentialId: selectedCredential,
       spreadsheetId: selectedDocument,

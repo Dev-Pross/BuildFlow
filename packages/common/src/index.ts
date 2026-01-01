@@ -36,7 +36,6 @@ export const NodeSchema = z.object({
 
 export const WorkflowSchema = z.object({
   Name: z.string(),
-  UserId: z.string(),
   Config: z.any(),
 
 });
