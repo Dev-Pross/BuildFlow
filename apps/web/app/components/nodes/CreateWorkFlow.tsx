@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import "@xyflow/react/dist/style.css";
-import { Background, Controls, ReactFlow } from "@xyflow/react";
+import { ReactFlow } from "@xyflow/react";
 import PlaceholderNode from "./PlaceHolder";
 import { TriggerNode } from "./TriggerNode";
 
@@ -13,6 +13,7 @@ import { useDispatch } from "react-redux";
 import { workflowActions } from "@/store/slices/workflowSlice";
 import { createWorkflow, getEmptyWorkflow, getworkflowData } from "@/app/workflow/lib/config";
 import { useAppSelector } from '@/app/hooks/redux';
+
 
 
 interface NodeType {
@@ -38,7 +39,9 @@ export const CreateWorkFlow = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [actionSidebarOpen, setActionSidebarOpen] = useState(false);
   const [credType, setCredType] = useState<string>("");
-  const [loadSheet, setLoadSheet] = useState<boolean>(false);
+  const [nodeIDType, setNodeIDType] = useState<string>('')
+  const [loadSheet, setLoadSheet] = useState<boolean>(false)
+  const [selectedNodeConfig, setSelectedNodeConfig] = useState<any>(undefined);
   const dispatch = useDispatch();
   const userId = useAppSelector(s=>s.user.userId)
   const workflowId = useAppSelector(s=>s.workflow.workflow_id)
@@ -117,20 +120,35 @@ export const CreateWorkFlow = () => {
     ]);
   };
 
-  useEffect(() => {
-    async function getEmptyWorkflowID() {
-      const workflow = await getEmptyWorkflow();
-
-      if (workflow) {
-        const { id, isEmpty } = workflow;
-        dispatch(workflowActions.setWorkflowId(id));
-        dispatch(workflowActions.setWorkflowStatus(isEmpty));
-      } else {
-        // const newWorkflow
+  useEffect(()=>{
+    async function getEmptyWorkflowID(){
+      const workflow = await getEmptyWorkflow()
+      
+      if(workflow){
+        const {id, isEmpty} = workflow
+        dispatch(workflowActions.setWorkflowId(id))
+        dispatch(workflowActions.setWorkflowStatus(isEmpty))
+      }
+      else{
+        if (!userId) return
+        const newWorkflow = await createWorkflow()
+        dispatch(workflowActions.setWorkflowId(newWorkflow.id))
+        dispatch(workflowActions.setWorkflowStatus(newWorkflow.isEmpty))
       }
     }
-    getEmptyWorkflowID();
-  }, [dispatch]);
+    async function getWorkflowData(){
+      if(!workflowId) return
+      const workflow = await getworkflowData(workflowId)
+      if(workflow.success){
+        dispatch(workflowActions.setWorkflowStatus(false))
+        dispatch(workflowActions.setWorkflowNodes(workflow.data.nodes))
+        dispatch(workflowActions.setWorkflowTrigger(workflow.data.Trigger))
+        // console.log(`workfklow from redux: ${workflow.data}`)
+      }
+    }
+    // if(!workflowId) getEmptyWorkflowID()
+    getWorkflowData();
+  },[dispatch, userId, workflowId])
 
   useEffect(()=>{
     // Guard: only rebuild nodes/edges if there's actual stored data
@@ -279,7 +297,8 @@ export const CreateWorkFlow = () => {
         nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}
-        onNodeClick={async (event, node) => {
+        onNodeClick={async(event, node) => {
+          console.log("Node clicked:", node.id, node.type, node.data);
           if (node.type === "placeholder") {
             const hasTrigger = nodes.some((n) => n.type === "trigger");
             if (hasTrigger) {
@@ -288,26 +307,22 @@ export const CreateWorkFlow = () => {
               setSidebarOpen(true);
             }
           }
-          if (node.type === "action" || node.type === "trigger") {
-            if (node.data.name === "Google Sheet") {
-              console.log("sheet called");
-              console.log(node.id);
-              // setNodeId("550e8400-e29b-41d4-a716-446655440000")
-              // getCredentials(node.data.type ? node.data.type : "")
-              // setNodeId(node.id.split("trigger-")[1] || "")
-              // if(cred)  setLoadSheet(true)
-              setCredType(
-                node.data.type === "google_sheet" ? "google_oauth" : ""
-              );
-              setLoadSheet(!loadSheet);
-              console.log("hook called");
+          if(node.type === 'action' || node.type === 'trigger'){
+            // Check by type instead of name (more reliable)
+            const nodeType = node.data.type?.toLowerCase() || '';
+            if(nodeType.includes('google_sheet') || nodeType.includes('google sheet')){
+              console.log("Google Sheet node clicked")
+              console.log("Node ID:", node.id)
+              setNodeIDType(node.id)
+              setCredType("google_oauth")
+              console.log("config from node: ", node.data.config)
+              setSelectedNodeConfig(node.data.config)
+              setLoadSheet(!loadSheet)
+              console.log("Form opened")
             }
-          }
+          } 
         }}
-      >
-        <Background />
-        <Controls />
-      </ReactFlow>
+      />
 
       <TriggerSideBar
         isOpen={sidebarOpen}
@@ -321,7 +336,20 @@ export const CreateWorkFlow = () => {
         onSelectAction={handleSelectAction}
       />
 
-      {loadSheet && <GoogleSheetFormClient type={credType} />}
+      {loadSheet && 
+      <GoogleSheetFormClient 
+        type={credType} 
+        nodeType={nodeIDType}
+        position={existingNodes.length + 1}
+        initialData={selectedNodeConfig ? {
+          range: selectedNodeConfig.range as string,
+          operation: selectedNodeConfig.operation as string,
+          sheetName: selectedNodeConfig.sheetName as string,
+          spreadSheetId: selectedNodeConfig.spreadsheetId as string,
+          credentialId: selectedNodeConfig.credId as string,
+        } : undefined}
+      />
+      }
     </div>
   );
 };
