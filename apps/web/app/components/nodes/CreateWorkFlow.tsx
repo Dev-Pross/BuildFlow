@@ -274,8 +274,8 @@ export const CreateWorkFlow = () => {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
-      <ReactFlow
+    <div style={{ width: "100%", height: "100%" }}>
+      <ReactFlow  fitViewOptions={{minZoom:0.1}}
         nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}

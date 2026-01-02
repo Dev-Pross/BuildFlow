@@ -318,7 +318,7 @@ router.get(
         Data: getWorkflow,
       });
     } catch (error: any) {
-      console.log("Error Fetching the workflow ", error.meesage);
+      console.log("Error Fetching the workflow ", error.message);
       return res
         .status(statusCodes.INTERNAL_SERVER_ERROR)
         .json({ message: "Internal server from fetching the workflow" });
@@ -348,6 +348,12 @@ router.post('/create/trigger', userMiddleware, async(req: AuthRequest, res: Resp
           config: dataSafe.data.Config,
           workflowId: dataSafe.data.WorkflowId,
           // trigger type pettla db lo ledu aa column
+        }
+      })
+      await prismaClient.workflow.update({
+        where:{ id: dataSafe.data.WorkflowId },
+        data:{
+          isEmpty: false
         }
       })
 
