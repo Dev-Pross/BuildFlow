@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Label } from '@workspace/ui/components/label';
-import React, { useState, useTransition } from 'react';
+import React, { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { handleSaveConfig } from './actions';
@@ -13,42 +13,102 @@ import { BACKEND_URL } from '@repo/common/zod';
 import { useAppSelector } from '@/app/hooks/redux';
 
 interface GoogleSheetFormClientProps {
-  initialData: {
-    credentials: Array<{ id: string }>;
-    authUrl?: string;
-    hasCredentials: boolean;
+  type: string;
+  nodeType: string;
+  initialData?: {
+    range?: string;
+    operation?: string;
+    sheetName?: string;
+    spreadSheetId?: string;
+    credentialId?: string;
   };
-  userId: string;
-  nodeId: string;
 }
 
-export function GoogleSheetFormClient(type:{type: string, nodeType: string}) {
-  const [selectedCredential, setSelectedCredential] = useState<string>('');
+export function GoogleSheetFormClient({ type, nodeType, initialData }: GoogleSheetFormClientProps) {
+  const [selectedCredential, setSelectedCredential] = useState<string>(initialData?.credentialId || '');
   const [documents, setDocuments] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedDocument, setSelectedDocument] = useState<string>('');
+  const [selectedDocument, setSelectedDocument] = useState<string>(initialData?.spreadSheetId || '');
   const [sheets, setSheets] = useState<Array<{ id: number; name: string }>>([]);
-  const [selectedSheet, setSelectedSheet] = useState<string>('');
-  const [operation, setOperation] = useState<string>('read_rows');
-  const [range, setRange] = useState<string>('A1:Z100');
+  const [selectedSheet, setSelectedSheet] = useState<string>(initialData?.sheetName || '');
+  const [operation, setOperation] = useState<string>(initialData?.operation || 'read_rows');
+  const [range, setRange] = useState<string>(initialData?.range || 'A1:Z100');
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<any>(null);
-  const [credId, setCredId] = useState<string>();
+  const [credId, setCredId] = useState<string>(initialData?.credentialId || '');
   // const [authUrl, setAuthUrl] = useState<string>()
+  console.log('initial data: ', initialData)
+  console.log('initial document: ', selectedDocument)
+  console.log('initial sheet: ', selectedSheet)
+  console.log('initial range: ', range)
+  console.log("initial operation: ",operation)
+
   const userId = useAppSelector(s=>s.user.userId) || ""
   const workflowId = useAppSelector(s=>s.workflow.workflow_id) || ''
   console.log(userId, 'id from client')
-  const credType = type.type
-  const nodeType = type.nodeType.split("~")[0] || ""
-  console.log('checking nodeType: ', nodeType);
+  const credType = type
+  const nodeTypeParsed = nodeType.split("~")[0] || ""
+  console.log('checking nodeType: ', nodeTypeParsed);
   
-  const nodeId = type.nodeType.split("~")[1] || ""
+  const nodeId = nodeType.split("~")[1] || ""
   console.log('checking node id: ',nodeId)
   const {cred: response, authUrl}  = useCredentials(credType)
   console.log('response from form client', typeof(response))
 
   console.log(response," response from client after hook")
   console.log(authUrl," authurl")
+
+  // Fetch documents when there's initial credentialId
+  useEffect(() => {
+    const fetchInitialDocuments = async () => {
+      if (!initialData?.credentialId) return;
+      
+      setLoading(true);
+      try {
+        const res = await fetch(`${BACKEND_URL}/node/getDocuments/${initialData.credentialId}`, {
+          method: 'GET',
+          credentials: "include",
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await res.json();
+        if (data.files?.length > 0) {
+          setDocuments(data.files);
+        }
+      } catch (error) {
+        console.error('Failed to fetch initial documents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchInitialDocuments();
+  }, [initialData?.credentialId]);
+
+  // Fetch sheets when there's initial spreadSheetId
+  useEffect(() => {
+    const fetchInitialSheets = async () => {
+      if (!initialData?.credentialId || !initialData?.spreadSheetId) return;
+      
+      setLoading(true);
+      try {
+        const res = await fetch(`${BACKEND_URL}/node/getSheets/${initialData.credentialId}/${initialData.spreadSheetId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (data.files?.data?.length > 0) {
+          setSheets(data.files.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch initial sheets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchInitialSheets();
+  }, [initialData?.credentialId, initialData?.spreadSheetId]);
  
   const openAuthWindow = (url: string) => {
     if (!url) return;
@@ -129,8 +189,8 @@ export function GoogleSheetFormClient(type:{type: string, nodeType: string}) {
       userId:userId,
       node_Trigger:nodeId,
       workflowId,
-      type:nodeType,
-      name: `Google sheet - ${nodeType}`,
+      type:nodeTypeParsed,
+      name: `Google sheet - ${nodeTypeParsed}`,
       credentialId: selectedCredential,
       spreadsheetId: selectedDocument,
       sheetName: selectedSheet,
