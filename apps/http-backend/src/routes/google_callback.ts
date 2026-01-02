@@ -21,7 +21,7 @@ googleAuth.get('/callback', async(req: Request, res: Response)=>{
     );
 
     try {
-        const { tokens } = await oauth2.getToken(code);
+        const { tokens }  = await oauth2.getToken(code);
 
         // Save tokens to database if userId (state) is provided
         if (state && typeof state === 'string') {

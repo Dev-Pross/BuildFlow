@@ -68,7 +68,8 @@ router.post("/createAvaliableNode", async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get("/getAvailableNodes",
+router.get(
+  "/getAvailableNodes",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     if (!req.user) {
@@ -93,7 +94,8 @@ router.get("/getAvailableNodes",
   }
 );
 
-router.post("/createAvaliableTriggers",
+router.post(
+  "/createTriggers",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -127,7 +129,8 @@ router.post("/createAvaliableTriggers",
   }
 );
 
-router.get("/getAvailableTriggers",
+router.get(
+  "/getAvailableTriggers",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -155,44 +158,47 @@ router.get("/getAvailableTriggers",
 
 router.get('/getCredentials/:type',
   userMiddleware,
-  async (req: AuthRequest, res) =>{
-    try{
-      console.log("user from getcredentials: ",req.user)
-      if(!req.user){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "User is not Loggedin"
-          })
-        }
-        const userId = req.user.sub;
-        const type = req.params.type
-        console.log(userId," -userid")
-        if(!type || !userId){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "Incorrect type Input",
-          });
-        }
-        const executor = new GoogleSheetsNodeExecutor()
-        const response = await executor.getAllCredentials(userId,type)
-        // console.log( typeof(response));
-        // console.log("response: ",response)
-        const authUrl = typeof response === 'string' ? response : null
-        // console.log(authUrl);
-        
-        const credentials = response instanceof Object ? response : null
-        // console.log(credentials)
-        if(authUrl){
-          return res.status(statusCodes.OK).json({
-          message: "Credentials not found create credentials using this auth url",
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("user from getcredentials: ", req.user);
+      if (!req.user) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "User is not Loggedin",
+        });
+      }
+      const userId = req.user.sub;
+      const type = req.params.type;
+      console.log(userId, " -userid");
+      if (!type || !userId) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Incorrect type Input",
+        });
+      }
+      const executor = new GoogleSheetsNodeExecutor();
+      const response = await executor.getAllCredentials(userId, type);
+      // console.log( typeof(response));
+      // console.log("response: ",response)
+      const authUrl = typeof response === "string" ? response : null;
+      // console.log(authUrl);
+
+      const credentials = response instanceof Object ? response : null;
+      // console.log(credentials)
+      if (authUrl) {
+        return res.status(statusCodes.OK).json({
+          message:
+            "Credentials not found create credentials using this auth url",
           Data: authUrl,
         });
-        }
-        else return res.status(statusCodes.OK).json({
+      } else
+        return res.status(statusCodes.OK).json({
           message: "Credentials Fetched succesfully",
           Data: credentials,
         });
-    }
-    catch(e){
-      console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
+    } catch (e) {
+      console.log(
+        "Error Fetching the credentials ",
+        e instanceof Error ? e.message : "Unkown reason"
+      );
       return res
         .status(statusCodes.INTERNAL_SERVER_ERROR)
         .json({ message: "Internal server from fetching the credentials" });
@@ -200,34 +206,8 @@ router.get('/getCredentials/:type',
   }
 );
 
-router.get('/getAllCreds', userMiddleware, async(req: AuthRequest, res:Response) =>{
-  try{
-      if(!req.user){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "User is not Loggedin"
-          })
-        }
-        const userId = req.user.sub;
-        const creds = await prismaClient.credential.findMany({
-          where:{ userId: userId}
-        })
-        if(creds){
-          return res.status(statusCodes.OK).json({
-            message: "Fetched all credentials of the User!",
-            data: creds
-          })
-        } 
-      }
-      catch(e){
-        console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
-        return res
-          .status(statusCodes.INTERNAL_SERVER_ERROR)
-          .json({ message: "Internal server from fetching the credentials" });
-      }
-})
-// ----------------------------------- CREATE WORKFLOW ---------------------------------
-
-router.post("/create/workflow",
+router.post(
+  "/create/workflow",
   userMiddleware,
   async (req: AuthRequest, res) => {
     try {
@@ -277,9 +257,8 @@ router.post("/create/workflow",
   }
 );
 
-// ------------------------------------ FETCHING WORKFLOWS -----------------------------------
-
-router.get("/workflows",
+router.get(
+  "/workflows",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -307,35 +286,8 @@ router.get("/workflows",
   }
 );
 
-router.get('/empty/workflow', userMiddleware, async(req:AuthRequest, res: Response)=>{
-  try{
-     if (!req.user)
-        return res
-          .status(statusCodes.UNAUTHORIZED)
-          .json({ message: "User is not logged in /not authorized" });
-      const userId = req.user.id;
-      const workflow = await prismaClient.workflow.findFirst({
-        where:{
-          userId: userId,
-          isEmpty: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      })
-      return res
-        .status(statusCodes.OK)
-        .json({ message: "Workflow fetched succesful", Data: workflow });
-
-  }catch(e){
-    console.log("The error is from getting wrkflows", e instanceof Error ? e.message : "UNKNOWN ERROR");
-
-    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-      meesage: "Internal Server Error From  getting workflows for the user",
-    });
-  }
-})
-router.get("/workflow/:workflowId",
+router.get(
+  "/workflow/:workflowId",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
