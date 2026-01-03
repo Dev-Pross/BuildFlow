@@ -13,7 +13,7 @@ import { googleAuth } from "./routes/google_callback.js";
 
 const app = express()
 
-const allowedOrigins = ['http://localhost:3000/' , 'http://localhost:3001/' ];
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,

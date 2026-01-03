@@ -18,13 +18,13 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
         include: { nodes: { orderBy: { position: "asc" } } },
       });
       if (!workflow) {
-        throw new Error("Didn't find the work flow or unauthenticated");
+        throw new Error("Workflow not found or access denied");
       }
 
       const workflowExecution = await tx.workflowExecution.create({
         data: {
           workflowId: workflow.id,
-
+// next time you see this line  validate the trigger data thinnnnnnnnnn
           status: "Pending",
           metadata: triggerData,
         },
@@ -43,7 +43,10 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
     });
   } catch (error: any) {
     console.log(error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to process webhook" 
+    });
   }
 });
 
