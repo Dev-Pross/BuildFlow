@@ -280,20 +280,21 @@ router.post("/create/workflow",
 // ------------------------------------ FETCHING WORKFLOWS -----------------------------------
 
 router.get("/workflows",
-  userMiddleware,
+  userMiddleware ,
   async (req: AuthRequest, res: Response) => {
     try {
       if (!req.user)
         return res
           .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User is not logged in /not authorized" });
-      const userId = req.user.id;
+      const userId = req.user.id ;
 
       const workflows = await prismaClient.workflow.findMany({
         where: {
-          userId: userId,
+          userId
         },
       });
+      console.log(workflows)
       return res
         .status(statusCodes.OK)
         .json({ message: "Workflows fetched succesfullu", Data: workflows });
