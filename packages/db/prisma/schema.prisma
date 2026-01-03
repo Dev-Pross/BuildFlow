@@ -118,6 +118,7 @@ model WorkflowExecutionTable {
   id                  String            @id @default(uuid())
   workflowExecutionId String            @unique
   workflowExecution   WorkflowExecution @relation(fields: [workflowExecutionId], references: [id])
+  sent                Boolean @default(false)
 }
 
 enum WorkflowStatus {
