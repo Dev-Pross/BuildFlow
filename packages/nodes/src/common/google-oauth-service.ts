@@ -126,9 +126,17 @@ class GoogleOAuthService{
 
             if(!existing) throw new Error(`No Credential found`);
 
+            // Filter out empty/falsy values to prevent overwriting valid tokens
+            const filteredTokens: Partial<OAuthTokens> = {};
+            if (tokens.access_token) filteredTokens.access_token = tokens.access_token;
+            if (tokens.refresh_token) filteredTokens.refresh_token = tokens.refresh_token;
+            if (tokens.token_type) filteredTokens.token_type = tokens.token_type;
+            if (tokens.expiry_date) filteredTokens.expiry_date = tokens.expiry_date;
+            if (tokens.scope) filteredTokens.scope = tokens.scope;
+
             const updatedConfig = {
                 ...(existing.config as object),
-                ...(tokens)
+                ...filteredTokens
             }
 
             await this.prisma.credential.update({
@@ -140,6 +148,7 @@ class GoogleOAuthService{
                 }
             });
 
+            console.log(`✅ Credentials updated for ${credentialId}`);
         }
         catch(e){ 
             throw new Error(`Failed to update Credentials: ${e instanceof Error ? e.message : "unknown error"}`)

@@ -10,6 +10,7 @@ import { userRouter } from "./routes/userRoutes/userRoutes.js";
 import cors from "cors"
 import { sheetRouter } from "./routes/nodes.routes.js";
 import { googleAuth } from "./routes/google_callback.js";
+import { tokenScheduler } from "./scheduler/token-scheduler.js";
 
 const app = express()
 
@@ -40,7 +41,7 @@ app.use('/google', googleAuth)
 const PORT= 3002
 async function startServer() {
   await NodeRegistry.registerAll()
-
+  tokenScheduler.start();
   app.listen(PORT, () => {
 		console.log(`Server running on port ${PORT}`);
 	 })

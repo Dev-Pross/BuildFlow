@@ -1,4 +1,5 @@
 import z from "zod";
+import { string } from "zod/v4";
 
 
 export const BACKEND_URL="http://localhost:3002";
@@ -33,6 +34,15 @@ export const NodeSchema = z.object({
   WorkflowId: z.string(),
 });
 
+export const NodeUpdateSchema = z.object({
+  NodeId: z.string(),
+  Config: z.any()
+})
+
+export const TriggerUpdateSchema = z.object({
+  TriggerId: z.string(),
+  Config: z.any()
+})
 
 export const WorkflowSchema = z.object({
   Name: z.string(),
@@ -45,7 +55,7 @@ export enum statusCodes {
   CREATED = 201,
   ACCEPTED = 202,
   NO_CONTENT = 204,
-
+  FOUND = 302,
   BAD_REQUEST = 400,
   UNAUTHORIZED = 401,
   FORBIDDEN = 403,

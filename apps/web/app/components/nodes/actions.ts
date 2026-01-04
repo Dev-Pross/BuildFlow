@@ -1,5 +1,5 @@
 
-import { createNode, createTrigger } from '@/app/workflow/lib/config';
+import { createNode, createTrigger, updateNode, updateTrigger } from '@/app/workflow/lib/config';
 
 interface SaveConfigFormData {
   // userId: string;
@@ -14,6 +14,16 @@ interface SaveConfigFormData {
   node_Trigger: string;
   workflowId: string;
 
+}
+
+interface updateConfigData{
+  type: string
+  credentialId: string;
+  spreadsheetId: string;
+  sheetName: string;
+  operation: string;
+  range: string;
+  id: string
 }
 
 export async function handleSaveConfig(formData: SaveConfigFormData) {
@@ -61,4 +71,36 @@ export async function handleSaveConfig(formData: SaveConfigFormData) {
   //   authUrl: result.authUrl || null,
   //   requiresAuth: result.requiresAuth || false,
   // };
+}
+
+export async function handleUpdateConfig(formData: updateConfigData){
+  const data = {
+    id: formData.id,
+    config: {
+      credId: formData.credentialId,
+      spreadsheetId: formData.spreadsheetId,
+      sheetName: formData.sheetName,
+      operation: formData.operation,
+      range: formData.range
+    }
+  }
+  if(formData.type === 'trigger')
+  {
+    const trigger = await updateTrigger(data)
+    console.log('triggger updated using config backend: ',trigger)
+    
+      return{
+        success: trigger.success,
+        data: trigger.data
+      }
+  }
+  else{
+    const node = await updateNode(data)
+    console.log('NOde updated using config backend: ',node);
+    return {
+      success:node.success,
+      data: node.data 
+    }
+  }
+
 }

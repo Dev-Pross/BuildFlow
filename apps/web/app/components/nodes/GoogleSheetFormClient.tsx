@@ -7,15 +7,17 @@ import { Label } from '@workspace/ui/components/label';
 import React, { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { handleSaveConfig } from './actions';
+import { handleSaveConfig, handleUpdateConfig } from './actions';
 import { useCredentials } from '@/app/hooks/useCredential';
 import { BACKEND_URL } from '@repo/common/zod';
 import { useAppSelector } from '@/app/hooks/redux';
+import { useDispatch } from 'react-redux';
+import { workflowActions } from '@/store/slices/workflowSlice';
 
 interface GoogleSheetFormClientProps {
   type: string;
   nodeType: string;
-
+  avlNode?: string ;
   position: number;
   initialData?: {
     range?: string;
@@ -26,7 +28,7 @@ interface GoogleSheetFormClientProps {
   };
 }
 
-export function GoogleSheetFormClient({ type, nodeType, position, initialData }: GoogleSheetFormClientProps) {
+export function GoogleSheetFormClient({ type, nodeType, avlNode, position, initialData }: GoogleSheetFormClientProps) {
   const [selectedCredential, setSelectedCredential] = useState<string>(initialData?.credentialId || '');
   const [documents, setDocuments] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedDocument, setSelectedDocument] = useState<string>(initialData?.spreadSheetId || '');
@@ -38,27 +40,29 @@ export function GoogleSheetFormClient({ type, nodeType, position, initialData }:
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<any>(null);
   const [credId, setCredId] = useState<string>(initialData?.credentialId || '');
+
+  const dispatch = useDispatch()
   // const [authUrl, setAuthUrl] = useState<string>()
-  console.log('initial data: ', initialData)
-  console.log('initial document: ', selectedDocument)
-  console.log('initial sheet: ', selectedSheet)
-  console.log('initial range: ', range)
-  console.log("initial operation: ",operation)
+  // console.log('initial data: ', initialData)
+  // console.log('initial document: ', selectedDocument)
+  // console.log('initial sheet: ', selectedSheet)
+  // console.log('initial range: ', range)
+  // console.log("initial operation: ",operation)
 
   const userId = useAppSelector(s=>s.user.userId) || ""
   const workflowId = useAppSelector(s=>s.workflow.workflow_id) || ''
-  console.log(userId, 'id from client')
+  // console.log(userId, 'id from client')
   const credType = type
   const nodeTypeParsed = nodeType.split("~")[0] || ""
-  console.log('checking nodeType: ', nodeTypeParsed);
+  // console.log('checking nodeType: ', nodeTypeParsed);
   
   const nodeId = nodeType.split("~")[1] || ""
-  console.log('checking node id: ',nodeId)
+  // console.log('checking node id: ',nodeId)
   const {cred: response, authUrl}  = useCredentials(credType)
-  console.log('response from form client', typeof(response))
+  // console.log('response from form client', typeof(response))
 
-  console.log(response," response from client after hook")
-  console.log(authUrl," authurl")
+  // console.log(response," response from client after hook")
+  // console.log(authUrl," authurl")
 
   // Fetch documents when there's initial credentialId
   useEffect(() => {
@@ -135,8 +139,9 @@ export function GoogleSheetFormClient({ type, nodeType, position, initialData }:
     setSelectedCredential(credentialId);
     setDocuments([]);
     setSheets([]);
-    setSelectedDocument('');
-    setSelectedSheet('');
+    // Don't clear document/sheet if we have initial values - we'll try to restore them
+    if (!initialData?.spreadSheetId) setSelectedDocument('');
+    if (!initialData?.sheetName) setSelectedSheet('');
     
     if (!credentialId || credentialId === 'create-new') return;
     setCredId(credentialId)
@@ -149,8 +154,37 @@ export function GoogleSheetFormClient({ type, nodeType, position, initialData }:
       });
       const data = await response.json();
      
-      if (data.files.length >0) {
+      if (data.files.length > 0) {
         setDocuments(data.files || []);
+        
+        // Restore previously selected document if it exists in the list
+        if (initialData?.spreadSheetId) {
+          const docExists = data.files.some((doc: any) => doc.id === initialData.spreadSheetId);
+          if (docExists) {
+            setSelectedDocument(initialData.spreadSheetId);
+            // Also fetch sheets for this document to restore sheet selection
+            try {
+              const sheetsRes = await fetch(`${BACKEND_URL}/node/getSheets/${credentialId}/${initialData.spreadSheetId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: "include",
+              });
+              const sheetsData = await sheetsRes.json();
+              if (sheetsData.files?.data?.length > 0) {
+                setSheets(sheetsData.files.data);
+                // Restore previously selected sheet if it exists
+                if (initialData?.sheetName) {
+                  const sheetExists = sheetsData.files.data.some((s: any) => s.name === initialData.sheetName);
+                  if (sheetExists) {
+                    setSelectedSheet(initialData.sheetName);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error('Failed to restore sheets:', err);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to fetch documents:', error);
@@ -203,7 +237,23 @@ export function GoogleSheetFormClient({ type, nodeType, position, initialData }:
 
     startTransition(async () => {
       console.log('Sending config:', config);
-      const res = await handleSaveConfig(config);
+      let res: any
+      if(initialData){
+        const updateConfig = {
+          type: nodeTypeParsed,
+          credentialId: selectedCredential,
+          spreadsheetId: selectedDocument,
+          sheetName: selectedSheet,
+          operation: operation,
+          range: range,
+          id: nodeId
+        }
+        res = await handleUpdateConfig(updateConfig)
+      }
+      else {
+        res = await handleSaveConfig(config);
+        dispatch(workflowActions.addWorkflowNode(res.data.data))
+      }
       console.log('Full response:', res);
       // console.log('Success:', res.success);
       // console.log('Output:', res.output);
@@ -357,7 +407,7 @@ export function GoogleSheetFormClient({ type, nodeType, position, initialData }:
         disabled={!selectedCredential || !selectedDocument || !selectedSheet || !range || isPending}
         onClick={handleSaveClick}
       >
-        {isPending ? 'Saving…' : 'Save Configuration'}
+        {isPending ? (initialData ? 'Updating...' : 'Saving…') : (initialData ? 'Update Configuration' : 'Save Configuration')}
       </Button>
       {result?.success === false && <p className="text-red-500 text-sm">{result.error}</p>}
       {result?.authUrl && (
