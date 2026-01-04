@@ -1,4 +1,3 @@
-
 import { createNode, createTrigger, updateNode, updateTrigger } from '@/app/workflow/lib/config';
 
 interface SaveConfigFormData {
@@ -26,6 +25,14 @@ interface updateConfigData{
   id: string
 }
 
+/**
+ * Create a node or trigger from the provided Google Sheets configuration and return the backend result.
+ *
+ * Builds a config object from the supplied form data, calls the trigger creation path when `formData.type === 'trigger'`, or the node creation path otherwise, and returns the service response.
+ *
+ * @param formData - Form values containing type, credentialId, spreadsheetId, sheetName, operation, range, name, node_Trigger, workflowId, and optional position
+ * @returns `{ success: boolean, data: any }` where `success` indicates operation outcome and `data` contains the created entity or backend payload
+ */
 export async function handleSaveConfig(formData: SaveConfigFormData) {
   // const executor = new GoogleSheetsNodeExecutor();
   const context = {
@@ -73,6 +80,12 @@ export async function handleSaveConfig(formData: SaveConfigFormData) {
   // };
 }
 
+/**
+ * Updates an existing node or trigger configuration using the provided form data.
+ *
+ * @param formData - Payload containing `id`, `type` ('trigger' or other), and updated config fields: `credentialId`, `spreadsheetId`, `sheetName`, `operation`, and `range`
+ * @returns An object with `success` indicating whether the update succeeded and `data` containing the updated resource payload
+ */
 export async function handleUpdateConfig(formData: updateConfigData){
   const data = {
     id: formData.id,

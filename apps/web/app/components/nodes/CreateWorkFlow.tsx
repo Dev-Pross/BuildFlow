@@ -137,6 +137,12 @@ export const CreateWorkFlow = () => {
         dispatch(workflowActions.setWorkflowStatus(newWorkflow.isEmpty))
       }
     }
+    /**
+     * Fetches workflow data for the current `workflowId` and updates Redux workflow state when successful.
+     *
+     * If `workflowId` is not set, the function returns without performing any action. On successful fetch,
+     * it dispatches actions to mark the workflow as non-empty, populate workflow nodes, and set the workflow trigger.
+     */
     async function getWorkflowData(){
       if(!workflowId) return
       const workflow = await getworkflowData(workflowId)
@@ -158,6 +164,11 @@ export const CreateWorkFlow = () => {
       return; // Keep the current placeholder state
     }
 
+    /**
+     * Build node and edge lists from Redux workflow data and replace the local React Flow state.
+     *
+     * Constructs a sequence of nodes from `existingTrigger` and `existingNodes`, positions them horizontally with a constant gap, appends a trailing placeholder node, and creates edges that connect each node to the next. Node IDs follow the conventions `trigger~{id}` for the trigger and `action~{id}~{index}` for actions. Finally, updates the component state by calling `setNodes` and `setEdges`.
+     */
     function loadWorkflow(){
       const START_X = 100;
       const GAP = 250;

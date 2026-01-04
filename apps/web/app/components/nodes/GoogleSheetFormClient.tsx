@@ -28,6 +28,16 @@ interface GoogleSheetFormClientProps {
   };
 }
 
+/**
+ * Renders a Google Sheets configuration form for selecting a credential, spreadsheet, sheet, operation, and range, and for saving or updating the node configuration.
+ *
+ * @param type - Credential type used to load available Google credentials
+ * @param nodeType - Node type string containing the node kind and node id separated by `~`
+ * @param avlNode - Optional external node identifier (accepted for API compatibility)
+ * @param position - Position index of the node within the workflow
+ * @param initialData - Optional initial configuration used to pre-populate the form; may include `credentialId`, `spreadSheetId`, `sheetName`, `operation`, and `range`
+ * @returns The rendered JSX element for the form
+ */
 export function GoogleSheetFormClient({ type, nodeType, avlNode, position, initialData }: GoogleSheetFormClientProps) {
   const [selectedCredential, setSelectedCredential] = useState<string>(initialData?.credentialId || '');
   const [documents, setDocuments] = useState<Array<{ id: string; name: string }>>([]);

@@ -34,6 +34,13 @@ import { toast } from 'sonner'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
+/**
+ * Render the application's sidebar with workflow and credential management controls and the user menu.
+ *
+ * Loads workflows and credentials, updates Redux with selected workflow and fetched workflow data, provides actions to create a new workflow and sign out, and exposes UI for selecting workflows and credentials.
+ *
+ * @returns The sidebar JSX element containing the create-workflow button, workflow and credential lists, and the user dropdown menu.
+ */
 export function AppSidebar() {
 
   const user = useAppSelector((s)=> s.user)

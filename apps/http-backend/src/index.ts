@@ -39,7 +39,12 @@ app.use("/user" , userRouter)
 app.use('/node', sheetRouter)
 app.use('/google', googleAuth)
 const PORT= 3002
-async function startServer() {
+/**
+   * Initialize runtime and start the HTTP server.
+   *
+   * Registers all nodes, starts the token scheduler, and begins listening on the configured port.
+   */
+  async function startServer() {
   await NodeRegistry.registerAll()
   tokenScheduler.start();
   app.listen(PORT, () => {
