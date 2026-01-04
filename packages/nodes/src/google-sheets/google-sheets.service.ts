@@ -113,15 +113,24 @@ class GoogleSheetsService{
         try{
             const {credentials} = await this.auth.refreshAccessToken();
 
-            return {
+            // IMPORTANT: Only include refresh_token if Google returns a new one
+            // Google doesn't always return a new refresh_token on every refresh
+            const result: GoogleSheetsCredentials = {
                 access_token: credentials.access_token || '',
-                refresh_token: credentials.refresh_token || '',
+                refresh_token: '', // Will be set below if present
                 token_type: credentials.token_type || '',
                 expiry_date: credentials.expiry_date || 0
+            };
+
+            // Only include refresh_token if Google actually returned one
+            if (credentials.refresh_token) {
+                result.refresh_token = credentials.refresh_token;
             }
+
+            return result;
         }
         catch (error){
-            throw new Error(`Falied to refresh token: ${error}`)
+            throw new Error(`Failed to refresh token: ${error}`)
         }
     }
 }

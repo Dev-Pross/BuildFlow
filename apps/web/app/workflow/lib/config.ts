@@ -79,7 +79,7 @@ export const createWorkflow = async()=>{
     try{
       const response = await axios.post(`${BACKEND_URL}/user/create/workflow`,
         {
-          Name:`workflow-${date.getTime()}`,
+          Name:`workflow-${date.toString()}`,
           // UserId: userId,
           Config: {}
         },{
@@ -114,7 +114,7 @@ interface Triggercontext{
   };
 export const  createTrigger = async(context: Triggercontext)=>{
   try{
-    console.log('Trigger context: ', context)
+    // console.log('Trigger context: ', context)
     const response = await axios.post(`${BACKEND_URL}/user/create/trigger`,
       {
         Name: context.name,
@@ -136,6 +136,70 @@ export const  createTrigger = async(context: Triggercontext)=>{
     }
   }catch(e){
     console.error("Error in creating Trigger:", e);
+    return {
+      success: false,
+      data: e instanceof Error ? e.message : `unknown error ${e}` 
+    }
+  }
+}
+
+interface updateContext{
+  config: {
+      credId: string,
+      operation: string,
+      spreadsheetId: string,
+      range: string,
+      sheetName: string,
+    },
+  id: string
+}
+
+export const updateTrigger = async(context: updateContext)=>{
+  try{
+    const res = await axios.put(`${BACKEND_URL}/user/update/trigger`,
+      {
+        TriggerId: context.id,
+        Config: context.config
+      },{
+        headers: {"Content-Type": "application/json"},
+        withCredentials: true
+      }
+    )
+    const trigger = (res.data)
+    console.log('trigger created: ', trigger);
+    return { 
+      success: true,
+      data: trigger
+    }
+  }catch(e){
+    console.error("Error in updating Trigger:", e);
+    return {
+      success: false,
+      data: e instanceof Error ? e.message : `unknown error ${e}` 
+    }
+  }
+}
+
+export const updateNode = async(context: updateContext)=>{
+  try{
+    const res = await axios.put(`${BACKEND_URL}/user/update/node`,
+      {
+        NodeId: context.id,
+        Config: context.config 
+      },
+      {
+        withCredentials: true,
+        headers: {"Content-Type": "application/json"}
+      }
+    )
+    const node = (res.data)
+    console.log('node updated: ', node);
+    return { 
+      success: true,
+      data: node
+    }
+  }catch(e){
+    console.error("Error in updating Node:", e);
     return {
       success: false,
       data: e instanceof Error ? e.message : `unknown error ${e}` 

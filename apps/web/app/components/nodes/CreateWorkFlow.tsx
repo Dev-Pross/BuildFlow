@@ -47,7 +47,8 @@ export const CreateWorkFlow = () => {
   const workflowId = useAppSelector(s=>s.workflow.workflow_id)
   const existingTrigger = useAppSelector(s=>s.workflow.trigger)
   const existingNodes = useAppSelector(s=>s.workflow.nodes)
-  // console.log(`workflow from redux, TRigger: ${existingTrigger}, Nodes: ${existingNodes}`)
+  console.log(`workflow from redux, TRigger: ${existingTrigger?.AvailableTriggerID}, Nodes: ${existingNodes}`)
+    console.log('redux workflow from createWorkflow: ',workflowId)
 
   const [nodes, setNodes] = useState<NodeType[]>([
     {
@@ -140,6 +141,7 @@ export const CreateWorkFlow = () => {
       if(!workflowId) return
       const workflow = await getworkflowData(workflowId)
       if(workflow.success){
+        console.log("workflow data called")
         dispatch(workflowActions.setWorkflowStatus(false))
         dispatch(workflowActions.setWorkflowNodes(workflow.data.nodes))
         dispatch(workflowActions.setWorkflowTrigger(workflow.data.Trigger))
@@ -165,8 +167,9 @@ export const CreateWorkFlow = () => {
       const newEdges: EdgeType[] = [];
       const type = existingTrigger?.name.split(" - ")[0]
       if(existingTrigger){
+        console.log("trigger id from redux: ", existingTrigger)
         newNodes.push({
-          id: `trigger-${existingTrigger.dbId}`,
+          id: `trigger~${existingTrigger.id}`,
           type: 'trigger' as const,
           position: { x: START_X, y: Y},
           data:{
@@ -180,7 +183,7 @@ export const CreateWorkFlow = () => {
       }
 
       existingNodes.forEach((node, index)=>{
-        const nodeId = `action-${node.dbId}-${index}`;
+        const nodeId = `action~${node.id}~${index}`;
         const type = node.name.split(" - ")[0]
         newNodes.push({
           id: nodeId,
@@ -217,7 +220,7 @@ export const CreateWorkFlow = () => {
     }
 
     loadWorkflow()
-  },[existingNodes, existingTrigger])
+  },[existingNodes, existingTrigger, dispatch, workflowId])
 
 
   const handleSelectAction = (action: {
