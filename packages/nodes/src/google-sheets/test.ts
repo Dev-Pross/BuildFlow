@@ -1,4 +1,4 @@
-import { GoogleSheetsCredentials, GoogleSheetsService } from "./google-sheets.service";
+import { GoogleSheetsCredentials, GoogleSheetsService } from "./google-sheets.service.js";
 import dotenv from 'dotenv';
 import path from 'path';
 

@@ -235,6 +235,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/nodes':
+        specifier: workspace:*
+        version: link:../../packages/nodes
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -311,6 +314,9 @@ importers:
 
   packages/nodes:
     dependencies:
+      '@types/dotenv':
+        specifier: ^8.2.3
+        version: 8.2.3
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -324,9 +330,6 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
-      '@types/node':
-        specifier: ^20.19.9
-        version: 20.19.9
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config

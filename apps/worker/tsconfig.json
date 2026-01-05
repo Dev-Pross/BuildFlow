@@ -1,7 +1,14 @@
 {
-    "extends" : "@workspace/typescript-config/base.json",
-    "compilerOptions" : {
-        "rootDir" : "./src",
-        "outDir"  : "./dist"
-    }
+    "extends": "@workspace/typescript-config/base.json",
+    "compilerOptions": {
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "lib": ["ES2020"],
+        "moduleResolution": "nodenext",
+        "module": "nodenext",
+        "target": "ES2020"
+    },
+    "include": [
+        "src"
+    ]
 }
