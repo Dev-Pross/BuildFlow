@@ -26,10 +26,10 @@ import {
 } from '@workspace/ui/components/dropdown-menu'
 import { ChevronDown, ChevronUp, Key, LogOut, LucideLayoutDashboard, PlusCircle, User2, WorkflowIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { createWorkflow, getAllCredentials, getAllWorkflows, getEmptyWorkflow } from '@/app/workflow/lib/config'
+import { createWorkflow, getAllCredentials, getAllWorkflows, getEmptyWorkflow, getworkflowData } from '@/app/workflow/lib/config'
 import { useAppDispatch, useAppSelector } from '@/app/hooks/redux'
 import { userAction } from '@/store/slices/userSlice'
-import { workflowActions } from '@/store/slices/workflowSlice'
+import { workflowActions, workflowReducer } from '@/store/slices/workflowSlice'
 import { toast } from 'sonner'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -38,25 +38,61 @@ export function AppSidebar() {
 
   const user = useAppSelector((s)=> s.user)
   const flow = useAppSelector(s=>s.workflow) // workflow
+  console.log('redux workflow from sidebar: ',flow)
   const dispatch = useAppDispatch()
   const router = useRouter()
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null >(flow.workflow_id)
   const [workflow, setWorkflow] = useState<Array<any>>()
   const [creds, setCreds] = useState<Array<any>>()
-  useEffect(()=>{
-    async function getWorkflows(){
+  
+  async function getWorkflows(){
         const flows = await getAllWorkflows();
         if(flows) setWorkflow(flows)
     }
+  useEffect(()=>{
 
     async function getCreds(){
         const credentials = await getAllCredentials();
         if(credentials) setCreds(credentials)
     }
 
+    async function getWorkflowData(){
+      console.log("workflow data called")
+      if(!flow.workflow_id) return
+      const workflow = await getworkflowData(flow.workflow_id)
+      if(workflow.success){
+        console.log("workflow data fetchedsuceesully: ", workflow.data)
+        dispatch(workflowActions.setWorkflowStatus(false))
+        dispatch(workflowActions.setWorkflowNodes(workflow.data.nodes))
+        dispatch(workflowActions.setWorkflowTrigger(workflow.data.Trigger))
+        // console.log(`workfklow from redux: ${workflow.data}`)
+      }
+    }
+    // async function setEmptyFlow(){
+    //   const workflow = await getEmptyWorkflow()
+    //   if(workflow){
+    //     const {id, isEmpty} = workflow
+    //     dispatch(workflowActions.setWorkflowId(id))
+    //     dispatch(workflowActions.setWorkflowStatus(isEmpty))
+    //   }
+    //   else{
+    //         const newWorkflow = await createWorkflow()
+    //         dispatch(workflowActions.clearWorkflow())
+    //         setSelectedWorkflow(null)
+    //         dispatch(workflowActions.setWorkflowId(newWorkflow.id))
+    //         dispatch(workflowActions.setWorkflowStatus(newWorkflow.isEmpty))
+    //         toast.success("Workflow created")
+    //         getWorkflows()
+    //     }
+    // }
+
     if(!creds) getCreds()
-    if(!workflow) getWorkflows()
-  },[selectedWorkflow])
+    if(!workflow) {
+      getWorkflows()
+      createNewWorkflow()
+    }
+    getWorkflowData()
+  },[flow.workflow_id, dispatch])
   
   const workflowHandler = (wId: string)=>{
     dispatch(workflowActions.setWorkflowId(wId))
@@ -89,6 +125,7 @@ export function AppSidebar() {
             dispatch(workflowActions.setWorkflowId(newWorkflow.id))
             dispatch(workflowActions.setWorkflowStatus(newWorkflow.isEmpty))
             toast.success("Workflow created")
+            getWorkflows()
         }
     }
 //   console.log(`workflow form ${workflow}`)
@@ -99,12 +136,12 @@ export function AppSidebar() {
         <SidebarTrigger />
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className='p-2'>
         <SidebarMenu>
 
                 <SidebarMenuItem>
                     <SidebarMenuButton className='text-xl font-bold text-white h-14' onClick={createNewWorkflow}>
-                        <PlusCircle className='m-2'/> Create Workflow
+                        <PlusCircle className='my-2'/> Create Workflow
                     </SidebarMenuButton>
                 </SidebarMenuItem>
 
@@ -113,7 +150,7 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton>
-                  <WorkflowIcon className='m-2'/>
+                  <WorkflowIcon className='my-1'/>
                   <span>Workflows</span>
                   <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
                 </SidebarMenuButton>
@@ -144,7 +181,7 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton>
-                  <Key className='m-2'/>
+                  <Key className='my-2'/>
                   <span>Credentials</span>
                   <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
                 </SidebarMenuButton>

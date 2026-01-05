@@ -124,38 +124,44 @@ class GoogleOAuthService {
         `Failed to get all credentials: ${err instanceof Error ? err.message : "unknown error"}`
       );
     }
-  }
 
-  async updateCredentials(
-    credentialId: string,
-    tokens: Partial<OAuthTokens>
-  ): Promise<void> {
-    try {
-      const existing = await this.prisma.credential.findUnique({
-        where: {
-          id: credentialId,
-        },
-      });
+    async updateCredentials(credentialId: string, tokens: Partial<OAuthTokens>): Promise<void> {
+        try{
+            const existing = await this.prisma.credential.findUnique({
+                where:{
+                    id: credentialId
+                }
+            });
 
-      if (!existing) throw new Error(`No Credential found`);
+            if(!existing) throw new Error(`No Credential found`);
 
-      const updatedConfig = {
-        ...(existing.config as object),
-        ...tokens,
-      };
+            // Filter out empty/falsy values to prevent overwriting valid tokens
+            const filteredTokens: Partial<OAuthTokens> = {};
+            if (tokens.access_token) filteredTokens.access_token = tokens.access_token;
+            if (tokens.refresh_token) filteredTokens.refresh_token = tokens.refresh_token;
+            if (tokens.token_type) filteredTokens.token_type = tokens.token_type;
+            if (tokens.expiry_date) filteredTokens.expiry_date = tokens.expiry_date;
+            if (tokens.scope) filteredTokens.scope = tokens.scope;
 
-      await this.prisma.credential.update({
-        where: {
-          id: credentialId,
-        },
-        data: {
-          config: updatedConfig as any,
-        },
-      });
-    } catch (e) {
-      throw new Error(
-        `Failed to update Credentials: ${e instanceof Error ? e.message : "unknown error"}`
-      );
+            const updatedConfig = {
+                ...(existing.config as object),
+                ...filteredTokens
+            }
+
+            await this.prisma.credential.update({
+                where:{
+                    id:credentialId
+                },
+                data:{
+                    config: updatedConfig as any
+                }
+            });
+
+            console.log(`✅ Credentials updated for ${credentialId}`);
+        }
+        catch(e){ 
+            throw new Error(`Failed to update Credentials: ${e instanceof Error ? e.message : "unknown error"}`)
+        }
     }
   }
 }

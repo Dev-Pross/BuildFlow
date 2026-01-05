@@ -1,18 +1,20 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface Trigger {
-    dbId: string;
+    id: string;
     name: string;
     type: string;
     config: any;
+    AvailableTriggerID: string
 }
 
 interface NodeItem {
-    dbId: string;
+    id: string;
     name: string;
     type: string;
     config: any;
     position: number;
+    AvailableNodeID: string
 }
 
 type Nodes = NodeItem[];

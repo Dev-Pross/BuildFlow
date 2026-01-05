@@ -10,6 +10,8 @@ import {
   TriggerSchema,
   WorkflowSchema,
   NodeSchema,
+  NodeUpdateSchema,
+  TriggerUpdateSchema,
 } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
 const router: Router = Router();
@@ -390,6 +392,7 @@ router.get('/empty/workflow', userMiddleware, async(req:AuthRequest, res: Respon
     });
   }
 })
+
 router.get("/workflow/:workflowId",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
@@ -491,7 +494,7 @@ router.post('/create/node', userMiddleware, async(req: AuthRequest, res: Respons
         });
     }
     const data = req.body;
-    console.log(data," from http-backeden" );
+    // console.log(data," from http-backeden" );
     
     const dataSafe = NodeSchema.safeParse(data)
     if(!dataSafe.success) {
@@ -523,6 +526,79 @@ router.post('/create/node', userMiddleware, async(req: AuthRequest, res: Respons
   }
 })
 
+// ------------------------- UPDATE NODES AND TRIGGES ---------------------------
+
+router.put('/update/node', userMiddleware, async(req: AuthRequest, res: Response)=>{
+  try{
+    if(!req.user){
+      return res.status(statusCodes.BAD_REQUEST).json({
+          message: "User is not logged in ",
+        });
+    }
+    const data = req.body;
+    const dataSafe = NodeUpdateSchema.safeParse(data)
+
+    if(!dataSafe.success) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message:  "Invalid input"
+    })
+    }
+
+    const updateNode = await prismaClient.node.update({
+      where: {id: dataSafe.data.NodeId},
+      data:{
+        config: dataSafe.data.Config
+      }
+    })
+
+    if(updateNode)
+      return res.status(statusCodes.CREATED).json({
+        message: "Node updated",
+        data: updateNode
+      })
+
+  }catch(e){
+    console.log("This is the error from Node updating", e);
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Internal server Error from Node Updation.",
+    });
+  }
+})
+
+router.put('/update/trigger', userMiddleware, async(req: AuthRequest, res: Response)=>{
+  try{
+    if(!req.user){
+      return res.status(statusCodes.BAD_REQUEST).json({
+          message: "User is not logged in ",
+        });
+    }
+    const data = req.body;
+    const dataSafe = TriggerUpdateSchema.safeParse(data)
+
+    if(!dataSafe.success)
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message:  "Invalid input"
+    })
+    
+    const updatedTrigger = await prismaClient.trigger.update({
+      where:{id: dataSafe.data.TriggerId},
+      data:{
+        config: dataSafe.data.Config
+      }
+    })
+
+    if(updatedTrigger)
+      return res.status(statusCodes.CREATED).json({
+        message: "Trigger updated",
+        data: updatedTrigger
+      })
+  }catch(e){
+    console.log("This is the error from Trigger updating", e);
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Internal server Error from Trigger Updation",
+    });
+  }
+})
 
 // ----------------------- GET WORKFLOW DATA(NODES, TRIGGER)---------------------
 
