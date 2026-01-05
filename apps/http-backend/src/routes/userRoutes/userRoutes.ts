@@ -151,51 +151,105 @@ router.get("/getAvailableTriggers",
   }
 );
 
+// //------------------------------ GET CREDENTIALS -----------------------------
+
+// router.get('/getCredentials/:type',
+//   userMiddleware,
+//   async (req: AuthRequest, res) =>{
+//     try{
+//       console.log("user from getcredentials: ",req.user)
+//       if(!req.user){
+//           return res.status(statusCodes.BAD_REQUEST).json({
+//             message: "User is not Loggedin"
+//           })
+//         }
+//         const userId = req.user.sub;
+//         const type = req.params.type
+//         console.log(userId," -userid")
+//         if(!type || !userId){
+//           return res.status(statusCodes.BAD_REQUEST).json({
+//             message: "Incorrect type Input",
+//           });
+//         }
+//         const executor = new GoogleSheetsNodeExecutor()
+//         const response = await executor.getAllCredentials(userId,type)
+//         // console.log( typeof(response));
+//         // console.log("response: ",response)
+//         const authUrl = typeof response === 'string' ? response : null
+//         // console.log(authUrl);
+        
+//         const credentials = response instanceof Object ? response : null
+//         // console.log(credentials)
+//         if(authUrl){
+//           return res.status(statusCodes.OK).json({
+//           message: "Credentials not found create credentials using this auth url",
+//           Data: authUrl,
+//         });
+//         }
+//         else return res.status(statusCodes.OK).json({
+//           message: "Credentials Fetched succesfully",
+//           Data: credentials,
+//         });
+//     }
+//     catch(e){
+//       console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
+//       return res
+//         .status(statusCodes.INTERNAL_SERVER_ERROR)
+//         .json({ message: "Internal server from fetching the credentials" });
+//     }
+//   }
+// );
+
 //------------------------------ GET CREDENTIALS -----------------------------
 
 router.get('/getCredentials/:type',
   userMiddleware,
-  async (req: AuthRequest, res) =>{
-    try{
-      console.log("user from getcredentials: ",req.user)
-      if(!req.user){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "User is not Loggedin"
-          })
+  async (req: AuthRequest, res) => {
+    try {
+      console.log("user from getcredentials: ", req.user)
+      if (!req.user) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "User is not Loggedin"
+        })
+      }
+      const userId = req.user.sub;
+      const type = req.params.type
+      console.log(userId, " -userid")
+      
+      if (!type || !userId) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Incorrect type Input",
+        });
+      }
+
+      // Check if credentials exist in database
+      const credentials = await prismaClient.credential.findMany({
+        where: {
+          userId: userId,
+           type : type
         }
-        const userId = req.user.sub;
-        const type = req.params.type
-        console.log(userId," -userid")
-        if(!type || !userId){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "Incorrect type Input",
-          });
-        }
-        const executor = new GoogleSheetsNodeExecutor()
-        const response = await executor.getAllCredentials(userId,type)
-        // console.log( typeof(response));
-        // console.log("response: ",response)
-        const authUrl = typeof response === 'string' ? response : null
-        // console.log(authUrl);
-        
-        const credentials = response instanceof Object ? response : null
-        // console.log(credentials)
-        if(authUrl){
-          return res.status(statusCodes.OK).json({
+      });
+
+      if (credentials.length === 0) {
+        // No credentials found - return the correct auth URL
+        const authUrl = `${process.env.BACKEND_URL || 'http://localhost:3002'}/auth/google/initiate`;
+        return res.status(statusCodes.OK).json({
           message: "Credentials not found create credentials using this auth url",
           Data: authUrl,
         });
-        }
-        else return res.status(statusCodes.OK).json({
-          message: "Credentials Fetched succesfully",
-          Data: credentials,
-        });
-    }
-    catch(e){
-      console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
+      }
+
+      // Credentials found - return them
+      return res.status(statusCodes.OK).json({
+        message: "Credentials Fetched successfully",
+        Data: credentials,
+      });
+      
+    } catch (e) {
+      console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unknown reason");
       return res
         .status(statusCodes.INTERNAL_SERVER_ERROR)
-        .json({ message: "Internal server from fetching the credentials" });
+        .json({ message: "Internal server error from fetching the credentials" });
     }
   }
 );

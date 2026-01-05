@@ -488,11 +488,11 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on:
 
 ## 📄 License
 
-[Add your license here]
+[MIT license]
 
 ## 👥 Authors
 
-- [Your Name/Team]
+- [Vamsi , Teja]
 
 ---
 
