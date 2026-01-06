@@ -1,5 +1,6 @@
 import { ExecutionContext, ExecutionResult, NodeExecutor } from "../types.js";
 import { GmailExecutor } from "@repo/nodes/nodeClient";
+import {GoogleSheetsNodeExecutor} from "@repo/nodes/nodeClient";
 class ExecutionRegistry {
   private executors = new Map<string, NodeExecutor>();
 
@@ -19,7 +20,7 @@ class ExecutionRegistry {
       };
     }
     try {
-      const result = await executor.execute(context);
+      const result = await executor.execute(context)
       console.log("Execute result:", result);
 
       return result;
@@ -38,6 +39,7 @@ class ExecutionRegistry {
 
     //wehen visits this next time make sure chang gmail executor implements NodeExecutor
     this.register("gmail", new GmailExecutor() as unknown as NodeExecutor);
+    this.register("google_sheet", new GoogleSheetsNodeExecutor() as unknown as NodeExecutor)
     console.log(`The current Executors are ${this.executors.size}`);
   }
 }

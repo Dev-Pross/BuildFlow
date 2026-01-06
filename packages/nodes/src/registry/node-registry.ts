@@ -1,5 +1,7 @@
 import { prismaClient } from "@repo/db";
 import { GoogleSheetNode } from "../google-sheets/google-sheets.node.js";
+import { GmailService } from "../gmail/gmail.service.js";
+import { GmailNode } from "../gmail/gmail.node.js";
 
 interface NodeDefinition {
   name: string;
@@ -68,6 +70,7 @@ class NodeRegistry {
   }
   static async registerAll() {
     await GoogleSheetNode.register();
+    await GmailNode.register();
   }
 }
 

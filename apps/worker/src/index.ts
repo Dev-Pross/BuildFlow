@@ -1,11 +1,14 @@
 import { Kafka } from "kafkajs";
 import { executeWorkflow } from "./engine/executor.js";
+import { register } from "./engine/registory.js";
 const kafka = new Kafka({
   // clientId: "Processing App",
   clientId: "BuildFlow-Worker",
   brokers: ["localhost:9092"],
 });
 const TOPIC_NAME = "First-Client";
+
+register.initialize()
 
 async function main() {
   const consumer = kafka.consumer({ groupId: "test-group" });

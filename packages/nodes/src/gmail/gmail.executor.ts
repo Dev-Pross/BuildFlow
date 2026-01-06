@@ -71,6 +71,6 @@ class GmailExecutor {
   }
 }
 
-export default GmailExecutor;
+export { GmailExecutor } ;
 // export { default as GmailExecutor } from "./gmail.executor.js";
 // export { GmailService } from "./gmail.service.js";
