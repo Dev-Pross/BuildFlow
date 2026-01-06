@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  // output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -117,8 +118,8 @@ model NodeExecution {
 model WorkflowExecutionTable {
   id                  String            @id @default(uuid())
   workflowExecutionId String            @unique
+  sent                Boolean           @default(false)
   workflowExecution   WorkflowExecution @relation(fields: [workflowExecutionId], references: [id])
-  sent                Boolean @default(false)
 }
 
 enum WorkflowStatus {

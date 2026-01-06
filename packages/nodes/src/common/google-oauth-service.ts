@@ -124,7 +124,7 @@ class GoogleOAuthService {
         `Failed to get all credentials: ${err instanceof Error ? err.message : "unknown error"}`
       );
     }
-
+  }
     async updateCredentials(credentialId: string, tokens: Partial<OAuthTokens>): Promise<void> {
         try{
             const existing = await this.prisma.credential.findUnique({
@@ -164,7 +164,7 @@ class GoogleOAuthService {
         }
     }
   }
-}
+
 
 export { GoogleOAuthService };
 export type { OAuthTokens };

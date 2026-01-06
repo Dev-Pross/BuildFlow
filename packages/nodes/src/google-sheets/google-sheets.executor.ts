@@ -139,6 +139,7 @@ class GoogleSheetsNodeExecutor{
             }
 
             const operation = context.config.operation;
+            console.log("operation from sheet executor: ",operation)
             switch(operation){
                 case 'read_rows':
                     return await this.executeReadRows(sheetService,context);

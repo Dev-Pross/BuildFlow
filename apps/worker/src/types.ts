@@ -1,5 +1,5 @@
 export interface ExecutionContext {
-  nodeId: string;
+  nodeId?: string;
   userId: string;
   credentialsId?: string;
   config: Record<string, any>;
