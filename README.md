@@ -1,4 +1,5 @@
 # BuildFlow 🔄
+<img width="1916" height="817" alt="Screenshot from 2026-01-11 15-02-48" src="https://github.com/user-attachments/assets/0aa27aef-30ad-4474-a775-f313bf57a8a1" />
 
 > A modern workflow automation platform with visual interface and event-driven execution engine. BuildFlow enables developers to build, deploy, and manage automated workflows connecting various services and APIs.
 
