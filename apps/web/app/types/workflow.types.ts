@@ -1,9 +1,9 @@
 export interface NodeType {
   data: {
-    TYpe: "Trigger" | "Action";
+    Type: "Trigger" | "Action";
     SelectedType: string;
     label : string
-    config : JSON
+    config? : any
   };
 
   id: string;
@@ -12,7 +12,6 @@ export interface NodeType {
 export interface Edage {
   id: string;
   source: string;
-
   target: string;
 }
 export interface AvailableTrigger {

@@ -34,13 +34,13 @@ export async function executeWorkflow(
       status: "InProgress",
     },
   });
-  if(!update.error) console.log('updated the workflow execution')
+  if (!update.error) console.log("updated the workflow execution");
 
   const nodes = data?.workflow.nodes;
 
-  console.log(`Total nodes - ${nodes.length}`)
+  console.log(`Total nodes - ${nodes.length}`);
   for (const node of nodes) {
-    console.log(`${node.name}, ${node.position}th - started Execution`)
+    console.log(`${node.name}, ${node.position}th - started Execution`);
     const nodeType = node.AvailableNode.type;
     const context = {
       // nodeId: node.id,
@@ -49,21 +49,21 @@ export async function executeWorkflow(
       config: node.config as Record<string, any>,
       inputData: currentInputData,
     };
-    console.log(`Executing with context: ${context}`)
+    console.log(`Executing with context: ${context}`);
     const execute = await register.execute(nodeType, context);
-    // if (!execute.success) {
-    //   await prismaClient.workflowExecution.update({
-    //     where: { id: workflowExecutionId },
-    //     data: {
-    //       status: "Failed",
-    //       error: execute.error,
-    //       completedAt: new Date(),
-    //     },
-    //   });
-    //   return;
-    // }
+    if (!execute.success) {
+      await prismaClient.workflowExecution.update({
+        where: { id: workflowExecutionId },
+        data: {
+          status: "Failed",
+          error: execute.error,
+          completedAt: new Date(),
+        },
+      });
+      return;
+    }
     currentInputData = execute.output;
-    console.log("output: ", JSON.stringify(execute))
+    console.log("output: ", JSON.stringify(execute));
   }
   const updatedStatus = await prismaClient.workflowExecution.update({
     where: { id: workflowExecutionId },

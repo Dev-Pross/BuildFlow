@@ -1,53 +1,53 @@
 import z from "zod";
-import { string } from "zod/v4";
+import { number } from "zod/v4";
 
-
-export const BACKEND_URL="http://localhost:3002";
-
+export const BACKEND_URL = "http://localhost:3002";
+export const HOOKS_URL = "http://localhost:3002";
 export const AvailableTriggers = z.object({
   Name: z.string(),
   AvailableTriggerID: z.string().optional(),
   Config: z.any().optional(),
-  Type : z.string()
+  Type: z.string(),
 });
 
 export const AvailableNodes = z.object({
   Name: z.string(),
   AvailableNodeId: z.string().optional(),
   Config: z.any(),
-  Type : z.string()
+  Type: z.string(),
 });
 
 export const TriggerSchema = z.object({
   Name: z.string(),
   AvailableTriggerID: z.string(),
-  Config: z.any(),
+  Config: z.any().optional(),
   WorkflowId: z.string(),
-  TriggerType: z.string(),
+  TriggerType: z.string().optional(),
 });
 
 export const NodeSchema = z.object({
   Name: z.string(),
   AvailableNodeId: z.string(),
-  Config: z.any(),
-  Position: z.number(),
+  Config: z.any().optional(),
+  stage: z.number().optional(),
   WorkflowId: z.string(),
 });
 
 export const NodeUpdateSchema = z.object({
   NodeId: z.string(),
-  Config: z.any()
-})
+  Config: z.any().optional(),
+  position: z.any().optional(),
+});
 
 export const TriggerUpdateSchema = z.object({
   TriggerId: z.string(),
-  Config: z.any()
-})
+  Config: z.any(),
+});
 
 export const WorkflowSchema = z.object({
   Name: z.string(),
   Config: z.any(),
-
+  description: z.string().optional(),
 });
 
 export enum statusCodes {

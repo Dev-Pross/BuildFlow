@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { AuthOptions } from "@/app/api/auth/utils/auth";
+import ParentComponent from "./components/ui/Design/WorkflowButton";
 
 export default async function Home() {
   const session = await getServerSession(AuthOptions);
@@ -21,7 +22,11 @@ export default async function Home() {
               >
                 Log out
               </button>
+
             </form>
+            <br />
+            <ParentComponent/>
+
           </>
         ) : (
           <>

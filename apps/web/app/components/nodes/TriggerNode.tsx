@@ -3,9 +3,9 @@ import { Handle, Position } from "@xyflow/react";
 interface TriggerNodeProps {
   data: {
     name: string;
-    icon: string;
+    icon?: string;
     type: string;
-    config: Record<string, unknown>;
+    config?: Record<string, unknown>;
   };
 }
 
