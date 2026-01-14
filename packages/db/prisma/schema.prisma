@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  // output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -20,13 +19,14 @@ model User {
 }
 
 model Credential {
-  id     String  @id @default(uuid())
-  userId String
-  type   String
-  config Json
-  nodeId String?
-  node   Node?   @relation(fields: [nodeId], references: [id])
-  user   User    @relation(fields: [userId], references: [id])
+  id                                  String  @id @default(uuid())
+  userId                              String
+  type                                String
+  config                              Json
+  nodeId                              String?
+  node                                Node?   @relation(fields: [nodeId], references: [id])
+  user                                User    @relation(fields: [userId], references: [id])
+  // Node_Node_CredentialsIDToCredential Node[]  @relation("Node_CredentialsIDToCredential")
 }
 
 model Trigger {
@@ -59,16 +59,19 @@ model AvailableNode {
 }
 
 model Node {
-  id              String          @id @default(uuid())
-  name            String
-  config          Json
-  position        Int
-  workflowId      String?
-  AvailableNodeID String
-  credentials     Credential[]
-  AvailableNode   AvailableNode   @relation(fields: [AvailableNodeID], references: [id])
-  workflow        Workflow?       @relation(fields: [workflowId], references: [id])
-  executions      NodeExecution[]
+  id                                        String          @id @default(uuid())
+  name                                      String
+  config                                    Json
+  position                                  Json
+  stage                                     Int
+  workflowId                                String?
+  AvailableNodeID                           String
+  // CredentialsID                             String
+  credentials                               Credential[]
+  AvailableNode                             AvailableNode?   @relation(fields: [AvailableNodeID], references: [id])
+  // Credential_Node_CredentialsIDToCredential Credential      @relation("Node_CredentialsIDToCredential", fields: [CredentialsID], references: [id], onDelete: Cascade)
+  workflow                                  Workflow?       @relation(fields: [workflowId], references: [id])
+  executions                                NodeExecution[]
 }
 
 model Workflow {
@@ -103,8 +106,8 @@ model WorkflowExecution {
 model NodeExecution {
   id                String            @id @default(uuid())
   nodeId            String
-  startedAt         DateTime          @default(now())
-  completedAt       DateTime?
+  startedAt         DateTime          @default(dbgenerated("(now() AT TIME ZONE 'utc'::text)")) @db.Timestamptz(6)
+  completedAt       DateTime?         @default(dbgenerated("(now() AT TIME ZONE 'utc'::text)")) @db.Timestamptz(6)
   inputData         Json?
   outputData        Json?
   error             String?

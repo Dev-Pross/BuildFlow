@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import { prismaClient } from "@repo/db";
-import { Express, Response, Router } from "express";
+import { Request, Response, Router } from "express";
 import { AuthRequest, userMiddleware } from "./userMiddleware.js";
 import {
   AvailableTriggers,
@@ -15,29 +15,6 @@ import {
 } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
 const router: Router = Router();
-// router.post("/create", async (req, res) => {
-//   // const Data = req.body;
-
-//   // const {name , email , password} = req.body
-//   // console.log(Data)
-//   try {
-//     const user = await prismaClient.user.create({
-//       data: {
-//         name: "name",
-//         email: "email",
-//         password: "password",
-//       },
-//     });
-//     res.json({
-//       message: "Signup DOne",
-//       user,
-//     });
-//   } catch (e) {
-//     console.log("Detailed Error", e);
-//   }
-// });
-
-// ------------------- AVALIABLE TRIGGERS AND NODES CREATION AND FETCHING ROUTES --------------------------
 
 router.post("/createAvaliableNode", async (req: AuthRequest, res: Response) => {
   try {
@@ -70,7 +47,8 @@ router.post("/createAvaliableNode", async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get("/getAvailableNodes",
+router.get(
+  "/getAvailableNodes",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     if (!req.user) {
@@ -95,9 +73,10 @@ router.get("/getAvailableNodes",
   }
 );
 
-router.post("/createAvaliableTriggers",
-  userMiddleware,
-  async (req: AuthRequest, res: Response) => {
+router.post(
+  "/createAvaliableTriggers",
+  // userMiddleware,
+  async (req: Request, res: Response) => {
     try {
       const Data = req.body;
       const ParsedData = AvailableTriggers.safeParse(Data);
@@ -129,7 +108,8 @@ router.post("/createAvaliableTriggers",
   }
 );
 
-router.get("/getAvailableTriggers",
+router.get(
+  "/getAvailableTriggers",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -179,7 +159,7 @@ router.get("/getAvailableTriggers",
 //         // console.log("response: ",response)
 //         const authUrl = typeof response === 'string' ? response : null
 //         // console.log(authUrl);
-        
+
 //         const credentials = response instanceof Object ? response : null
 //         // console.log(credentials)
 //         if(authUrl){
@@ -204,20 +184,21 @@ router.get("/getAvailableTriggers",
 
 //------------------------------ GET CREDENTIALS -----------------------------
 
-router.get('/getCredentials/:type',
+router.get(
+  "/getCredentials/:type",
   userMiddleware,
   async (req: AuthRequest, res) => {
     try {
-      console.log("user from getcredentials: ", req.user)
+      console.log("user from getcredentials: ", req.user);
       if (!req.user) {
         return res.status(statusCodes.BAD_REQUEST).json({
-          message: "User is not Loggedin"
-        })
+          message: "User is not Loggedin",
+        });
       }
       const userId = req.user.sub;
-      const type = req.params.type
-      console.log(userId, " -userid")
-      
+      const type = req.params.type;
+      console.log(userId, " -userid");
+
       if (!type || !userId) {
         return res.status(statusCodes.BAD_REQUEST).json({
           message: "Incorrect type Input",
@@ -228,15 +209,16 @@ router.get('/getCredentials/:type',
       const credentials = await prismaClient.credential.findMany({
         where: {
           userId: userId,
-           type : type
-        }
+          type: type,
+        },
       });
 
       if (credentials.length === 0) {
         // No credentials found - return the correct auth URL
-        const authUrl = `${process.env.BACKEND_URL || 'http://localhost:3002'}/auth/google/initiate`;
+        const authUrl = `${process.env.BACKEND_URL || "http://localhost:3002"}/auth/google/initiate`;
         return res.status(statusCodes.OK).json({
-          message: "Credentials not found create credentials using this auth url",
+          message:
+            "Credentials not found create credentials using this auth url",
           Data: authUrl,
         });
       }
@@ -246,44 +228,55 @@ router.get('/getCredentials/:type',
         message: "Credentials Fetched successfully",
         Data: credentials,
       });
-      
     } catch (e) {
-      console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unknown reason");
+      console.log(
+        "Error Fetching the credentials ",
+        e instanceof Error ? e.message : "Unknown reason"
+      );
       return res
         .status(statusCodes.INTERNAL_SERVER_ERROR)
-        .json({ message: "Internal server error from fetching the credentials" });
+        .json({
+          message: "Internal server error from fetching the credentials",
+        });
     }
   }
 );
 
-router.get('/getAllCreds', userMiddleware, async(req: AuthRequest, res:Response) =>{
-  try{
-      if(!req.user){
-          return res.status(statusCodes.BAD_REQUEST).json({
-            message: "User is not Loggedin"
-          })
-        }
-        const userId = req.user.sub;
-        const creds = await prismaClient.credential.findMany({
-          where:{ userId: userId}
-        })
-        if(creds){
-          return res.status(statusCodes.OK).json({
-            message: "Fetched all credentials of the User!",
-            data: creds
-          })
-        } 
+router.get(
+  "/getAllCreds",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "User is not Loggedin",
+        });
       }
-      catch(e){
-        console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
-        return res
-          .status(statusCodes.INTERNAL_SERVER_ERROR)
-          .json({ message: "Internal server from fetching the credentials" });
+      const userId = req.user.sub;
+      const creds = await prismaClient.credential.findMany({
+        where: { userId: userId },
+      });
+      if (creds) {
+        return res.status(statusCodes.OK).json({
+          message: "Fetched all credentials of the User!",
+          data: creds,
+        });
       }
-})
+    } catch (e) {
+      console.log(
+        "Error Fetching the credentials ",
+        e instanceof Error ? e.message : "Unkown reason"
+      );
+      return res
+        .status(statusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server from fetching the credentials" });
+    }
+  }
+);
 // ----------------------------------- CREATE WORKFLOW ---------------------------------
 
-router.post("/create/workflow",
+router.post(
+  "/create/workflow",
   userMiddleware,
   async (req: AuthRequest, res) => {
     try {
@@ -315,7 +308,7 @@ router.post("/create/workflow",
           user: {
             connect: { id: UserID },
           },
-          description: "Workflow-generated",
+          description: ParsedData.data.description || "Workflow-Created",
           name: ParsedData.data.Name,
           config: ParsedData.data.Config,
         },
@@ -335,22 +328,23 @@ router.post("/create/workflow",
 
 // ------------------------------------ FETCHING WORKFLOWS -----------------------------------
 
-router.get("/workflows",
-  userMiddleware ,
+router.get(
+  "/workflows",
+  userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
       if (!req.user)
         return res
           .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User is not logged in /not authorized" });
-      const userId = req.user.id ;
+      const userId = req.user.id;
 
       const workflows = await prismaClient.workflow.findMany({
         where: {
-          userId
+          userId,
         },
       });
-      console.log(workflows)
+      console.log(workflows);
       return res
         .status(statusCodes.OK)
         .json({ message: "Workflows fetched succesfullu", Data: workflows });
@@ -364,36 +358,43 @@ router.get("/workflows",
   }
 );
 
-router.get('/empty/workflow', userMiddleware, async(req:AuthRequest, res: Response)=>{
-  try{
-     if (!req.user)
+router.get(
+  "/empty/workflow",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user)
         return res
           .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User is not logged in /not authorized" });
       const userId = req.user.id;
       const workflow = await prismaClient.workflow.findFirst({
-        where:{
+        where: {
           userId: userId,
-          isEmpty: true
+          isEmpty: true,
         },
         orderBy: {
-          createdAt: 'desc'
-        }
-      })
+          createdAt: "desc",
+        },
+      });
       return res
         .status(statusCodes.OK)
         .json({ message: "Workflow fetched succesful", Data: workflow });
+    } catch (e) {
+      console.log(
+        "The error is from getting wrkflows",
+        e instanceof Error ? e.message : "UNKNOWN ERROR"
+      );
 
-  }catch(e){
-    console.log("The error is from getting wrkflows", e instanceof Error ? e.message : "UNKNOWN ERROR");
-
-    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-      meesage: "Internal Server Error From  getting workflows for the user",
-    });
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        meesage: "Internal Server Error From  getting workflows for the user",
+      });
+    }
   }
-})
+);
 
-router.get("/workflow/:workflowId",
+router.get(
+  "/workflow/:workflowId",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -409,10 +410,10 @@ router.get("/workflow/:workflowId",
           id: workflowId,
           userId: userId,
         },
-        include:{
+        include: {
           Trigger: true,
-          nodes: { orderBy: {position: 'asc'}}
-        }
+          nodes: { orderBy: { position: "asc" } },
+        },
       });
       if (!getWorkflow) {
         return res.status(statusCodes.UNAUTHORIZED).json({
@@ -432,44 +433,53 @@ router.get("/workflow/:workflowId",
   }
 );
 
+
+router.put("/workflow/update" , userMiddleware , (req : AuthRequest , res : Response) => {
+
+})
 // ---------------------------------------- INSERTING DATA INTO NODES/ TRIGGER TABLE-----------------------------
 
-router.post('/create/trigger', userMiddleware, async(req: AuthRequest, res: Response)=>{
-   try {
+router.post(
+  "/create/trigger",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
       if (!req.user) {
         return res.status(statusCodes.BAD_REQUEST).json({
           message: "User is not logged in ",
         });
       }
       const data = req.body;
-      const dataSafe = TriggerSchema.safeParse(data)
-      if(!dataSafe.success) 
+      const dataSafe = TriggerSchema.safeParse(data);
+      console.log("The error from creation of trigger is ", dataSafe.error);
+
+      if (!dataSafe.success)
         return res.status(statusCodes.BAD_REQUEST).json({
-        message:  "Invalid input"
-      })
+          message: "Invalid input",
+        });
       const createdTrigger = await prismaClient.trigger.create({
-        data:{
+        data: {
           name: dataSafe.data.Name,
           AvailableTriggerID: dataSafe.data.AvailableTriggerID,
           config: dataSafe.data.Config,
           workflowId: dataSafe.data.WorkflowId,
           // trigger type pettla db lo ledu aa column
-        }
-      })
+        },
+      });
       await prismaClient.workflow.update({
-        where:{ id: dataSafe.data.WorkflowId },
-        data:{
-          isEmpty: false
-        }
-      })
+        where: { id: dataSafe.data.WorkflowId },
+        data: {
+          isEmpty: false,
+        },
+      });
 
-      if(createdTrigger){
+      if (createdTrigger) {
         return res.status(statusCodes.CREATED).json({
           message: "Trigger created",
-          data: createdTrigger
-        })
+          data: createdTrigger,
+        });
       }
-    }catch(e){
+    } catch (e) {
       console.log("This is the error from Trigger creatig", e);
       return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
         message: "Internal server Error from Trigger creation ",
@@ -484,135 +494,141 @@ router.post('/create/trigger', userMiddleware, async(req: AuthRequest, res: Resp
     // "WorkflowId": "d0216fca-ca9b-4f3f-b01c-0a29b4305708",
     // "TriggerType":""
     // }
-})
+  }
+);
 
-router.post('/create/node', userMiddleware, async(req: AuthRequest, res: Response)=>{
-  try{
-    if(!req.user){
-      return res.status(statusCodes.BAD_REQUEST).json({
+router.post(
+  "/create/node",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(statusCodes.BAD_REQUEST).json({
           message: "User is not logged in ",
         });
-    }
-    const data = req.body;
-    // console.log(data," from http-backeden" );
-    
-    const dataSafe = NodeSchema.safeParse(data)
-    if(!dataSafe.success) {
-      return res.status(statusCodes.BAD_REQUEST).json({
-        message:  "Invalid input"
-    })
-    }
-    const createdNode = await prismaClient.node.create({
-      data:{
-        name: dataSafe.data.Name,
-        workflowId: dataSafe.data.WorkflowId,
-        AvailableNodeID: dataSafe.data.AvailableNodeId,
-        // AvailabeNodeID: dataSafe.data.AvailableNodeId,
-        config: dataSafe.data.Config,
-        position: dataSafe.data.Position
       }
-    })
+      const data = req.body;
+      console.log(" from http-backeden" , data);
 
-    if(createdNode) 
-      return res.status(statusCodes.CREATED).json({
-        message: "Node created",
-        data: createdNode
-      })
-  }catch(e){
-    console.log("This is the error from Node creating", e);
-    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-      message: "Internal server Error from Node creation",
-    });
+      const dataSafe = NodeSchema.safeParse(data);
+      console.log("The error is ", dataSafe.error);
+      if (!dataSafe.success) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Invalid input",
+        });
+      }
+      // Fix: Only provide required fields for node creation, exclude credentials/credentialsId
+      // Use an empty array for credentials (if required) or don't pass it at all
+      // Config must be valid JSON (not an empty string)
+      // const stage = dataSafe.data.Position
+      const createdNode = await prismaClient.node.create({
+        data: {
+          name: dataSafe.data.Name,
+          workflowId: dataSafe.data.WorkflowId,
+          AvailableNodeID: dataSafe.data.AvailableNodeId,
+          config: {}, // Config is an empty object by default
+          stage: Number(dataSafe.data.stage),
+          position: {}
+        },
+      });
+
+      if (createdNode)
+        return res.status(statusCodes.CREATED).json({
+          message: "Node created",
+          data: createdNode,
+        });
+    } catch (e) {
+      console.log("This is the error from Node creating", e);
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal server Error from Node creation",
+      });
+    }
   }
-})
+);
 
 // ------------------------- UPDATE NODES AND TRIGGES ---------------------------
 
-router.put('/update/node', userMiddleware, async(req: AuthRequest, res: Response)=>{
-  try{
-    if(!req.user){
-      return res.status(statusCodes.BAD_REQUEST).json({
+router.put(
+  "/update/node",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(statusCodes.BAD_REQUEST).json({
           message: "User is not logged in ",
         });
-    }
-    const data = req.body;
-    const dataSafe = NodeUpdateSchema.safeParse(data)
-
-    if(!dataSafe.success) {
-      return res.status(statusCodes.BAD_REQUEST).json({
-        message:  "Invalid input"
-    })
-    }
-
-    const updateNode = await prismaClient.node.update({
-      where: {id: dataSafe.data.NodeId},
-      data:{
-        config: dataSafe.data.Config
       }
-    })
+      const data = req.body;
+      const dataSafe = NodeUpdateSchema.safeParse(data);
 
-    if(updateNode)
-      return res.status(statusCodes.CREATED).json({
-        message: "Node updated",
-        data: updateNode
-      })
+      if (!dataSafe.success) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Invalid input",
+        });
+      }
 
-  }catch(e){
-    console.log("This is the error from Node updating", e);
-    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-      message: "Internal server Error from Node Updation.",
-    });
+      const updateNode = await prismaClient.node.update({
+        where: { id: dataSafe.data.NodeId },
+        data: {
+          position: dataSafe.data.position,
+          config: dataSafe.data.Config,
+        },
+      });
+
+      if (updateNode)
+        return res.status(statusCodes.CREATED).json({
+          message: "Node updated",
+          data: updateNode,
+        });
+    } catch (e) {
+      console.log("This is the error from Node updating", e);
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal server Error from Node Updation.",
+      });
+    }
   }
-})
+);
 
-router.put('/update/trigger', userMiddleware, async(req: AuthRequest, res: Response)=>{
-  try{
-    if(!req.user){
-      return res.status(statusCodes.BAD_REQUEST).json({
+router.put(
+  "/update/trigger",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(statusCodes.BAD_REQUEST).json({
           message: "User is not logged in ",
         });
-    }
-    const data = req.body;
-    const dataSafe = TriggerUpdateSchema.safeParse(data)
-
-    if(!dataSafe.success)
-      return res.status(statusCodes.BAD_REQUEST).json({
-        message:  "Invalid input"
-    })
-    
-    const updatedTrigger = await prismaClient.trigger.update({
-      where:{id: dataSafe.data.TriggerId},
-      data:{
-        config: dataSafe.data.Config
       }
-    })
+      const data = req.body;
+      const dataSafe = TriggerUpdateSchema.safeParse(data);
 
-    if(updatedTrigger)
-      return res.status(statusCodes.CREATED).json({
-        message: "Trigger updated",
-        data: updatedTrigger
-      })
-  }catch(e){
-    console.log("This is the error from Trigger updating", e);
-    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-      message: "Internal server Error from Trigger Updation",
-    });
+      if (!dataSafe.success)
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Invalid input",
+        });
+
+      const updatedTrigger = await prismaClient.trigger.update({
+        where: { id: dataSafe.data.TriggerId },
+        data: {
+          config: dataSafe.data.Config,
+        },
+      });
+
+      if (updatedTrigger)
+        return res.status(statusCodes.CREATED).json({
+          message: "Trigger updated",
+          data: updatedTrigger,
+        });
+    } catch (e) {
+      console.log("This is the error from Trigger updating", e);
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal server Error from Trigger Updation",
+      });
+    }
   }
-})
+);
 
-// ----------------------- GET WORKFLOW DATA(NODES, TRIGGER)---------------------
 
-// router.get('/getworkflowData', userMiddleware, async(req: AuthRequest, res: Response)=>{
-//   try{
-//     if(!req.user){
-//       return res.status(statusCodes.BAD_REQUEST).json({
-//           message: "User is not logged in ",
-//         });
-//     }
-//   }catch(e){
-
-//   }
-// })
 
 router.get("/protected", userMiddleware, (req: AuthRequest, res) => {
   return res.json({

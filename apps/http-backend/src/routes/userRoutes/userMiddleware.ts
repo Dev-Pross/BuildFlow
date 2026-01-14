@@ -30,7 +30,7 @@ export async function userMiddleware(
       });
     }
 
-    console.log("Decoded User:", payload);
+    // console.log("Decoded User:", payload);
 
     req.user = payload;
     return next();
@@ -39,4 +39,4 @@ export async function userMiddleware(
       message: `Invalid token: ${e instanceof Error ? e.message : "Unknown error"}`,
     });
   }
-} 
+}

@@ -56,7 +56,8 @@ async function setupTestWorkflow() {
     create: {
       id: "test_node_001",
       name: "Send Test Email",
-      position: 1,
+      stage: 1,
+      position : {x : 250 , y : 200},
       workflowId: workflow.id,
       AvailableNodeID: availableNode.id,
       config: {
