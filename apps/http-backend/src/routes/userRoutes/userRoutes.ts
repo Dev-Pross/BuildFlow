@@ -434,9 +434,9 @@ router.get(
 );
 
 
-router.put("/workflow/update" , userMiddleware , (req : AuthRequest , res : Response) => {
+// router.put("/workflow/update" , userMiddleware , (req : AuthRequest , res : Response) => {
 
-})
+// })
 // ---------------------------------------- INSERTING DATA INTO NODES/ TRIGGER TABLE-----------------------------
 
 router.post(

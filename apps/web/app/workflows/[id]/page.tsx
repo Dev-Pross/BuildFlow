@@ -58,33 +58,36 @@ export default function WorkflowCanvas() {
 
   const handleNodesChange = (changes: NodeChange[]) => {
     onNodesChange(changes); // Update UI first
+    try {
+      changes.forEach((change) => {
+        if (change.type === "position" && change.position) {
+          // Find the node in local state to check its type
+          const changedNode = nodes.find((n) => n.id === change.id);
 
-    changes.forEach((change) => {
-      if (change.type === "position" && change.position) {
-        // Find the node in local state to check its type
-        const changedNode = nodes.find((n) => n.id === change.id);
-
-        if (changedNode?.data?.nodeType === "trigger") {
-          // If it's a trigger node, update via trigger API
-          api.triggers.update({
-            TriggerId: change.id,
-            Config: {
-              ...(typeof changedNode.data.config === "object" &&
-              changedNode.data.config !== null
-                ? changedNode.data.config
-                : {}),
+          if (changedNode?.data?.nodeType === "trigger") {
+            // If it's a trigger node, update via trigger API
+            api.triggers.update({
+              TriggerId: change.id,
+              Config: {
+                ...(typeof changedNode.data.config === "object" &&
+                changedNode.data.config !== null
+                  ? changedNode.data.config
+                  : {}),
+                position: change.position,
+              },
+            });
+          } else {
+            // Otherwise, update in node table
+            api.nodes.update({
+              NodeId: change.id,
               position: change.position,
-            },
-          });
-        } else {
-          // Otherwise, update in node table
-          api.nodes.update({
-            NodeId: change.id,
-            position: change.position,
-          });
+            });
+          }
         }
-      }
-    });
+      });
+    } catch (error: any) {
+      setError(error);
+    }
   };
   // const handleActionSelection = async (action: any) => {
   //   try {
@@ -427,7 +430,7 @@ export default function WorkflowCanvas() {
           const isTrigger =
             nodes.find((n) => n.id === nodeId)?.data.nodeType === "trigger";
           if (isTrigger) {
-            await api.triggers.update({ TriggerId: nodeId, Config: config });
+            await api.triggers.update({ TriggerId: nodeId, Config: config});
           } else {
             await api.nodes.update({ NodeId: nodeId, Config: config });
           }

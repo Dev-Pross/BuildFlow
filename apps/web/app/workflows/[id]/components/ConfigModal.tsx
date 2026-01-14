@@ -4,6 +4,7 @@ import { getNodeConfig } from "@/app/lib/nodeConfigs";
 import { useState } from "react";
 import { HOOKS_URL } from "@repo/common/zod";
 import { userAction } from "@/store/slices/userSlice";
+import { useAppSelector } from "@/app/hooks/redux";
 interface ConfigModalProps {
   isOpen: boolean;
   selectedNode: any | null;
@@ -20,7 +21,7 @@ export default function ConfigModal({
   const [loading, setLoading] = useState(false);
 
   if (!isOpen || !selectedNode) return null;
-  const userId =userAction.setUserId as unknown as string;
+  const userId = useAppSelector((state) => state.user.userId) as unknown as string;
   console.log("we are getting this userId from ConfigModal" , userId)
   const handleSave = async () => {
     setLoading(true);
