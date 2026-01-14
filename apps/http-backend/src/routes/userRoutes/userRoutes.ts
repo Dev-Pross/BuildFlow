@@ -233,11 +233,9 @@ router.get(
         "Error Fetching the credentials ",
         e instanceof Error ? e.message : "Unknown reason"
       );
-      return res
-        .status(statusCodes.INTERNAL_SERVER_ERROR)
-        .json({
-          message: "Internal server error from fetching the credentials",
-        });
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal server error from fetching the credentials",
+      });
     }
   }
 );
@@ -433,7 +431,6 @@ router.get(
   }
 );
 
-
 // router.put("/workflow/update" , userMiddleware , (req : AuthRequest , res : Response) => {
 
 // })
@@ -508,7 +505,7 @@ router.post(
         });
       }
       const data = req.body;
-      console.log(" from http-backeden" , data);
+      console.log(" from http-backeden", data);
 
       const dataSafe = NodeSchema.safeParse(data);
       console.log("The error is ", dataSafe.error);
@@ -525,10 +522,10 @@ router.post(
         data: {
           name: dataSafe.data.Name,
           workflowId: dataSafe.data.WorkflowId,
+          config: dataSafe.data.Config || {},
+          stage: Number(dataSafe.data.stage ?? 0),
+          position: {},
           AvailableNodeID: dataSafe.data.AvailableNodeId,
-          config: {}, // Config is an empty object by default
-          stage: Number(dataSafe.data.stage),
-          position: {}
         },
       });
 
@@ -627,8 +624,6 @@ router.put(
     }
   }
 );
-
-
 
 router.get("/protected", userMiddleware, (req: AuthRequest, res) => {
   return res.json({

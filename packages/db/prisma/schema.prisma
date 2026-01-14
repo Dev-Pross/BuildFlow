@@ -19,14 +19,15 @@ model User {
 }
 
 model Credential {
-  id                                  String  @id @default(uuid())
+  id                                  String    @id @default(uuid())
   userId                              String
   type                                String
   config                              Json
   nodeId                              String?
-  node                                Node?   @relation(fields: [nodeId], references: [id])
-  user                                User    @relation(fields: [userId], references: [id])
-  // Node_Node_CredentialsIDToCredential Node[]  @relation("Node_CredentialsIDToCredential")
+  node                                Node?     @relation(fields: [nodeId], references: [id])
+  user                                User      @relation(fields: [userId], references: [id])
+  Node_Node_CredentialsIDToCredential Node[]    @relation("Node_CredentialsIDToCredential")
+  Trigger                             Trigger[]
 }
 
 model Trigger {
@@ -35,7 +36,9 @@ model Trigger {
   config             Json
   workflowId         String?          @unique
   AvailableTriggerID String
+  CredentialsID      String?
   triggerType        AvailableTrigger @relation(fields: [AvailableTriggerID], references: [id])
+  Credential         Credential?      @relation(fields: [CredentialsID], references: [id])
   workflow           Workflow?        @relation(fields: [workflowId], references: [id])
 }
 
@@ -62,14 +65,14 @@ model Node {
   id                                        String          @id @default(uuid())
   name                                      String
   config                                    Json
-  position                                  Json
   stage                                     Int
   workflowId                                String?
   AvailableNodeID                           String
-  // CredentialsID                             String
+  CredentialsID                             String?
+  position                                  Json?
   credentials                               Credential[]
-  AvailableNode                             AvailableNode?   @relation(fields: [AvailableNodeID], references: [id])
-  // Credential_Node_CredentialsIDToCredential Credential      @relation("Node_CredentialsIDToCredential", fields: [CredentialsID], references: [id], onDelete: Cascade)
+  AvailableNode                             AvailableNode   @relation(fields: [AvailableNodeID], references: [id])
+  Credential_Node_CredentialsIDToCredential Credential?     @relation("Node_CredentialsIDToCredential", fields: [CredentialsID], references: [id])
   workflow                                  Workflow?       @relation(fields: [workflowId], references: [id])
   executions                                NodeExecution[]
 }
