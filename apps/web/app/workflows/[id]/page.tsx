@@ -430,7 +430,7 @@ export default function WorkflowCanvas() {
           const isTrigger =
             nodes.find((n) => n.id === nodeId)?.data.nodeType === "trigger";
           if (isTrigger) {
-            await api.triggers.update({ TriggerId: nodeId, Config: config});
+            await api.triggers.update({ TriggerId: nodeId, Config: config });
           } else {
             await api.nodes.update({ NodeId: nodeId, Config: config });
           }
