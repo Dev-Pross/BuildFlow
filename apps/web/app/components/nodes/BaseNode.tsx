@@ -8,6 +8,7 @@ interface BaseNodeProps {
     isPlaceholder?: boolean;
     config: any;
     nodeType?: "trigger" | "action";
+    isConfigured?: boolean;
 
     status?: "idle" | "running" | "success" | "error";
     onConfigure?: () => void;
@@ -99,7 +100,7 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
           <span className="text-xl">{icon || "📦"}</span>
           <span className="font-semibold text-sm">{label}</span>
         </div>
-        {data.onConfigure ? (
+        {data.isConfigured ? (
           <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
             ✓ Configured
           </span>

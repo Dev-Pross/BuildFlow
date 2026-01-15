@@ -63,7 +63,7 @@ export const api = {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       });
-      return res.data
+      return res.data.Data;
     },
 
     getAllCreds: async () =>

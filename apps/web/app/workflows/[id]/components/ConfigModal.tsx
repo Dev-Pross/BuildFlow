@@ -28,10 +28,13 @@ export default function ConfigModal({
     setConfig({}); // Clear form when switching nodes
     setCredentials([]); // Clear credentials on node switch
     if (selectedNode) {
-      const nodeConfig = getNodeConfig(selectedNode.data?.nodeType);
+      const nodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
       if (nodeConfig && nodeConfig.credentials === "google") {
         api.Credentials.getCredentials("google").then((res) => {
-          setCredentials(res.data.Data || []);
+          setCredentials(res || []);
+        }).catch((error) => {
+          console.error("Failed to fetch credentials:", error);
+          setCredentials([]);
         });
       }
     }
