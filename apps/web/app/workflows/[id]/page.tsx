@@ -14,7 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import BaseNode from "@/app/components/NODES/BaseNode";
+import BaseNode from "@/app/components/nodes/BaseNode";
 import { TriggerSideBar } from "@/app/components/nodes/TriggerSidebar";
 import ActionSideBar from "@/app/components/Actions/ActionSidebar";
 import { api } from "@/app/lib/api";
@@ -214,9 +214,6 @@ export default function WorkflowCanvas() {
 
   const handleActionSelection = async (action: any) => {
     try {
-      // onSelectAction: (action: { id: string; name: string; type: string; icon?: string }) => void;
-
-      // 1. Call API to create action in DB
       console.log("This is node Id before log", action.id);
 
       const result = await api.nodes.create({
@@ -241,6 +238,7 @@ export default function WorkflowCanvas() {
           icon: action.icon,
           isPlaceholder: false,
           nodeType: "action",
+          isConfigured: false,
           config: {},
           onConfigure: () =>
             handleNodeConfigure({
@@ -365,6 +363,7 @@ export default function WorkflowCanvas() {
           icon: trigger.icon,
           isPlaceholder: false,
           nodeType: "trigger",
+          isConfigured: false,
           config: {},
           // onConfigure: () => console.log("Configure", triggerId),
           onConfigure: () =>
@@ -425,12 +424,28 @@ export default function WorkflowCanvas() {
           setConfigOpen(false);
           setSelectedNode(null);
         }}
-        onSave={async (nodeId, config) => {
-          // const isTrigger =
-          const isTrigger =
-            nodes.find((n) => n.id === nodeId)?.data.nodeType === "trigger";
+        onSave={async (nodeId: string, config: any, userId: string) => {
+          console.log("Updating the trigger");
+
+          // Find the trigger node based on its type being 'trigger'
+          const triggerNode = nodes.find((n) => n.data.nodeType === "trigger");
+          console.log(
+            "This is  the triggerNode from the Trigger Node ",
+            triggerNode
+          );
+          console.log("This is  the NodeId which must be Triiger", nodeId);
+          const isTrigger = triggerNode?.id === nodeId;
+          console.log("Is this a trigger or not", isTrigger);
           if (isTrigger) {
-            await api.triggers.update({ TriggerId: nodeId, Config: config });
+           const data = await api.triggers.update({ TriggerId: nodeId, Config: config });
+           console.log("The Data saved to DataBase is", data);
+           // The 'data' is undefined because api.triggers.update does not return anything (it's missing a 'return' statement).
+           // To debug, log after the call and also the actual variable:
+           console.log("api.triggers.update response:", data);
+
+            const res =  JSON.stringify(data);
+            console.log("THe response is res from saving the data is " , res)
+           console.log("Updating the trigger");
           } else {
             await api.nodes.update({ NodeId: nodeId, Config: config });
           }

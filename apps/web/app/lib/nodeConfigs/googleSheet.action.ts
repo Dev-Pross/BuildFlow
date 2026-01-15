@@ -3,7 +3,7 @@ import { NodeConfig } from "../types/node.types";
 export const googleSheetActionConfig: NodeConfig = {
   id: "google_sheet",
   type: "action",
-  label: "Google Sheets",
+  label: "Google Sheet",
   icon: "📊",
   description: "Read or write data to Google Sheets",
   credentials: "google",  // Requires Google OAuth

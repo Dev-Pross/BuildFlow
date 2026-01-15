@@ -99,21 +99,15 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
           <span className="text-xl">{icon || "📦"}</span>
           <span className="font-semibold text-sm">{label}</span>
         </div>
-        {data.onConfigure && (
+        {data.onConfigure ? (
           <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
             ✓ Configured
           </span>
+        ) : (
+          <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+            Not Configured
+          </span>
         )}
-        {/* Show config summary if exists */}
-        {/* {config && (
-          <div className="text-xs text-gray-500 mt-1">
-            {config.summary
-              ? config.summary
-              : config.description
-                ? config.description
-                : "Configured"}
-          </div>
-        )} */}
 
         {/* Buttons */}
         <div className="flex gap-2 mt-2">

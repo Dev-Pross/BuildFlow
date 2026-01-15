@@ -1,14 +1,15 @@
 "use client";
-
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HOOKS_URL } from "@repo/common/zod";
 import { useAppSelector } from "@/app/hooks/redux";
+import { toast } from "sonner";
+import { api } from "@/app/lib/api";
 interface ConfigModalProps {
   isOpen: boolean;
   selectedNode: any | null;
   onClose: () => void;
-  onSave: (config: any, userId: string) => Promise<void>;
+  onSave: (selectedNode: string, config: any, userId: string) => Promise<void>;
 }
 
 export default function ConfigModal({
@@ -17,24 +18,185 @@ export default function ConfigModal({
   onClose,
   onSave,
 }: ConfigModalProps) {
+  const [config, setConfig] = useState<Record<string, any>>({});
+  const [credentials, setCredentials] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const userId = useAppSelector(
-    (state) => state.user.userId
-  ) as unknown as string;
-  console.log("we are getting this userId from ConfigModal", userId);
+  const userId = useAppSelector((state) => state.user.userId) as string;
+
+  // Fetch credentials only when required on node change
+  useEffect(() => {
+    setConfig({}); // Clear form when switching nodes
+    setCredentials([]); // Clear credentials on node switch
+    if (selectedNode) {
+      const nodeConfig = getNodeConfig(selectedNode.data?.nodeType);
+      if (nodeConfig && nodeConfig.credentials === "google") {
+        api.Credentials.getCredentials("google").then((res) => {
+          setCredentials(res.data.Data || []);
+        });
+      }
+    }
+    // Removed console log pollution
+  }, [selectedNode]);
+
+  // No modal if not needed
   if (!isOpen || !selectedNode) return null;
 
+  // Save callback
   const handleSave = async () => {
     setLoading(true);
     try {
-      // For now, just save empty config
-      await onSave({ HOOKS_URL }, userId);
+      await onSave(selectedNode.id, config, userId);
+      toast.success("Configured Successfully");
     } catch (error) {
       console.error("Save failed:", error);
+      toast.error("Failed to save config");
     } finally {
       setLoading(false);
       onClose();
     }
+  };
+
+  // Field rendering helper
+  const renderField = (field: any) => {
+    const fieldValue = config[field.name] || "";
+
+    // Special handling for Google credential dropdown
+    if (field.type === "dropdown" && field.name === "credentialId") {
+      return (
+        <div key={field.name} className="form-group">
+          <label className="block text-sm font-medium text-white mb-1">
+            {field.label}{" "}
+            {field.required && <span className="text-red-400">*</span>}
+          </label>
+          {/* No credentials connected */}
+          {credentials.length === 0 ? (
+            <>
+              <button
+                onClick={() =>
+                  (window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(window.location.href)}`)
+                }
+                className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center justify-center gap-2"
+                type="button"
+              >
+                🔗 Connect Google Account
+              </button>
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                Connect your Google account to use Gmail &amp; Sheets
+              </p>
+            </>
+          ) : (
+            <>
+              <select
+                value={fieldValue}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    [field.name]: e.target.value,
+                  })
+                }
+                className="w-full p-3 border border-gray-900 bg-black text-white rounded-md"
+                required={field.required}
+              >
+                <option value="">Select Google Account</option>
+                {credentials.map((cred: any) => (
+                  <option key={cred.id} value={cred.id}>
+                    {cred.email || cred.name || "Google Account"}
+                  </option>
+                ))}
+              </select>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {credentials.map((cred: any) => (
+                  <span
+                    key={cred.id}
+                    className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-full"
+                  >
+                    {cred.email || cred.name}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // Generic dropdown
+    if (field.type === "dropdown") {
+      return (
+        <div key={field.name} className="form-group">
+          <label className="block text-sm font-medium text-white mb-1">
+            {field.label}{" "}
+            {field.required && <span className="text-red-400">*</span>}
+          </label>
+          <select
+            value={fieldValue}
+            onChange={(e) =>
+              setConfig({
+                ...config,
+                [field.name]: e.target.value,
+              })
+            }
+            className="w-full p-3 border border-gray-900 bg-black text-white rounded-md"
+            required={field.required}
+          >
+            <option value="">Select {field.label.toLowerCase()}</option>
+            {(field.options || []).map((opt: any) => (
+              <option key={opt.value || opt} value={opt.value || opt}>
+                {opt.label || opt}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    // Textarea
+    if (field.type === "textarea") {
+      return (
+        <div key={field.name} className="form-group">
+          <label className="block text-sm font-medium text-white mb-1">
+            {field.label}{" "}
+            {field.required && <span className="text-red-400">*</span>}
+          </label>
+          <textarea
+            value={fieldValue}
+            placeholder={field.placeholder}
+            onChange={(e) =>
+              setConfig({
+                ...config,
+                [field.name]: e.target.value,
+              })
+            }
+            className="w-full p-3 border border-gray-900 bg-black text-white rounded-md focus:ring-2 focus:ring-white focus:border-white placeholder-gray-400"
+            required={field.required}
+            rows={4}
+          />
+        </div>
+      );
+    }
+
+    // Input (default)
+    return (
+      <div key={field.name} className="form-group">
+        <label className="block text-sm font-medium text-white mb-1">
+          {field.label}{" "}
+          {field.required && <span className="text-red-400">*</span>}
+        </label>
+        <input
+          type={field.type}
+          value={fieldValue}
+          placeholder={field.placeholder}
+          onChange={(e) =>
+            setConfig({
+              ...config,
+              [field.name]: e.target.value,
+            })
+          }
+          className="w-full p-3 border border-gray-900 bg-black text-white rounded-md focus:ring-2 focus:ring-white focus:border-white placeholder-gray-400"
+          required={field.required}
+        />
+      </div>
+    );
   };
 
   return (
@@ -42,17 +204,18 @@ export default function ConfigModal({
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{
         background: "linear-gradient(135deg, #000 80%, #333 100%)",
+        overflowY: "auto",
       }}
     >
       <div
-        className="rounded-lg shadow-xl max-w-md w-full max-h-[80vh]"
+        className="rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col"
         style={{
           background: "linear-gradient(160deg, #131313 70%, #191919 100%)",
           color: "white",
         }}
       >
         {/* Header */}
-        <div className="p-6 border-b border-gray-900 flex items-center justify-between">
+        <div className="p-6 border-b border-gray-900 flex items-center justify-between flex-shrink-0">
           <h2 className="text-xl font-semibold text-white">
             Configure {selectedNode.name}
           </h2>
@@ -60,6 +223,7 @@ export default function ConfigModal({
             onClick={onClose}
             className="text-gray-400 hover:text-white"
             style={{ fontWeight: "bold", fontSize: "20px" }}
+            type="button"
           >
             ✕
           </button>
@@ -67,7 +231,7 @@ export default function ConfigModal({
 
         {/* Body */}
         <div className="p-6">
-          {/* Show node info */}
+          {/* Node info */}
           <div
             className="mb-6 p-4 rounded-lg"
             style={{ background: "rgba(30,30,30,0.96)" }}
@@ -82,12 +246,11 @@ export default function ConfigModal({
             </p>
           </div>
 
-          {/* DYNAMIC FORM from registry */}
+          {/* Dynamic Form Block */}
           {(() => {
             const nodeConfig = getNodeConfig(
               selectedNode.name || selectedNode.actionType
             );
-
             if (!nodeConfig) {
               return (
                 <p className="text-red-400">
@@ -96,7 +259,7 @@ export default function ConfigModal({
               );
             }
 
-            if (nodeConfig.fields.length === 0) {
+            if ((nodeConfig.fields || []).length === 0) {
               return (
                 <div className="text-center py-8 text-gray-200">
                   <div className="text-4xl mb-4">✅</div>
@@ -112,9 +275,51 @@ export default function ConfigModal({
                       <p className="font-medium mb-2 text-white">
                         Webhook URL:
                       </p>
-                      <code className="block bg-black p-2 rounded border font-mono text-sm break-all text-green-300 border-gray-700">
-                        {`${typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/${selectedNode.id}`}
-                      </code>
+                      <div className="flex items-center gap-2">
+                        <code className="block bg-black p-2 rounded border font-mono text-sm break-all text-green-300 border-gray-700">
+                          {`${HOOKS_URL}/${userId}/${selectedNode.id}`}
+                        </code>
+                        <button
+                          type="button"
+                          aria-label="Copy webhook url"
+                          className="p-1 rounded hover:bg-gray-800"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              `${HOOKS_URL}/${userId}/${selectedNode.id}`
+                            );
+                            toast.success("Webhook url copied");
+                          }}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-4 h-4 text-gray-300"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <rect
+                              x="9"
+                              y="9"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              fill="none"
+                            />
+                            <rect
+                              x="3"
+                              y="3"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              fill="none"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                       <p className="text-xs text-gray-400 mt-1">
                         Copy this URL to trigger the workflow
                       </p>
@@ -124,25 +329,9 @@ export default function ConfigModal({
               );
             }
 
-            // Render fields dynamically (B&W)
             return (
               <div className="space-y-4">
-                {nodeConfig.fields.map((field) => (
-                  <div key={field.name} className="form-group">
-                    <label className="block text-sm font-medium text-white mb-1">
-                      {field.label}{" "}
-                      {field.required && (
-                        <span className="text-red-400">*</span>
-                      )}
-                    </label>
-                    {/* Render field based on type - only basic input for now */}
-                    <input
-                      type="text"
-                      placeholder={field.placeholder}
-                      className="w-full p-3 border border-gray-900 bg-black text-white rounded-md focus:ring-2 focus:ring-white focus:border-white placeholder-gray-400"
-                    />
-                  </div>
-                ))}
+                {nodeConfig.fields.map(renderField)}
               </div>
             );
           })()}
@@ -158,14 +347,19 @@ export default function ConfigModal({
             className="px-4 py-2 text-white hover:bg-gray-700 rounded border border-gray-900"
             style={{ background: "#111" }}
             disabled={loading}
+            type="button"
           >
             Cancel
           </button>
           <button
-            onClick={handleSave}
+            onClick={async () => {
+              await handleSave();
+              setConfig({}); // Clear the form after saving
+            }}
             disabled={loading}
             className="px-6 py-2 bg-gradient-to-r from-white to-gray-400 text-black rounded hover:from-gray-300 hover:to-gray-600 disabled:opacity-50"
             style={{ fontWeight: 600 }}
+            type="button"
           >
             {loading ? "Saving..." : "Save"}
           </button>

@@ -2,7 +2,8 @@
 import axios from "axios";
 import { BACKEND_URL, NodeUpdateSchema } from "@repo/common/zod";
 import { TriggerUpdateSchema } from "@repo/common/zod";
-import z from "zod"
+import z from "zod";
+import { getCredentials } from "../workflow/lib/config";
 // Wrap all API calls in async functions and make sure to set withCredentials: true and add Content-Type header.
 export const api = {
   workflows: {
@@ -33,7 +34,7 @@ export const api = {
         headers: { "Content-Type": "application/json" },
       }),
     update: async (data: z.infer<typeof TriggerUpdateSchema>) => {
-      await axios.put(`${BACKEND_URL}/user/update/trigger`, data, {
+      return await axios.put(`${BACKEND_URL}/user/update/trigger`, data, {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       });
@@ -57,11 +58,14 @@ export const api = {
       }),
   },
   Credentials: {
-    getCredentials: async (type: string) =>
-      await axios.get(`${BACKEND_URL}/user/getCredentials/${type}`, {
+    getCredentials: async (type: string) => {
+     const res =  await axios.get(`${BACKEND_URL}/user/getCredentials/${type}`, {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
-      }),
+      });
+      return res.data
+    },
+
     getAllCreds: async () =>
       await axios.get(`${BACKEND_URL}/user/getAllCreds`, {
         withCredentials: true,
