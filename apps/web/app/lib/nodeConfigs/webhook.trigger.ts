@@ -1,5 +1,5 @@
 // import { NodeConfig } from '../types/node.types';
-
+// // 
 // export const webhookTriggerConfig: NodeConfig = {
 //   id: "webhook",
 //   type: "trigger",
