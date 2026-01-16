@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { HOOKS_URL } from "@repo/common/zod";
 import { useAppSelector } from "@/app/hooks/redux";
 import { toast } from "sonner";
-import { api } from "@/app/lib/api";
+import { useCredentials } from "@/app/hooks/useCredential";
+
 interface ConfigModalProps {
   isOpen: boolean;
   selectedNode: any | null;
   onClose: () => void;
   onSave: (selectedNode: string, config: any, userId: string) => Promise<void>;
+  workflowId?: string;
 }
 
 export default function ConfigModal({
@@ -17,41 +19,33 @@ export default function ConfigModal({
   selectedNode,
   onClose,
   onSave,
+  workflowId,
 }: ConfigModalProps) {
   const [config, setConfig] = useState<Record<string, any>>({});
-  const [credentials, setCredentials] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const userId = useAppSelector((state) => state.user.userId) as string;
 
-  // Fetch credentials only when required on node change
+  // Fetch credentials with hook based on node config (google, etc) if appropriate
+  let credType: string | null = null;
+  if (selectedNode) {
+    const nodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
+    if (nodeConfig && nodeConfig.credentials) credType = nodeConfig.credentials;
+  }
+  const { cred: credentials = [], authUrl } = useCredentials(credType ?? "", workflowId);
+
   useEffect(() => {
-    setConfig({}); // Clear form when switching nodes
-    setCredentials([]); // Clear credentials on node switch
-    if (selectedNode) {
-      const nodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
-      if (nodeConfig && nodeConfig.credentials === "google") {
-        api.Credentials.getCredentials("google").then((res) => {
-          setCredentials(res || []);
-        }).catch((error) => {
-          console.error("Failed to fetch credentials:", error);
-          setCredentials([]);
-        });
-      }
-    }
-    // Removed console log pollution
+    setConfig({});
+    // We no longer set local credentials here; handled by useCredentials!
   }, [selectedNode]);
 
-  // No modal if not needed
   if (!isOpen || !selectedNode) return null;
 
-  // Save callback
   const handleSave = async () => {
     setLoading(true);
     try {
       await onSave(selectedNode.id, config, userId);
       toast.success("Configured Successfully");
-    } catch (error) {
-      console.error("Save failed:", error);
+    } catch {
       toast.error("Failed to save config");
     } finally {
       setLoading(false);
@@ -59,35 +53,18 @@ export default function ConfigModal({
     }
   };
 
-  // Field rendering helper
   const renderField = (field: any) => {
     const fieldValue = config[field.name] || "";
 
-    // Special handling for Google credential dropdown
     if (field.type === "dropdown" && field.name === "credentialId") {
+      // Use the values from useCredentials: credentials and authUrl
       return (
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">
-            {field.label}{" "}
+            {field.label}
             {field.required && <span className="text-red-400">*</span>}
           </label>
-          {/* No credentials connected */}
-          {credentials.length === 0 ? (
-            <>
-              <button
-                onClick={() =>
-                  (window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(window.location.href)}`)
-                }
-                className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center justify-center gap-2"
-                type="button"
-              >
-                🔗 Connect Google Account
-              </button>
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                Connect your Google account to use Gmail &amp; Sheets
-              </p>
-            </>
-          ) : (
+          {(Array.isArray(credentials) && credentials.length > 0) ? (
             <>
               <select
                 value={fieldValue}
@@ -118,17 +95,41 @@ export default function ConfigModal({
                 ))}
               </div>
             </>
+          ) : (
+            <>
+              {authUrl ? (
+                <>
+                  <button
+                    onClick={() => {
+                      if (authUrl) {
+                        window.location.href = authUrl;
+                      }
+                    }}
+                    className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center justify-center gap-2 transition-colors"
+                    type="button"
+                  >
+                    🔗 Connect Google Account
+                  </button>
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    Connect your Google account to use Gmail &amp; Sheets
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  No credentials or connection option available.
+                </p>
+              )}
+            </>
           )}
         </div>
       );
     }
 
-    // Generic dropdown
     if (field.type === "dropdown") {
       return (
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">
-            {field.label}{" "}
+            {field.label}
             {field.required && <span className="text-red-400">*</span>}
           </label>
           <select
@@ -153,12 +154,11 @@ export default function ConfigModal({
       );
     }
 
-    // Textarea
     if (field.type === "textarea") {
       return (
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">
-            {field.label}{" "}
+            {field.label}
             {field.required && <span className="text-red-400">*</span>}
           </label>
           <textarea
@@ -178,11 +178,10 @@ export default function ConfigModal({
       );
     }
 
-    // Input (default)
     return (
       <div key={field.name} className="form-group">
         <label className="block text-sm font-medium text-white mb-1">
-          {field.label}{" "}
+          {field.label}
           {field.required && <span className="text-red-400">*</span>}
         </label>
         <input
@@ -248,7 +247,6 @@ export default function ConfigModal({
               <span className="text-white">{selectedNode.type}</span>
             </p>
           </div>
-
           {/* Dynamic Form Block */}
           {(() => {
             const nodeConfig = getNodeConfig(
@@ -261,7 +259,6 @@ export default function ConfigModal({
                 </p>
               );
             }
-
             if ((nodeConfig.fields || []).length === 0) {
               return (
                 <div className="text-center py-8 text-gray-200">
@@ -331,7 +328,6 @@ export default function ConfigModal({
                 </div>
               );
             }
-
             return (
               <div className="space-y-4">
                 {nodeConfig.fields.map(renderField)}
@@ -357,7 +353,7 @@ export default function ConfigModal({
           <button
             onClick={async () => {
               await handleSave();
-              setConfig({}); // Clear the form after saving
+              setConfig({});
             }}
             disabled={loading}
             className="px-6 py-2 bg-gradient-to-r from-white to-gray-400 text-black rounded hover:from-gray-300 hover:to-gray-600 disabled:opacity-50"

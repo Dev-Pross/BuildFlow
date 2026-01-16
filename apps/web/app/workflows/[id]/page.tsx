@@ -420,6 +420,7 @@ export default function WorkflowCanvas() {
       <ConfigModal
         isOpen={configOpen}
         selectedNode={selectedNode}
+        workflowId={workflowId}
         onClose={() => {
           setConfigOpen(false);
           setSelectedNode(null);

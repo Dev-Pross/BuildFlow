@@ -1,3 +1,16 @@
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+// Load .env file FIRST, before any other imports
+// This ensures our environment variables override any from other packages
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = join(__dirname, "../.env");
+dotenv.config({ path: envPath, override: true });
+console.log("📁 Loaded .env from:", envPath);
+console.log("🔐 GOOGLE_REDIRECT_URI:", process.env.GOOGLE_REDIRECT_URI || "NOT SET");
+
 import cookieParser from 'cookie-parser'
 import { NodeRegistry } from "@repo/nodes/nodeClient";
 import express from "express";
@@ -20,7 +33,7 @@ app.use(cookieParser());
 
 app.use("/user" , userRouter)
 app.use('/node', sheetRouter)
-app.use('/auth/google', googleAuth)  // ← CHANGED THIS LINE!
+app.use('/oauth/google', googleAuth)  // ← CHANGED THIS LINE!
 
 const PORT= 3002
 
