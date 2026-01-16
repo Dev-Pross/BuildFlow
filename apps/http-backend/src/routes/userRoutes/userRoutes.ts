@@ -213,20 +213,33 @@ router.get(
         },
       });
 
+      // if (credentials.length === 0) {
+      //   // No credentials found - return the correct auth URL
+      //   const authUrl = `${process.env.BACKEND_URL || "http://localhost:3002"}/oauth/google/initiate`;
+      //   return res.status(statusCodes.OK).json({
+      //     message:
+      //       "Credentials not found create credentials using this auth url",
+      //     Data: authUrl,
+      //   });
+      // }
+
+      // // Credentials found - return them
+      // return res.status(statusCodes.OK).json({
+      //   message: "Credentials Fetched successfully",
+      //   Data: credentials,
+      // });
       if (credentials.length === 0) {
-        // No credentials found - return the correct auth URL
-        const authUrl = `${process.env.BACKEND_URL || "http://localhost:3002"}/auth/google/initiate`;
-        return res.status(statusCodes.OK).json({
-          message:
-            "Credentials not found create credentials using this auth url",
-          Data: authUrl,
+        return res.status(200).json({
+          message: "No credentials found",
+          data: [], // always array
+          hasCredentials: false,
         });
       }
 
-      // Credentials found - return them
-      return res.status(statusCodes.OK).json({
-        message: "Credentials Fetched successfully",
-        Data: credentials,
+      return res.status(200).json({
+        message: "Credentials fetched",
+        data: credentials,
+        hasCredentials: true,
       });
     } catch (e) {
       console.log(

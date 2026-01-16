@@ -1,34 +1,53 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getCredentials } from "../workflow/lib/config";
+import { BACKEND_URL } from "@repo/common/zod";
 
-export const useCredentials = (type: string): any => {
-  const [cred, setCred] = useState<any>();
-  const [authUrl, setAuthUrl] = useState<string>();
+export const useCredentials = (type: string, workflowId?: string): any => {
+  const [cred, setCred] = useState<any[]>([]);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchCred = async () => {
       try {
-        if (!type) return {};
-        const response = await getCredentials(type);
-        if (response) {
-          console.log(typeof response);
-          if (typeof response === "string") setAuthUrl(response);
-          else setCred(response);
+        // Clear credentials and authUrl when type is empty to prevent leaking credentials
+        if (!type) {
+          setCred([]);
+          setAuthUrl(null);
+          return;
+        }
 
-          // console.log(response[0].nodeId)
-          console.log(response);
-          return cred;
-        } else return {};
+        const response = await getCredentials(type);
+
+        // Backend should ONLY return stored credentials
+        if (Array.isArray(response)) {
+          setCred(response);
+        } else {
+          setCred([]);
+        }
+
+        // Frontend defines where to redirect for OAuth
+        if (type === "google") {
+          const baseUrl = `${BACKEND_URL}/oauth/google/initiate`;
+          const url = workflowId ? `${baseUrl}?workflowId=${workflowId}` : baseUrl;
+          setAuthUrl(url);
+        } else {
+          setAuthUrl(null);
+        }
       } catch (e) {
         console.log(
           e instanceof Error
             ? e.message
-            : "unknow error from useCredentials hook"
+            : "unknown error from useCredentials hook"
         );
+        // Clear state on error to prevent stale data
+        setCred([]);
+        setAuthUrl(null);
       }
     };
 
     fetchCred();
-  }, [type]);
+  }, [type, workflowId]);
+
   return { cred, authUrl };
 };
