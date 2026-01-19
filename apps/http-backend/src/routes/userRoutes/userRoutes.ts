@@ -12,6 +12,7 @@ import {
   NodeSchema,
   NodeUpdateSchema,
   TriggerUpdateSchema,
+  workflowUpdateSchema,
 } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
 const router: Router = Router();
@@ -133,56 +134,6 @@ router.get(
   }
 );
 
-// //------------------------------ GET CREDENTIALS -----------------------------
-
-// router.get('/getCredentials/:type',
-//   userMiddleware,
-//   async (req: AuthRequest, res) =>{
-//     try{
-//       console.log("user from getcredentials: ",req.user)
-//       if(!req.user){
-//           return res.status(statusCodes.BAD_REQUEST).json({
-//             message: "User is not Loggedin"
-//           })
-//         }
-//         const userId = req.user.sub;
-//         const type = req.params.type
-//         console.log(userId," -userid")
-//         if(!type || !userId){
-//           return res.status(statusCodes.BAD_REQUEST).json({
-//             message: "Incorrect type Input",
-//           });
-//         }
-//         const executor = new GoogleSheetsNodeExecutor()
-//         const response = await executor.getAllCredentials(userId,type)
-//         // console.log( typeof(response));
-//         // console.log("response: ",response)
-//         const authUrl = typeof response === 'string' ? response : null
-//         // console.log(authUrl);
-
-//         const credentials = response instanceof Object ? response : null
-//         // console.log(credentials)
-//         if(authUrl){
-//           return res.status(statusCodes.OK).json({
-//           message: "Credentials not found create credentials using this auth url",
-//           Data: authUrl,
-//         });
-//         }
-//         else return res.status(statusCodes.OK).json({
-//           message: "Credentials Fetched succesfully",
-//           Data: credentials,
-//         });
-//     }
-//     catch(e){
-//       console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
-//       return res
-//         .status(statusCodes.INTERNAL_SERVER_ERROR)
-//         .json({ message: "Internal server from fetching the credentials" });
-//     }
-//   }
-// );
-
-//------------------------------ GET CREDENTIALS -----------------------------
 
 router.get(
   "/getCredentials/:type",
@@ -290,31 +241,23 @@ router.post(
   "/create/workflow",
   userMiddleware,
   async (req: AuthRequest, res) => {
-    try {
-      if (!req.user) {
-        return res.status(statusCodes.BAD_REQUEST).json({
-          message: "User is not logged in ",
-        });
-      }
-      const Data = req.body;
-      const ParsedData = WorkflowSchema.safeParse(Data);
-      const UserID = req.user.id;
-      // const UserID = "343c9a0a-9c3f-40d0-81de-9a5969e03f92";
-      // Ensure that the required fields are present in the parsed data and create the workflow properly.
-      if (!ParsedData.success) {
-        return res.status(statusCodes.BAD_REQUEST).json({
-          message: "Incorrect Workflow Inputs",
-        });
-      }
+
+    if (!req.user) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "User is not logged in ",
+      });
+    }
+    const Data = req.body;
+    const ParsedData = WorkflowSchema.safeParse(Data);
+    const UserID = req.user.id;
+    // const UserID = "343c9a0a-9c3f-40d0-81de-9a5969e03f92";
+    // Ensure that the required fields are present in the parsed data and create the workflow properly.
+    if (!ParsedData.success) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Incorrect Workflow Inputs",
+      });
+    } try {
       const createWorkflow = await prismaClient.workflow.create({
-        // Example JSON body to test this route:
-        /*
-      {
-        "Name":"workflow-1",
-        "UserId": "",
-        "Config":[{}]
-      }
-      */
         data: {
           user: {
             connect: { id: UserID },
@@ -328,13 +271,16 @@ router.post(
         message: "Workflow Created Successfully",
         Data: createWorkflow,
       });
-    } catch (e) {
+    } catch (e: any) {
       console.log("Internal server error from creating aworkflow", e);
       return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
         message: "Internal Server Error from CCreating Workflow",
+        error: e instanceof Error ? e.message : "Unknown error"
       });
     }
-  }
+    }
+
+  
 );
 
 // ------------------------------------ FETCHING WORKFLOWS -----------------------------------
@@ -444,10 +390,52 @@ router.get(
   }
 );
 
-// router.put("/workflow/update" , userMiddleware , (req : AuthRequest , res : Response) => {
+router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Response) => {
 
-// })
-// ---------------------------------------- INSERTING DATA INTO NODES/ TRIGGER TABLE-----------------------------
+  const data = req.body;
+  const parsedData = workflowUpdateSchema.safeParse(data);
+
+  if (!parsedData.success) {
+    return res.status(statusCodes.BAD_REQUEST).json({
+      message: "Incorrect Input",
+      error: parsedData.error
+    })
+  }
+  const workflowId = parsedData.data.workflowId;
+  if (!req.user) {
+    return res.status(statusCodes.UNAUTHORIZED).json({
+      message: "User Not Authenticated"
+    })
+  }
+  const userId = req.user.id
+  try {
+    const workflowValid = await prismaClient.workflow.findFirst({
+      where: { id: workflowId, userId: userId }
+    })
+    if (!workflowValid) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Didn't find the workflow"
+      })
+    }
+    const update = await prismaClient.workflow.update({
+      where: { id: workflowId, userId: userId },
+      data: {
+        // Nodes: parsedData.data.nodes,
+        Edges: parsedData.data.edges
+      }
+    })
+    return res.status(statusCodes.ACCEPTED).json({
+      message: "Workflow Updated Succesfuly",
+      Data: update
+    })
+  } catch (error: any) {
+    console.log("Error updating workflow:", error);
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Internal Server Error from Updating workflow",
+      error: error instanceof Error ? error.message : "Unknown error"
+    })
+  }
+})
 
 router.post(
   "/create/trigger",

@@ -16,11 +16,20 @@ export const api = {
           headers: { "Content-Type": "application/json" },
         }
       ),
-    get: async (id: string) =>
-      await axios.get(`${BACKEND_URL}/user/workflow/${id}`, {
+    get: async (id: string) => {
+      return await axios.get(`${BACKEND_URL}/user/workflow/${id}`, {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
-      }),
+      });
+    },
+    put: async (data: any) => {
+      return await axios.put(`${BACKEND_URL}/user/workflow/update`,
+        data,
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        })
+    }
   },
   triggers: {
     getAvailable: async () =>
@@ -59,7 +68,7 @@ export const api = {
   },
   Credentials: {
     getCredentials: async (type: string) => {
-     const res =  await axios.get(`${BACKEND_URL}/user/getCredentials/${type}`, {
+      const res = await axios.get(`${BACKEND_URL}/user/getCredentials/${type}`, {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       });

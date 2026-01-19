@@ -88,6 +88,7 @@ model Workflow {
   status      WorkflowStatus?
   isEmpty     Boolean?            @default(true)
   nodes       Node[]
+  Edges       Json?
   Trigger     Trigger?
   user        User                @relation(fields: [userId], references: [id])
   executions  WorkflowExecution[]
