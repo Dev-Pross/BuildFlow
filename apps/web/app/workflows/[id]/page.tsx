@@ -19,6 +19,7 @@ import { TriggerSideBar } from "@/app/components/nodes/TriggerSidebar";
 import ActionSideBar from "@/app/components/Actions/ActionSidebar";
 import { api } from "@/app/lib/api";
 import ConfigModal from "./components/ConfigModal";
+import { toast } from "sonner";
 
 export default function WorkflowCanvas() {
   const params = useParams();
@@ -54,38 +55,39 @@ export default function WorkflowCanvas() {
     const loadWorkflows = async () => {
       try {
         const workflows = await api.workflows.get(workflowId);
-        console.log("This is the  New Triggering trigger Data is",workflows.data.Data.Trigger.AvailableTriggerID);
-        
+        console.log("This is the  New Triggering trigger Data is", workflows.data.Data.Trigger.AvailableTriggerID);
+
         // 1. SAFEGUARD: Default to empty arrays to prevent crashes
         const dbNodes = workflows.data.Data.nodes || [];
         const dbEdges = workflows.data.Data.Edges || [];
         const Trigger = workflows.data.Data.Trigger;
-        console.log("This is the  trigger Data is",workflows.data.Data);
+        console.log("This is the  trigger Data is", workflows.data.Data);
 
-        console.log("The Data of Trigger is",Trigger)
+        console.log("The Data of Trigger is", Trigger)
         // 2. CREATE TRIGGER NODE
         // We assume the trigger is always the starting point
+        if (!Trigger) {
+          console.error("No trigger found in workflow data");
+          return;
+        }
         const triggerNode = {
           id: Trigger.id,
           type: "customNode",
           // Default to top center if no position exists
-          position: Trigger.position || { x: 250, y: 50 }, 
+          position: Trigger.position || { x: 250, y: 50 },
           data: {
             label: Trigger.name || Trigger.data?.label || "Trigger",
             icon: Trigger.data?.icon || "⚡", // Lightning icon for trigger
             nodeType: "trigger",
             isConfigured: true,
             onConfigure: () => handleNodeConfigure({
-               id: Trigger.id,
-               // ... pass your trigger config props here
+              id: Trigger.id,
+              // ... pass your trigger config props here
             })
           },
         };
-        if (!Trigger) {
-          +  console.error("No trigger found in workflow data");
-            return;
-          }
-  
+
+
         // 3. TRANSFORM ACTION NODES
         const transformedNodes = dbNodes.map((node: any) => ({
           id: node.id,
@@ -104,20 +106,20 @@ export default function WorkflowCanvas() {
             })
           }
         }));
-  
+
         // 4. CALCULATE PLACEHOLDER POSITION
         // Find the "last" node to attach the placeholder to. 
         // If we have actions, use the last action. If not, use the trigger.
-        const lastNode = transformedNodes.length > 0 
-          ? transformedNodes[transformedNodes.length - 1] 
+        const lastNode = transformedNodes.length > 0
+          ? transformedNodes[transformedNodes.length - 1]
           : triggerNode;
-  
+
         // Position placeholder 150 pixels below the last node
-        const placeholderPosition = { 
-          x: lastNode.position.x, 
-          y: lastNode.position.y + 150 
+        const placeholderPosition = {
+          x: lastNode.position.x,
+          y: lastNode.position.y + 150
         };
-  
+
         const actionPlaceholder = {
           id: `action-placeholder-${Date.now()}`,
           type: "customNode",
@@ -130,15 +132,15 @@ export default function WorkflowCanvas() {
             onConfigure: () => setActionOpen(true),
           },
         };
-  
+
         // 5. COMBINE NODES
         const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
-  
+
         // 6. MANAGE EDGES
         // If we have DB edges, use them. 
         // If not, we should auto-connect Trigger -> First Node -> Placeholder
         let finalEdges = [...dbEdges];
-  
+
         // Auto-connect Placeholder to the last node (visual guide)
         const placeholderEdge = {
           id: `e-${lastNode.id}-${actionPlaceholder.id}`,
@@ -147,28 +149,28 @@ export default function WorkflowCanvas() {
           type: 'default', // or your custom edge type
           animated: true,  // Make it dashed/animated to indicate it's temporary
         };
-        
+
         // Ensure Trigger is connected to first action if DB edges are empty & actions exist
         if (dbEdges.length === 0 && transformedNodes.length > 0) {
-           const triggerEdge = {
-              id: `e-${triggerNode.id}-${transformedNodes[0].id}`,
-              source: triggerNode.id,
-              target: transformedNodes[0].id,
-              type: 'default'
-           };
-           finalEdges.push(triggerEdge);
+          const triggerEdge = {
+            id: `e-${triggerNode.id}-${transformedNodes[0].id}`,
+            source: triggerNode.id,
+            target: transformedNodes[0].id,
+            type: 'default'
+          };
+          finalEdges.push(triggerEdge);
         }
-  
+
         finalEdges.push(placeholderEdge);
-  
+
         setNodes(finalNodes);
         setEdges(finalEdges);
-  
+
       } catch (error) {
         console.error("Failed to load workflow:", error);
       }
     };
-  
+
     loadWorkflows();
   }, [workflowId]);
 
@@ -615,19 +617,20 @@ export default function WorkflowCanvas() {
   const handleSave = async () => {
     const payload = {
       workflowId: workflowId,
-      nodes: nodes,
+      // nodes: nodes,
       edges: edges
     };
-    console.log("THe Nodes are ", payload.nodes)
+    // console.log("THe Nodes are ", payload.nodes)
     console.log("The payload in handleSave is ", payload);
     try {
       const response = await api.workflows.put({
         workflowId: workflowId,
-        nodes : nodes,
+        // nodes: nodes,
         edges: edges
       });
       // Optionally, you can show a message or update UI on success
       console.log("Workflow updated successfully:", response.data);
+      toast.success("Workflow Saved Succesfully")
     } catch (error: any) {
       setError(error);
     }
@@ -715,5 +718,4 @@ export default function WorkflowCanvas() {
     </div>
   );
 }
-  
-  
+
