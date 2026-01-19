@@ -50,6 +50,11 @@ export const WorkflowSchema = z.object({
   description: z.string().optional(),
 });
 
+export const workflowUpdateSchema = z.object({
+  nodes : z.any().optional(),
+  edges : z.any().optional(),
+  workflowId : z.string()
+})
 export enum statusCodes {
   OK = 200,
   CREATED = 201,
