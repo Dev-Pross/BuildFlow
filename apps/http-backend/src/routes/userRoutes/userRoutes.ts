@@ -134,56 +134,6 @@ router.get(
   }
 );
 
-// //------------------------------ GET CREDENTIALS -----------------------------
-
-// router.get('/getCredentials/:type',
-//   userMiddleware,
-//   async (req: AuthRequest, res) =>{
-//     try{
-//       console.log("user from getcredentials: ",req.user)
-//       if(!req.user){
-//           return res.status(statusCodes.BAD_REQUEST).json({
-//             message: "User is not Loggedin"
-//           })
-//         }
-//         const userId = req.user.sub;
-//         const type = req.params.type
-//         console.log(userId," -userid")
-//         if(!type || !userId){
-//           return res.status(statusCodes.BAD_REQUEST).json({
-//             message: "Incorrect type Input",
-//           });
-//         }
-//         const executor = new GoogleSheetsNodeExecutor()
-//         const response = await executor.getAllCredentials(userId,type)
-//         // console.log( typeof(response));
-//         // console.log("response: ",response)
-//         const authUrl = typeof response === 'string' ? response : null
-//         // console.log(authUrl);
-
-//         const credentials = response instanceof Object ? response : null
-//         // console.log(credentials)
-//         if(authUrl){
-//           return res.status(statusCodes.OK).json({
-//           message: "Credentials not found create credentials using this auth url",
-//           Data: authUrl,
-//         });
-//         }
-//         else return res.status(statusCodes.OK).json({
-//           message: "Credentials Fetched succesfully",
-//           Data: credentials,
-//         });
-//     }
-//     catch(e){
-//       console.log("Error Fetching the credentials ", e instanceof Error ? e.message : "Unkown reason");
-//       return res
-//         .status(statusCodes.INTERNAL_SERVER_ERROR)
-//         .json({ message: "Internal server from fetching the credentials" });
-//     }
-//   }
-// );
-
-//------------------------------ GET CREDENTIALS -----------------------------
 
 router.get(
   "/getCredentials/:type",
@@ -325,12 +275,12 @@ router.post(
       console.log("Internal server error from creating aworkflow", e);
       return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
         message: "Internal Server Error from CCreating Workflow",
-        error: e
-
+        error: e instanceof Error ? e.message : "Unknown error"
       });
     }
+    }
 
-  }
+  
 );
 
 // ------------------------------------ FETCHING WORKFLOWS -----------------------------------
@@ -446,7 +396,7 @@ router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Res
   const parsedData = workflowUpdateSchema.safeParse(data);
 
   if (!parsedData.success) {
-    return res.status(statusCodes.CONFLICT).json({
+    return res.status(statusCodes.BAD_REQUEST).json({
       message: "Incorrect Input",
       error: parsedData.error
     })
@@ -470,7 +420,7 @@ router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Res
     const update = await prismaClient.workflow.update({
       where: { id: workflowId, userId: userId },
       data: {
-        Nodes: parsedData.data.nodes,
+        // Nodes: parsedData.data.nodes,
         Edges: parsedData.data.edges
       }
     })
@@ -479,9 +429,10 @@ router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Res
       Data: update
     })
   } catch (error: any) {
+    console.log("Error updating workflow:", error);
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
       message: "Internal Server Error from Updating workflow",
-      error: error
+      error: error instanceof Error ? error.message : "Unknown error"
     })
   }
 })

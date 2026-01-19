@@ -52,56 +52,179 @@ export default function WorkflowCanvas() {
   };
   useEffect(() => {
     const loadWorkflows = async () => {
-      const workflows = await api.workflows.get(workflowId);
-      console.log("This is the Data from workflow form DB",workflows.data.Data)
-      const dbNodes = workflows.data.Data.nodes;
+      try {
+        const workflows = await api.workflows.get(workflowId);
+        console.log("This is the  New Triggering trigger Data is",workflows.data.Data.Trigger.AvailableTriggerID);
+        
+        // 1. SAFEGUARD: Default to empty arrays to prevent crashes
+        const dbNodes = workflows.data.Data.nodes || [];
+        const dbEdges = workflows.data.Data.Edges || [];
+        const Trigger = workflows.data.Data.Trigger;
+        console.log("This is the  trigger Data is",workflows.data.Data);
 
-      const dbEdges = workflows.data.Data.Edges;
-      console.log("These are the DbNodes ",dbNodes)
-      console.log("These are the DB Edges  ",dbEdges)
-      const transformedNodes = dbNodes.map((node: any) => ({
-        id: node.id,
-        type: "customNode", // ⚠️ This was missing!
-        position: node.position || { x: 0, y: 0 },
-        data: {
-          label: node.data?.label || node.name || "Unknown",
-          icon: node.data?.icon || "⚙️",
-          nodeType: node.data?.nodeType || (node.TriggerId ? "trigger" : "action"),
-          isPlaceholder: node.data?.isPlaceholder || false,
-          isConfigured: node.data?.isConfigured || false,
-          config: node.data?.config || node.Config || {},
-
-          // ⚠️ CRITICAL: Re-attach callbacks
-          onConfigure: () => handleNodeConfigure({
-            id: node.id,
-            name: node.data?.label || node.Name,
-            type: node.data?.nodeType || (node.TriggerId ? "trigger" : "action"),
-            actionType: node.AvailableNodeId || node.AvailableTriggerID
-          })
+        console.log("The Data of Trigger is",Trigger)
+        // 2. CREATE TRIGGER NODE
+        // We assume the trigger is always the starting point
+        const triggerNode = {
+          id: Trigger.id,
+          type: "customNode",
+          // Default to top center if no position exists
+          position: Trigger.position || { x: 250, y: 50 }, 
+          data: {
+            label: Trigger.name || Trigger.data?.label || "Trigger",
+            icon: Trigger.data?.icon || "⚡", // Lightning icon for trigger
+            nodeType: "trigger",
+            isConfigured: true,
+            onConfigure: () => handleNodeConfigure({
+               id: Trigger.id,
+               // ... pass your trigger config props here
+            })
+          },
+        };
+        if (!Trigger) {
+          +  console.error("No trigger found in workflow data");
+            return;
+          }
+  
+        // 3. TRANSFORM ACTION NODES
+        const transformedNodes = dbNodes.map((node: any) => ({
+          id: node.id,
+          type: "customNode",
+          position: node.position || { x: 0, y: 0 },
+          data: {
+            label: node.data?.label || node.name || "Unknown",
+            icon: node.data?.icon || "⚙️",
+            nodeType: "action",
+            // ... rest of your data mapping
+            onConfigure: () => handleNodeConfigure({
+              id: node.id,
+              name: node.data?.label || node.Name,
+              type: "action",
+              actionType: node.AvailableNodeId
+            })
+          }
+        }));
+  
+        // 4. CALCULATE PLACEHOLDER POSITION
+        // Find the "last" node to attach the placeholder to. 
+        // If we have actions, use the last action. If not, use the trigger.
+        const lastNode = transformedNodes.length > 0 
+          ? transformedNodes[transformedNodes.length - 1] 
+          : triggerNode;
+  
+        // Position placeholder 150 pixels below the last node
+        const placeholderPosition = { 
+          x: lastNode.position.x, 
+          y: lastNode.position.y + 150 
+        };
+  
+        const actionPlaceholder = {
+          id: `action-placeholder-${Date.now()}`,
+          type: "customNode",
+          position: placeholderPosition,
+          data: {
+            label: "Add Action",
+            icon: "➕",
+            isPlaceholder: true,
+            nodeType: "action",
+            onConfigure: () => setActionOpen(true),
+          },
+        };
+  
+        // 5. COMBINE NODES
+        const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
+  
+        // 6. MANAGE EDGES
+        // If we have DB edges, use them. 
+        // If not, we should auto-connect Trigger -> First Node -> Placeholder
+        let finalEdges = [...dbEdges];
+  
+        // Auto-connect Placeholder to the last node (visual guide)
+        const placeholderEdge = {
+          id: `e-${lastNode.id}-${actionPlaceholder.id}`,
+          source: lastNode.id,
+          target: actionPlaceholder.id,
+          type: 'default', // or your custom edge type
+          animated: true,  // Make it dashed/animated to indicate it's temporary
+        };
+        
+        // Ensure Trigger is connected to first action if DB edges are empty & actions exist
+        if (dbEdges.length === 0 && transformedNodes.length > 0) {
+           const triggerEdge = {
+              id: `e-${triggerNode.id}-${transformedNodes[0].id}`,
+              source: triggerNode.id,
+              target: transformedNodes[0].id,
+              type: 'default'
+           };
+           finalEdges.push(triggerEdge);
         }
-      }));
-      const actionPlaceholder = {
-        id: `action-placeholder-${Date.now()}`,
-        type: "customNode",
-        position: { x: 550, y: 200 },
-        data: {
-          label: "Add Action",
-          icon: "➕",
-          isPlaceholder: true,
-          nodeType: "action",
-          config: {},
-          onConfigure: () => setActionOpen(true),
-        },
-      };
-
-      console.log("This Data after Tranforming",transformedNodes)
-      setNodes([...transformedNodes, actionPlaceholder]);
-      setEdges(dbEdges);
-    }
-
+  
+        finalEdges.push(placeholderEdge);
+  
+        setNodes(finalNodes);
+        setEdges(finalEdges);
+  
+      } catch (error) {
+        console.error("Failed to load workflow:", error);
+      }
+    };
+  
     loadWorkflows();
-  }, [workflowId])
+  }, [workflowId]);
 
+
+  // useEffect(() => {
+  //   const loadWorkflows = async () => {
+  //     const workflows = await api.workflows.get(workflowId);
+  //     console.log("This is the Data from workflow form DB",workflows.data.Data)
+  //     const dbNodes = workflows.data.Data.nodes;
+  //     const Trigger = workflows.data.Data.trigger;
+  //     console.log("The Trigger is",Trigger)
+  //     const dbEdges = workflows.data.Data.Edges || [];
+  //     console.log("These are the DbNodes ",dbNodes)
+  //     console.log("These are the DB Edges  ",dbEdges)
+  //     const transformedNodes = dbNodes.map((node: any) => ({
+  //       id: node.id,
+  //       type: "customNode", // ⚠️ This was missing!
+  //       position: node.position || { x: 0, y: 0 },
+  //       data: {
+  //         label: node.data?.label || node.name || "Unknown",
+  //         icon: node.data?.icon || "⚙️",
+  //         nodeType: node.data?.nodeType || (node.TriggerId ? "trigger" : "action"),
+  //         isPlaceholder: node.data?.isPlaceholder || false,
+  //         isConfigured: node.data?.isConfigured || false,
+  //         config: node.data?.config || node.Config || {},
+
+  //         // ⚠️ CRITICAL: Re-attach callbacks
+  //         onConfigure: () => handleNodeConfigure({
+  //           id: node.id,
+  //           name: node.data?.label || node.Name,
+  //           type: node.data?.nodeType || (node.TriggerId ? "trigger" : "action"),
+  //           actionType: node.AvailableNodeId || node.AvailableTriggerID
+  //         })
+  //       }
+  //     }));
+  //     const actionPlaceholder = {
+  //       id: `action-placeholder-${Date.now()}`,
+  //       type: "customNode",
+  //       position: { x: 550, y: 200 },
+  //       data: {
+  //         label: "Add Action",
+  //         icon: "➕",
+  //         isPlaceholder: true,
+  //         nodeType: "action",
+  //         config: {},
+  //         onConfigure: () => setActionOpen(true),
+  //       },
+  //     };
+
+  //     console.log("This Data after Tranforming",transformedNodes)
+  //     setNodes([...transformedNodes, actionPlaceholder]);
+  //     setEdges(dbEdges);
+  //   }
+
+  //   loadWorkflows();
+  // }, [workflowId])
 
 
 
@@ -109,38 +232,77 @@ export default function WorkflowCanvas() {
   //   const loadWorkflows = async () => {
   //     const workflows = await api.workflows.get(workflowId);
   //     const dbNodes = workflows.data.Data.nodes;
-  //     const dbEdges = workflows.data.Data.edges;
+  //     // Fix: Normalize dbEdges to always be an array
+  //     let dbEdges = workflows.data.Data.edges;
+  //     if (!Array.isArray(dbEdges)) {
+  //       // Try alternative key (if backend provides Edges sometimes)
+  //       dbEdges = workflows.data.Data.Edges;
+  //     }
+  //     if (!Array.isArray(dbEdges)) {
+  //       dbEdges = [];
+  //     }
 
-  //     // Transform database nodes to React Flow format
-  //     const transformedNodes = dbNodes.map((node: any) => ({
-  //       id: node.id,
-  //       type: "customNode",
-  //       position: node.position || node.Config?.position || { x: 0, y: 0 },
-  //       data: {
-  //         label: node.Name || node.data?.label || "Unknown",
-  //         icon: node.data?.icon || "⚙️",
-  //         nodeType: node.TriggerId ? "trigger" : "action",
-  //         isPlaceholder: false,  // Loaded nodes are never placeholders
-  //         isConfigured: node.data?.isConfigured || false,
-  //         config: node.Config || node.data?.config || {},
-  //         onConfigure: () => handleNodeConfigure({
-  //           id: node.id,
-  //           name: node.Name || node.data?.label,
-  //           type: node.TriggerId ? "trigger" : "action",
-  //         })
-  //       }
-  //     }));
+  //     // Get the trigger (from the "Trigger" key in backend response)
+  //     const trigger = workflows.data.Data.Trigger;
 
-  //     // Filter out any existing placeholders from DB (safety)
-  //     const cleanNodes = transformedNodes.filter((n: any) => !n.data.isPlaceholder);
+  //     // Transform trigger to a node if it exists and not already a node
+  //     let triggerNode = null;
+  //     if (trigger) {
+  //       triggerNode = {
+  //         id: trigger.id || "trigger-node", // fallback in case trigger has no id
+  //         type: "customNode",
+  //         position: trigger.config?.position || { x: 250, y: 50 },
+  //         data: {
+  //           label: trigger.name || trigger.Name || "Trigger",
+  //           icon: "⚡",
+  //           nodeType: "trigger",
+  //           isPlaceholder: false,
+  //           isConfigured: true,
+  //           config: trigger.config || trigger.Config || {},
+  //           onConfigure: () => handleNodeConfigure({
+  //             id: trigger.id,
+  //             name: trigger.name || trigger.Name,
+  //             type: "trigger",
+  //             actionType: trigger.AvailableTriggerID // triggers have this, not actions
+  //           }),
+  //         }
+  //       };
+  //     }
+
+  //     // Transform database nodes to React Flow format, excluding any possible trigger node
+  //     const transformedNodes = dbNodes
+  //       .filter((node: any) => !node.TriggerId) // trigger node will come separately
+  //       .map((node: any) => ({
+  //         id: node.id,
+  //         type: "customNode",
+  //         position: node.position || node.Config?.position || { x: 0, y: 0 },
+  //         data: {
+  //           label: node.Name || node.data?.label || "Unknown",
+  //           icon: node.data?.icon || "⚙️",
+  //           nodeType: node.TriggerId ? "trigger" : "action",
+  //           isPlaceholder: false, // Loaded nodes are never placeholders
+  //           isConfigured: node.data?.isConfigured || false,
+  //           config: node.Config || node.data?.config || {},
+  //           onConfigure: () => handleNodeConfigure({
+  //             id: node.id,
+  //             name: node.Name || node.data?.label,
+  //             type: node.TriggerId ? "trigger" : "action",
+  //           })
+  //         }
+  //       }));
+
+  //     // Combine trigger node (if present) and transformed nodes
+  //     let allNodes = [];
+  //     if (triggerNode) {
+  //       allNodes.push(triggerNode);
+  //     }
+  //     allNodes = [...allNodes, ...transformedNodes];
 
   //     // Find action nodes for logic
-  //     const realActionNodes = cleanNodes.filter((n: any) =>
-  //       n.data.nodeType === "action"
-  //     );
+  //     const realActionNodes = allNodes.filter((n: any) => n.data.nodeType === "action");
 
-  //     // Find trigger node
-  //     const triggerNode = cleanNodes.find((n: any) => n.data.nodeType === "trigger");
+  //     // Find (now explicit) trigger node ref
+  //     const triggerNodeRef = allNodes.find((n: any) => n.data.nodeType === "trigger");
   //     let actionPlaceholder: any;
 
   //     if (realActionNodes.length === 0) {
@@ -148,8 +310,8 @@ export default function WorkflowCanvas() {
   //       actionPlaceholder = {
   //         id: "action-placeholder-end",
   //         type: "customNode",
-  //         position: triggerNode
-  //           ? { x: triggerNode.position.x + 300, y: triggerNode.position.y + 150 }
+  //         position: triggerNodeRef
+  //           ? { x: triggerNodeRef.position.x + 300, y: triggerNodeRef.position.y + 150 }
   //           : { x: 550, y: 200 },
   //         data: {
   //           label: "Add Action",
@@ -179,13 +341,13 @@ export default function WorkflowCanvas() {
   //       };
   //     }
 
-  //     // Connect action-placeholder node as a child of the last action node (via edges)
-  //     let updatedEdges = [...dbEdges];
+  //     // Build up-to-date edge array
+  //     let updatedEdges = Array.isArray(dbEdges) ? [...dbEdges] : [];
   //     if (realActionNodes.length > 0) {
   //       // Connect last action to action-placeholder
   //       const lastAction = realActionNodes[realActionNodes.length - 1];
   //       updatedEdges = [
-  //         ...dbEdges,
+  //         ...updatedEdges,
   //         {
   //           id: `edge-${lastAction.id}-action-placeholder-end`,
   //           source: lastAction.id,
@@ -193,25 +355,29 @@ export default function WorkflowCanvas() {
   //           type: "default"
   //         }
   //       ];
-  //     } else if (triggerNode) {
+  //     } else if (triggerNodeRef) {
   //       // No actions yet, connect trigger to action-placeholder
   //       updatedEdges = [
-  //         ...dbEdges,
+  //         ...updatedEdges,
   //         {
-  //           id: `edge-${triggerNode.id}-action-placeholder-end`,
-  //           source: triggerNode.id,
+  //           id: `edge-${triggerNodeRef.id}-action-placeholder-end`,
+  //           source: triggerNodeRef.id,
   //           target: "action-placeholder-end",
   //           type: "default"
   //         }
   //       ];
   //     }
 
-  //     setNodes([...cleanNodes, actionPlaceholder]);
+  //     // Add placeholder node
+  //     allNodes = [...allNodes, actionPlaceholder];
+
+  //     setNodes(allNodes);
   //     setEdges(updatedEdges);
   //   };
 
   //   if (workflowId) loadWorkflows();
   // }, [workflowId]);
+
 
 
   const handleNodeConfigure = (node: any) => {
@@ -291,6 +457,7 @@ export default function WorkflowCanvas() {
 
           // onConfigure: () => console.log("Configure", actionId),
         },
+
       };
 
       // 3. Create NEW placeholder
@@ -548,4 +715,5 @@ export default function WorkflowCanvas() {
     </div>
   );
 }
+  
   
