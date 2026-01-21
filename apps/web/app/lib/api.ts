@@ -6,6 +6,15 @@ import z from "zod";
 import { getCredentials } from "../workflow/lib/config";
 // Wrap all API calls in async functions and make sure to set withCredentials: true and add Content-Type header.
 export const api = {
+  user: {
+    get: async () => {
+      return await axios.get(`${BACKEND_URL}/user/workflows`, 
+        {
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+  },
   workflows: {
     create: async (name: string, Config: any) =>
       await axios.post(

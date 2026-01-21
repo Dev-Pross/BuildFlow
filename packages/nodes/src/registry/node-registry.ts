@@ -71,6 +71,13 @@ class NodeRegistry {
   static async registerAll() {
     await GoogleSheetNode.register();
     await GmailNode.register();
+    await NodeRegistry.registerTrigger({
+      name: 'Webhook Trigger',
+      type: 'webhook',
+      description: 'Triggers when an HTTP webhook is received.',
+      config: {},
+      requireAuth: false,
+    });
   }
 }
 
