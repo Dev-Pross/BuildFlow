@@ -74,7 +74,7 @@ class NodeRegistry {
     await NodeRegistry.registerTrigger({
       name: 'Webhook Trigger',
       type: 'webhook',
-      description: 'Trigger that fires on incoming webhook events',
+      description: 'Triggers when an HTTP webhook is received.',
       config: {},
       requireAuth: false,
     });
