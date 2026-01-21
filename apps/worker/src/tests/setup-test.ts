@@ -51,6 +51,7 @@ async function setupTestWorkflow() {
       workflowId: workflow.id,
       AvailableNodeID: availableNode.id,
       position: 0,
+      stage : 1,
       config: {
         to: "iamvamsi0@gmail.com",
         subject: "Test from BuildFlow Worker",

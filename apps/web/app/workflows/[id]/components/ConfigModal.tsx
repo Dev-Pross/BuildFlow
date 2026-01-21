@@ -24,7 +24,7 @@ export default function ConfigModal({
   const [config, setConfig] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const userId = useAppSelector((state) => state.user.userId) as string;
-
+  // console.log("This is the credential Data from config from backend" , config);
   // Fetch credentials with hook based on node config (google, etc) if appropriate
   let credType: string | null = null;
   if (selectedNode) {
