@@ -7,6 +7,8 @@ app.use(express.json());
 
 app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
   try {
+    
+    console.log("THIS LOG IS FROM HOOKS BACKEND THAT WE HAVE RECIEVED THE REQUEST")
     const { userId, workflowId } = req.params;
     const { triggerData } = req.body;
 
@@ -24,7 +26,7 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
       const workflowExecution = await tx.workflowExecution.create({
         data: {
           workflowId: workflow.id,
-// next time you see this line  validate the trigger data thinnnnnnnnnn
+          // next time you see this line  validate the trigger data thinnnnnnnnnn
           status: "Pending",
           metadata: triggerData,
         },
@@ -39,13 +41,13 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
     });
     return res.status(200).json({
       success: true,
-      workflowExecutionId:  result.workflowExecution.id,
+      workflowExecutionId: result.workflowExecution.id,
     });
   } catch (error: any) {
     console.log(error);
-    res.status(500).json({ 
-      success: false, 
-      error: "Failed to process webhook" 
+    res.status(500).json({
+      success: false,
+      error: "Failed to process webhook"
     });
   }
 });
@@ -53,4 +55,3 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
 app.listen(3003, () => {
   console.log("Server running on 3003");
 });
-    

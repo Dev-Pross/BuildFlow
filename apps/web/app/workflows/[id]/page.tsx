@@ -19,12 +19,28 @@ import { TriggerSideBar } from "@/app/components/nodes/TriggerSidebar";
 import ActionSideBar from "@/app/components/Actions/ActionSidebar";
 import { api } from "@/app/lib/api";
 import ConfigModal from "./components/ConfigModal";
+import { toast } from "sonner";
 
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
 
   // State
+  const handleExecute = async () => {
+    setLoading(true);
+    try {
+      const data = await api.workflows.execute({workflowId})
+      console.log("This is from the Execute Button", data)
+      toast.success("Execution Started")
+    }
+    catch (error: any) {
+      toast.error("Failed to save config");
+
+    }
+    finally {
+      setLoading(false);
+    }
+  }
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([
     {
       id: "trigger-placeholder",
@@ -519,7 +535,7 @@ export default function WorkflowCanvas() {
           </button>
           <button
             onClick={async () => {
-              // await handleExecute();
+              await handleExecute();
             }}
             disabled={loading}
             className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"

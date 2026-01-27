@@ -53,20 +53,7 @@ export default function ConfigModal({
       onClose();
     }
   };
-  const handleExecute = async () => {
-    setLoading(true);
-    try {
-      // await api.workflows.po
-    }
-    catch (error: any) {
-      toast.error("Failed to save config");
 
-    }
-    finally {
-      setLoading(false);
-      onClose();
-    }
-  }
 
   const renderField = (field: any) => {
     const fieldValue = config[field.name] || "";

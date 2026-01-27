@@ -8,11 +8,11 @@ import { getCredentials } from "../workflow/lib/config";
 export const api = {
   user: {
     get: async () => {
-      return await axios.get(`${BACKEND_URL}/user/workflows`, 
+      return await axios.get(`${BACKEND_URL}/user/workflows`,
         {
-        withCredentials: true,
-        headers: { "Content-Type": "application/json" },
-      })
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        })
     }
   },
   workflows: {
@@ -38,6 +38,12 @@ export const api = {
           withCredentials: true,
           headers: { "Content-Type": "application/json" },
         })
+    },
+    execute: async (data: any) => {
+      return await axios.post(`${BACKEND_URL}/user/executeWorkflow`, data, {
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" },
+      })
     }
   },
   triggers: {
