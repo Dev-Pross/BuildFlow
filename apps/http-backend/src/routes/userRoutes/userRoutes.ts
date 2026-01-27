@@ -657,14 +657,28 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res) =>
         Trigger: true
       }
     })
+    if (!trigger) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        message: "Workflow not found or not authorized"
+      });
+    }
     console.log("This is the Trigger Name of  the workflow", trigger?.Trigger?.name)
     console.log("This is the Trigger Data of  the workflow", trigger)
 
     if (trigger?.Trigger?.name === "webhook") {
       const data = await axios.post(`${HOOKS_URL}/hooks/catch/${userId}/${workflowId}`, {
-        triggerData: ""
-      })
+        triggerData: "",
+
+      },
+        { timeout: 30000 },)
       console.log("Workflow Execution for webhook  started with Execution Id is ", data.data.workflowExecutionId)
+      const workflowExecutionId = data.data.workflowExecutionId;
+      if (!workflowExecutionId) {
+        return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+          message: "Failed to start workflow execution"
+        }
+        )
+      }
       return res.status(200).json({
         success: true,
         workflowExecutionId: data.data.workflowExecutionId
@@ -681,7 +695,7 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res) =>
   } catch (error: any) {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
       message: "Internal Server Error ",
-      Error: error
+      Error: error instanceof Error ? error.message : "Unknown Error"
     })
   }
 
