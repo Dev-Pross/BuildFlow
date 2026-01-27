@@ -18,20 +18,20 @@ export const googleSheetActionConfig: NodeConfig = {
       description: "Choose which Google account to use"
     },
     {
-      name: "spreadsheetId",
-      label: "Spreadsheet",
+      name: "spreadsheetId", 
       type: "dropdown",
+      label: "Spreadsheet",
       required: true,
-      description: "Select the Google Spreadsheet",
-      dependsOn: "credentialId"  // Only show after credential is selected
+      dependsOn: "credentialId",  // <-- This field depends on credentialId
+      fetchOptions: "google.getDocuments", // <-- API method to call
     },
     {
       name: "sheetName",
-      label: "Sheet Name",
-      type: "dropdown",
+      type: "dropdown", 
+      label: "Sheet",
       required: true,
-      description: "Select the specific sheet within the spreadsheet",
-      dependsOn: "spreadsheetId"  // Only show after spreadsheet is selected
+      dependsOn: "spreadsheetId",
+      fetchOptions: "google.getSheets",
     },
     {
       name: "action",
@@ -45,6 +45,13 @@ export const googleSheetActionConfig: NodeConfig = {
       required: true,
       defaultValue: "read_rows",
       description: "What operation to perform on the sheet"
+    },
+    {
+      name: "Range",
+      type: "text", 
+      label: "range",
+      value: "A1:Z100",
+      required: true
     }
   ],
   

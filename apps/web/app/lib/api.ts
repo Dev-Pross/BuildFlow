@@ -96,4 +96,22 @@ export const api = {
         headers: { "Content-Type": "application/json" },
       }),
   },
+  google: {
+    getDocuments: async (CredentialId : string) => {
+      const data =  await axios.get(`${BACKEND_URL}/node/getDocuments/${CredentialId}`,{
+        withCredentials: true,
+        headers: {"Content-Type" : "application/json"},
+      })
+      
+      console.log(data.data.files)
+      return data.data.files
+    },
+    getSheets: async (documentId: string, CredentialId: string) => {
+      const data = await axios.get(`${BACKEND_URL}/node/getSheets/${CredentialId}/${documentId}`,{
+        withCredentials: true,
+        headers: {"Content-Type":"application/json"}
+      })
+      return data.data.files.data
+    },
+  }
 };
