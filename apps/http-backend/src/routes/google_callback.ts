@@ -72,6 +72,7 @@ googleAuth.get(
   "/callback",
   userMiddleware,
   async (req: Request, res: Response) => {
+    console.log("Request recieved to the callback from fronted ")
     const code = req.query.code;
     const state = req.query.state;
     const Oauth = new GoogleOAuthService();

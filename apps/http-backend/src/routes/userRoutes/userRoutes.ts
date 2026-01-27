@@ -13,8 +13,11 @@ import {
   NodeUpdateSchema,
   TriggerUpdateSchema,
   workflowUpdateSchema,
+  ExecuteWorkflow,
+  HOOKS_URL,
 } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
+import axios, { Axios } from "axios";
 const router: Router = Router();
 
 router.post("/createAvaliableNode", async (req: AuthRequest, res: Response) => {
@@ -140,7 +143,7 @@ router.get(
   userMiddleware,
   async (req: AuthRequest, res) => {
     try {
-      console.log("user from getcredentials: ", req.user);
+      // console.log("user from getcredentials: ", req.user);
       if (!req.user) {
         return res.status(statusCodes.BAD_REQUEST).json({
           message: "User is not Loggedin",
@@ -148,7 +151,8 @@ router.get(
       }
       const userId = req.user.sub;
       const type = req.params.type;
-      console.log(userId, " -userid");
+      console.log("The type of data comming to backed is ", type)
+      // console.log(userId, " -userid");
 
       if (!type || !userId) {
         return res.status(statusCodes.BAD_REQUEST).json({
@@ -182,8 +186,6 @@ router.get(
       if (credentials.length === 0) {
         return res.status(200).json({
           message: "No credentials found",
-          data: [], // always array
-          hasCredentials: false,
         });
       }
 
@@ -278,9 +280,9 @@ router.post(
         error: e instanceof Error ? e.message : "Unknown error"
       });
     }
-    }
+  }
 
-  
+
 );
 
 // ------------------------------------ FETCHING WORKFLOWS -----------------------------------
@@ -519,13 +521,17 @@ router.post(
       // Use an empty array for credentials (if required) or don't pass it at all
       // Config must be valid JSON (not an empty string)
       // const stage = dataSafe.data.Position
+      console.log("This is from the backend log of positions", dataSafe.data.position)
       const createdNode = await prismaClient.node.create({
         data: {
           name: dataSafe.data.Name,
           workflowId: dataSafe.data.WorkflowId,
           config: dataSafe.data.Config || {},
           stage: Number(dataSafe.data.stage ?? 0),
-          position: {},
+          position: {
+            x: dataSafe.data.position.x,
+            y: dataSafe.data.position.y
+          },
           AvailableNodeID: dataSafe.data.AvailableNodeId,
         },
       });
@@ -626,6 +632,74 @@ router.put(
   }
 );
 
+router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res) => {
+  console.log("REcieved REquest to the  execute route ")
+  const Data = req.body
+  if (!req.user) {
+    return res.status(statusCodes.UNAUTHORIZED).json({
+      message: "User Not Authorized"
+    })
+  }
+  const parsedData = ExecuteWorkflow.safeParse(Data);
+  console.log("This is the log data of execute work flow zod", parsedData.error)
+  if (!parsedData.success) {
+    return res.status(statusCodes.FORBIDDEN).json({
+      message: "Error in Zod Schma",
+      Data: parsedData.error
+    })
+  }
+  const workflowId = parsedData.data.workflowId;
+  const userId = req.user.id
+  try {
+    const trigger = await prismaClient.workflow.findFirst({
+      where: { id: workflowId, userId: userId },
+      include: {
+        Trigger: true
+      }
+    })
+    if (!trigger) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        message: "Workflow not found or not authorized"
+      });
+    }
+    console.log("This is the Trigger Name of  the workflow", trigger?.Trigger?.name)
+    console.log("This is the Trigger Data of  the workflow", trigger)
+
+    if (trigger?.Trigger?.name === "webhook") {
+      const data = await axios.post(`${HOOKS_URL}/hooks/catch/${userId}/${workflowId}`, {
+        triggerData: "",
+
+      },
+        { timeout: 30000 },)
+      console.log("Workflow Execution for webhook  started with Execution Id is ", data.data.workflowExecutionId)
+      const workflowExecutionId = data.data.workflowExecutionId;
+      if (!workflowExecutionId) {
+        return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+          message: "Failed to start workflow execution"
+        }
+        )
+      }
+      return res.status(200).json({
+        success: true,
+        workflowExecutionId: data.data.workflowExecutionId
+      });
+    }
+    else {
+
+      return res.status(statusCodes.FORBIDDEN).json({
+        message: "Trigger is not webhook"
+      });
+    }
+
+
+  } catch (error: any) {
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Internal Server Error ",
+      Error: error instanceof Error ? error.message : "Unknown Error"
+    })
+  }
+
+})
 router.get("/protected", userMiddleware, (req: AuthRequest, res) => {
   return res.json({
     ok: true,

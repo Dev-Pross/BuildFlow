@@ -59,7 +59,7 @@ const Page = () => {
       }
       if(result?.ok){
         toast.success("Login successful!")
-        router.push('/workflow')
+        router.push('/workflows')
       }
     } catch(e) {
       setError({...newErrors, auth:"Login failed. Please try again"})

@@ -2,7 +2,7 @@ import z from "zod";
 import { number } from "zod/v4";
 
 export const BACKEND_URL = "http://localhost:3002";
-export const HOOKS_URL = "http://localhost:3002";
+export const HOOKS_URL = "http://localhost:3003";
 export const AvailableTriggers = z.object({
   Name: z.string(),
   AvailableTriggerID: z.string().optional(),
@@ -31,8 +31,15 @@ export const NodeSchema = z.object({
   Config: z.any().optional(),
   stage: z.number().optional(),
   WorkflowId: z.string(),
+  position : z.object({
+    x : z.number() ,
+    y : z.number()
+  })
 });
 
+export const ExecuteWorkflow = z.object({
+  workflowId : z.string(),
+})
 export const NodeUpdateSchema = z.object({
   NodeId: z.string(),
   Config: z.any().optional(),

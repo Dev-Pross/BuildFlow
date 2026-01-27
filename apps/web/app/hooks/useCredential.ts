@@ -18,7 +18,8 @@ export const useCredentials = (type: string, workflowId?: string): any => {
         }
 
         const response = await getCredentials(type);
-
+        const data = JSON.stringify(response)
+        console.log("This is the log from usecredentials" , data)
         // Backend should ONLY return stored credentials
         if (Array.isArray(response)) {
           setCred(response);

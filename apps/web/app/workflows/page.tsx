@@ -13,6 +13,7 @@ import {
 } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { useRouter } from "next/navigation";
+import ParentComponent from "../components/ui/Design/WorkflowButton";
 // Removed: import { Router } from "next/router";
 
 export const UserWorkflows = () => {
@@ -76,8 +77,21 @@ export const UserWorkflows = () => {
                                 )}
                             </CardHeader>
                             <CardContent className="flex-1 overflow-auto p-2">
-                                <pre className="text-xs whitespace-pre-wrap break-words leading-tight font-mono">
-                                    {JSON.stringify(workflow.config || workflow.Config, null, 2)}
+                                <pre className="text-xs whitespace-pre-wrap break-words leading-tight font-mono px-4">
+                                    {(() => {
+                                        const config = workflow.config ?? workflow.Config;
+                                        if (
+                                            config == null ||
+                                            (typeof config === 'object' &&
+                                                !Array.isArray(config) &&
+                                                Object.keys(config).length === 0
+                                            ) ||
+                                            (Array.isArray(config) && config.length === 0)
+                                        ) {
+                                            return "Not Configured";
+                                        }
+                                        return JSON.stringify(config, null, 2);
+                                    })()}
                                 </pre>
                             </CardContent>
                             <CardFooter className="pb-3 pt-2 flex flex-col">
@@ -95,6 +109,13 @@ export const UserWorkflows = () => {
                     ))}
                 </div>
             )}
+
+            <div className="fixed bottom-0 left-0 w-full flex justify-end p-6 pointer-events-none z-50">
+                <div className="pointer-events-auto ">
+                    <ParentComponent />
+                </div>
+            </div>
+
         </div>
     );
 };
