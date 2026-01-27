@@ -643,7 +643,7 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res) =>
   const parsedData = ExecuteWorkflow.safeParse(Data);
   console.log("This is the log data of execute work flow zod", parsedData.error)
   if (!parsedData.success) {
-    return res.status(statusCodes.FORBIDDEN).json({
+    return res.status(statusCodes.BAD_REQUEST).json({
       message: "Error in Zod Schma",
       Data: parsedData.error
     })

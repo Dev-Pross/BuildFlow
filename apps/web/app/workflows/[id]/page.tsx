@@ -34,7 +34,7 @@ export default function WorkflowCanvas() {
       toast.success("Execution Started")
     }
     catch (error: any) {
-      toast.error("Failed to save config");
+      toast.error("Failed to Execute Workflow");
 
     }
     finally {
