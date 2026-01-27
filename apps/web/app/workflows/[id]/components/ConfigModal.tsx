@@ -5,6 +5,7 @@ import { HOOKS_URL } from "@repo/common/zod";
 import { useAppSelector } from "@/app/hooks/redux";
 import { toast } from "sonner";
 import { useCredentials } from "@/app/hooks/useCredential";
+import { api } from "@/app/lib/api";
 
 interface ConfigModalProps {
   isOpen: boolean;
@@ -52,6 +53,20 @@ export default function ConfigModal({
       onClose();
     }
   };
+  const handleExecute = async () => {
+    setLoading(true);
+    try {
+      // await api.workflows.po
+    }
+    catch (error: any) {
+      toast.error("Failed to save config");
+
+    }
+    finally {
+      setLoading(false);
+      onClose();
+    }
+  }
 
   const renderField = (field: any) => {
     const fieldValue = config[field.name] || "";
@@ -362,6 +377,9 @@ export default function ConfigModal({
           >
             {loading ? "Saving..." : "Save"}
           </button>
+
+
+
         </div>
       </div>
     </div>

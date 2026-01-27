@@ -9,7 +9,13 @@ export default function ParentComponent() {
 
   return (
     <div className="flex flex-wrap items-center gap-2 md:flex-row">
-      <Button onClick={() => setIsOpen(true)} variant={"outline"}>Create WorkFlow</Button>
+      <Button 
+        onClick={() => setIsOpen(true)} 
+        variant={"outline"}
+        className="hover:cursor-pointer"
+      >
+        Create WorkFlow
+      </Button>
 
       {/* The Modal is conditionally rendered here */}
       {isOpen && <CardDemo onClose={() => setIsOpen(false)} />}

@@ -140,7 +140,7 @@ router.get(
   userMiddleware,
   async (req: AuthRequest, res) => {
     try {
-      console.log("user from getcredentials: ", req.user);
+      // console.log("user from getcredentials: ", req.user);
       if (!req.user) {
         return res.status(statusCodes.BAD_REQUEST).json({
           message: "User is not Loggedin",
@@ -148,7 +148,8 @@ router.get(
       }
       const userId = req.user.sub;
       const type = req.params.type;
-      console.log(userId, " -userid");
+      console.log("The type of data comming to backed is ",type)
+      // console.log(userId, " -userid");
 
       if (!type || !userId) {
         return res.status(statusCodes.BAD_REQUEST).json({
@@ -182,8 +183,6 @@ router.get(
       if (credentials.length === 0) {
         return res.status(200).json({
           message: "No credentials found",
-          data: [], // always array
-          hasCredentials: false,
         });
       }
 
@@ -278,9 +277,9 @@ router.post(
         error: e instanceof Error ? e.message : "Unknown error"
       });
     }
-    }
+  }
 
-  
+
 );
 
 // ------------------------------------ FETCHING WORKFLOWS -----------------------------------
@@ -519,13 +518,17 @@ router.post(
       // Use an empty array for credentials (if required) or don't pass it at all
       // Config must be valid JSON (not an empty string)
       // const stage = dataSafe.data.Position
+      console.log("This is from the backend log of positions", dataSafe.data.position)
       const createdNode = await prismaClient.node.create({
         data: {
           name: dataSafe.data.Name,
           workflowId: dataSafe.data.WorkflowId,
           config: dataSafe.data.Config || {},
           stage: Number(dataSafe.data.stage ?? 0),
-          position: {},
+          position: {
+            x: dataSafe.data.position.x,
+            y: dataSafe.data.position.y
+          },
           AvailableNodeID: dataSafe.data.AvailableNodeId,
         },
       });

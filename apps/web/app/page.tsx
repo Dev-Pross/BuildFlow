@@ -31,7 +31,7 @@ export default async function Home() {
         ) : (
           <>
             <p>Status: Not authenticated</p>
-            <form action="/api/auth/signin" method="post">
+            <form action="/login" method="post">
               <button
                 type="submit"
                 className="px-4 py-2 mt-4 bg-green-500 text-white rounded"

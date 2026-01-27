@@ -36,8 +36,9 @@ export const getCredentials = async(type: string)=>{
     );
     console.log("response from config: ",response);
     
-    const Data = JSON.stringify(response.data.Data);
-    return response.data.Data;
+    const Data = JSON.stringify(response.data.data);
+    console.log("This is the credential Data from config file ",Data)
+    return response.data.data;
   }
   catch(e){
     console.error("Error fetching credentials:", e);

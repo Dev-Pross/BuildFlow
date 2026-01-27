@@ -31,6 +31,10 @@ export const NodeSchema = z.object({
   Config: z.any().optional(),
   stage: z.number().optional(),
   WorkflowId: z.string(),
+  position : z.object({
+    x : z.number() ,
+    y : z.number()
+  })
 });
 
 export const NodeUpdateSchema = z.object({

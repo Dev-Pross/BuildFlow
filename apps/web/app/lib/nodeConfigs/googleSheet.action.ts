@@ -6,7 +6,7 @@ export const googleSheetActionConfig: NodeConfig = {
   label: "Google Sheet",
   icon: "📊",
   description: "Read or write data to Google Sheets",
-  credentials: "google",  // Requires Google OAuth
+  credentials: "google_oauth",  // Requires Google OAuth
   
   fields: [
     {

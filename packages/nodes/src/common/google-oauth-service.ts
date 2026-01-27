@@ -66,7 +66,7 @@ class GoogleOAuthService {
     try {
       // const credentialId = `cred_google_${userId}_${Date.now()}`
 
-      await this.prisma.credential.create({
+     const Data =  await this.prisma.credential.create({
         data: {
           // id:credentialId,
           userId: userId,
@@ -75,6 +75,7 @@ class GoogleOAuthService {
           nodeId: nodeId || null,
         },
       });
+      console.log("THis  log is writing  to see  if google auth tokens is storing to db or not ",Data)
     } catch (error) {
       throw new Error(
         `failed to store data in Credentials: ${error instanceof Error ? error.message : "Unknown Error"}`

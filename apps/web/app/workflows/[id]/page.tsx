@@ -46,10 +46,11 @@ export default function WorkflowCanvas() {
   const [configOpen, setConfigOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-
+  const [loading, setLoading] = useState<any>("")
   const nodeTypes = {
     customNode: BaseNode,
   };
+
 
   // Safe default position - reused everywhere below
   const DEFAULT_TRIGGER_POSITION = { x: 250, y: 50 };
@@ -62,7 +63,7 @@ export default function WorkflowCanvas() {
     }
     return pos;
   }
-
+  console.log("The Detaisl of Selected Node is ", selectedNode)
   useEffect(() => {
     const loadWorkflows = async () => {
       try {
@@ -72,6 +73,7 @@ export default function WorkflowCanvas() {
         const dbNodes = Array.isArray(workflows?.data?.Data?.nodes)
           ? workflows.data.Data.nodes
           : [];
+        console.log("the node data is", dbNodes)
         const dbEdges = Array.isArray(workflows?.data?.Data?.Edges)
           ? workflows.data.Data.Edges
           : [];
@@ -100,6 +102,7 @@ export default function WorkflowCanvas() {
             onConfigure: () =>
               handleNodeConfigure({
                 id: Trigger.id,
+                name: Trigger.name
               }),
           },
         };
@@ -119,7 +122,7 @@ export default function WorkflowCanvas() {
             onConfigure: () =>
               handleNodeConfigure({
                 id: node.id,
-                name: node.data?.label || node.Name,
+                name: node.data?.label || node.name,
                 type: "action",
                 actionType: node.AvailableNodeId,
               }),
@@ -249,7 +252,6 @@ export default function WorkflowCanvas() {
       return;
     }
 
-    let cuont = 0;
     // Calculate next available action node index (excluding placeholders)
     const currentActionNodes = nodes.filter(
       (n) => n.data.nodeType === "action" && !n.data.isPlaceholder
@@ -274,9 +276,9 @@ export default function WorkflowCanvas() {
         },
         WorkflowId: workflowId,
         position: newNodePosition,
-        stage: cuont,
+        stage: nextIndex,
       });
-
+      console.log("The data of Node Positions from 201", newNodePosition)
       const actionId = result.data.data.id;
 
       const newNode = {
@@ -451,6 +453,7 @@ export default function WorkflowCanvas() {
       );
     }
   };
+  console.log("THis log from page.tsx about the nodeConfig", selectedNode)
 
   return (
     <div style={{ width: "100%", height: "100vh" }}>
@@ -505,13 +508,27 @@ export default function WorkflowCanvas() {
       >
         <Background />
         <Controls />
-        <button
-          onClick={handleSave}
-          className=" bottom-4  border  bg-white text-black font-bold p-4 z-50 shadow-lg  px-12 rounded-2xl"
-          style={{ position: "fixed", bottom: "1rem", right: "10rem" }}
-        >
-          Save
-        </button>
+
+
+        <div style={{ position: "fixed", bottom: "1rem", right: "10rem", display: "flex", gap: "1rem", zIndex: 50 }}>
+          <button
+            onClick={handleSave}
+            className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"
+          >
+            Save
+          </button>
+          <button
+            onClick={async () => {
+              // await handleExecute();
+            }}
+            disabled={loading}
+            className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"
+            style={{ fontWeight: 600 }}
+            type="button"
+          >
+            {loading ? "Executing..." : "Execute"}
+          </button>
+        </div>
       </ReactFlow>
 
       <ConfigModal
@@ -522,6 +539,7 @@ export default function WorkflowCanvas() {
           setConfigOpen(false);
           setSelectedNode(null);
         }}
+
         onSave={async (nodeId: string, config: any, userId: string) => {
           try {
             const triggerNode = nodes.find(
@@ -560,6 +578,7 @@ export default function WorkflowCanvas() {
           }
         }}
       />
+
       <TriggerSideBar
         isOpen={triggerOpen}
         onClose={() => setTriggerOpen(false)}
