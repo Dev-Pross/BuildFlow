@@ -45,7 +45,7 @@ app.post("/hooks/catch/:userId/:workflowId", async (req, res) => {
     });
   } catch (error: any) {
     console.log(error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to process webhook"
     });
