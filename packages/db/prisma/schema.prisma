@@ -87,8 +87,8 @@ model Workflow {
   updatedAt   DateTime            @updatedAt
   status      WorkflowStatus?
   isEmpty     Boolean?            @default(true)
-  nodes       Node[]
   Edges       Json?
+  nodes       Node[]
   Trigger     Trigger?
   user        User                @relation(fields: [userId], references: [id])
   executions  WorkflowExecution[]

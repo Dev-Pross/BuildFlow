@@ -5,6 +5,7 @@ import { HOOKS_URL } from "@repo/common/zod";
 import { useAppSelector } from "@/app/hooks/redux";
 import { toast } from "sonner";
 import { useCredentials } from "@/app/hooks/useCredential";
+import { api } from "@/app/lib/api";
 
 interface ConfigModalProps {
   isOpen: boolean;
@@ -22,8 +23,36 @@ export default function ConfigModal({
   workflowId,
 }: ConfigModalProps) {
   const [config, setConfig] = useState<Record<string, any>>({});
+  const [dynamicOptions, setDynamicOptions] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
   const userId = useAppSelector((state) => state.user.userId) as string;
+
+  const fetchOptionsMap: Record<string, (params: any) => Promise<any>> = {
+    "google.getDocuments" : ({credentialId}) => api.google.getDocuments(credentialId),
+    "google.getSheets" : ({spreadsheetId, credentialId}) => api.google.getSheets(spreadsheetId, credentialId)
+  }
+
+  const handleFieldChange = async (fieldName: string, value: string, nodeConfig: any) => {
+  // Update config with new value
+  const updatedConfig = ({ ...config, [fieldName]: value })
+  console.log(fieldName, " ", value, " ", nodeConfig)
+  console.log(config, "from handle field function - 1")
+  setConfig((prev) => ({ ...prev, [fieldName]: value }));
+  console.log(config, "from handle field fun - 2")
+  console.log({ ...config, [fieldName]: value }, "what we're setting")
+  // Find fields that depend on this field
+  const dependentFields = nodeConfig.fields.filter((f:any) => f.dependsOn === fieldName);
+  
+  for (const depField of dependentFields) {
+    const fetchFn = depField.fetchOptions ? fetchOptionsMap[depField.fetchOptions] : undefined;
+    console.log(fetchFn, "fecth FN")
+    if (fetchFn) {
+      const options = await fetchFn(updatedConfig);
+      // console.log(({ ...config, [depField.name]: options }), "optiops setting")
+      setDynamicOptions((prev) => ({ ...prev, [depField.name]: options }));
+    }
+  }
+};
   // console.log("This is the credential Data from config from backend" , config);
   // Fetch credentials with hook based on node config (google, etc) if appropriate
   let credType: string | null = null;
@@ -53,7 +82,7 @@ export default function ConfigModal({
     }
   };
 
-  const renderField = (field: any) => {
+  const renderField = (field: any, nodeConfig: any) => {
     const fieldValue = config[field.name] || "";
 
     if (field.type === "dropdown" && field.name === "credentialId") {
@@ -68,12 +97,10 @@ export default function ConfigModal({
             <>
               <select
                 value={fieldValue}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    [field.name]: e.target.value,
-                  })
-                }
+                onChange={async(e) => {
+                  await handleFieldChange(field.name, e.target.value, nodeConfig);
+                  console.log(field.name, nodeConfig, e.target.value)
+                }}
                 className="w-full p-3 border border-gray-900 bg-black text-white rounded-md"
                 required={field.required}
               >
@@ -126,6 +153,8 @@ export default function ConfigModal({
     }
 
     if (field.type === "dropdown") {
+      // Use dynamicOptions if available, otherwise fall back to field.options
+      const options = dynamicOptions[field.name] || field.options || [];
       return (
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">
@@ -134,19 +163,16 @@ export default function ConfigModal({
           </label>
           <select
             value={fieldValue}
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                [field.name]: e.target.value,
-              })
-            }
+            onChange={async(e) => {
+              await handleFieldChange(field.name, e.target.value, nodeConfig);
+            }}
             className="w-full p-3 border border-gray-900 bg-black text-white rounded-md"
             required={field.required}
           >
             <option value="">Select {field.label.toLowerCase()}</option>
-            {(field.options || []).map((opt: any) => (
-              <option key={opt.value || opt} value={opt.value || opt}>
-                {opt.label || opt}
+            {options.map((opt: any) => (
+              <option key={opt.value || opt.id || opt} value={opt.value || opt.id || opt}>
+                {opt.label || opt.name || opt}
               </option>
             ))}
           </select>
@@ -154,7 +180,7 @@ export default function ConfigModal({
       );
     }
 
-    if (field.type === "textarea") {
+    if (field.type === "text") {
       return (
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">
@@ -330,7 +356,7 @@ export default function ConfigModal({
             }
             return (
               <div className="space-y-4">
-                {nodeConfig.fields.map(renderField)}
+                {nodeConfig.fields.map((field) => renderField(field, nodeConfig))}
               </div>
             );
           })()}
