@@ -28,7 +28,8 @@ export interface ConfigField {
   required?: boolean;
   defaultValue?: string | number | boolean; // Initial value if not set
   placeholder?: string;
-
+  fetchOptions?: string, 
+  value? : string,
   options?: Array<{ label: string; value: string | number }>; // For dropdowns
   dependsOn?: string; // Name of another field this depends on
   description?: string; // Help text for this field
