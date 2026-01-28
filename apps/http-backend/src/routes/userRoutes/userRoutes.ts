@@ -159,14 +159,16 @@ router.get(
           message: "Incorrect type Input",
         });
       }
+      const exec = new GoogleSheetsNodeExecutor()
 
       // Check if credentials exist in database
-      const credentials = await prismaClient.credential.findMany({
-        where: {
-          userId: userId,
-          type: type,
-        },
-      });
+      // const credentials = await prismaClient.credential.findMany({
+      //   where: {
+      //     userId: userId,
+      //     type: type,
+      //   },
+      // });
+      const credentials = await exec.getAllCredentials(userId, type)
 
       // if (credentials.length === 0) {
       //   // No credentials found - return the correct auth URL
@@ -522,17 +524,19 @@ router.post(
       // Config must be valid JSON (not an empty string)
       // const stage = dataSafe.data.Position
       console.log("This is from the backend log of positions", dataSafe.data.position)
+      const { credentialId, ...restConfig } = dataSafe.data.Config;
       const createdNode = await prismaClient.node.create({
         data: {
           name: dataSafe.data.Name,
           workflowId: dataSafe.data.WorkflowId,
-          config: dataSafe.data.Config || {},
+          config: restConfig || {},
           stage: Number(dataSafe.data.stage ?? 0),
           position: {
             x: dataSafe.data.position.x,
             y: dataSafe.data.position.y
           },
           AvailableNodeID: dataSafe.data.AvailableNodeId,
+          CredentialsID: credentialId
         },
       });
 
@@ -570,12 +574,13 @@ router.put(
           message: "Invalid input",
         });
       }
-
+      const { credentialId, ...restConfig } = dataSafe.data.Config;
       const updateNode = await prismaClient.node.update({
         where: { id: dataSafe.data.NodeId },
         data: {
           position: dataSafe.data.position,
-          config: dataSafe.data.Config,
+          config: restConfig,
+          CredentialsID: credentialId
         },
       });
 
