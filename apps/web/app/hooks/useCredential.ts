@@ -23,18 +23,18 @@ export const useCredentials = (type: string, workflowId?: string): any => {
         // Backend should ONLY return stored credentials
         if (Array.isArray(response)) {
           setCred(response);
-        } else {
-          setCred([]);
+        } else if(typeof response === "string"){
+          setAuthUrl(response)
         }
 
         // Frontend defines where to redirect for OAuth
-        if (type === "google") {
-          const baseUrl = `${BACKEND_URL}/oauth/google/initiate`;
-          const url = workflowId ? `${baseUrl}?workflowId=${workflowId}` : baseUrl;
-          setAuthUrl(url);
-        } else {
-          setAuthUrl(null);
-        }
+        // if (type === "google") {
+        //   const baseUrl = `${BACKEND_URL}/oauth/google/initiate`;
+        //   const url = workflowId ? `${baseUrl}?workflowId=${workflowId}` : baseUrl;
+        //   setAuthUrl(url);
+        // } else {
+        //   setAuthUrl(null);
+        // }
       } catch (e) {
         console.log(
           e instanceof Error
