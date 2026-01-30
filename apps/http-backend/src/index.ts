@@ -16,7 +16,7 @@ import { NodeRegistry } from "@repo/nodes/nodeClient";
 import express from "express";
 import { userRouter } from "./routes/userRoutes/userRoutes.js";
 import cors from "cors"
-import { sheetRouter } from "./routes/nodes.routes.js";
+import { sheetRouter } from "./routes/sheet.routes.js";
 import { googleAuth } from "./routes/google_callback.js";
 import { tokenScheduler } from "./scheduler/token-scheduler.js";
 

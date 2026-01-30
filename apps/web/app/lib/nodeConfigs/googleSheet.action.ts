@@ -34,7 +34,7 @@ export const googleSheetActionConfig: NodeConfig = {
       fetchOptions: "google.getSheets",
     },
     {
-      name: "action",
+      name: "operation",
       label: "Action",
       type: "dropdown",
       options: [
@@ -47,9 +47,9 @@ export const googleSheetActionConfig: NodeConfig = {
       description: "What operation to perform on the sheet"
     },
     {
-      name: "Range",
+      name: "range",
       type: "text", 
-      label: "range",
+      label: "Range",
       value: "A1:Z100",
       required: true
     }

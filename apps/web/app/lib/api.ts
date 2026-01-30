@@ -111,7 +111,11 @@ export const api = {
         withCredentials: true,
         headers: {"Content-Type":"application/json"}
       })
-      return data.data.files.data
+      const tabs = data.data.files.data
+      return tabs.map((tab: any) =>({
+        id: tab.id,
+        name: tab.name
+      }))
     },
   }
 };
