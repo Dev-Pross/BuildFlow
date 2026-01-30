@@ -171,7 +171,7 @@ export default function ConfigModal({
           >
             <option value="">Select {field.label.toLowerCase()}</option>
             {options.map((opt: any) => (
-              <option key={opt.value || opt.id || opt} value={opt.value || opt.id || opt}>
+              <option key={opt.value || opt.id || opt} value={opt.value || opt.id !== undefined ? opt.id : opt }>
                 {opt.label || opt.name || opt}
               </option>
             ))}
