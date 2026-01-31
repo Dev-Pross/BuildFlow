@@ -30,7 +30,7 @@ export interface ConfigField {
   placeholder?: string;
   fetchOptions?: string, 
   value? : string,
-  options?: Array<{ label: string; value: string | number }>; // For dropdowns
+  options?: Array<{ label: string; id: string | number }>; // For dropdowns
   dependsOn?: string; // Name of another field this depends on
   description?: string; // Help text for this field
   multiline?: boolean; // For textarea: allow specifying multiline
