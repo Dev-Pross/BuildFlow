@@ -1,5 +1,6 @@
 import { prismaClient } from "@repo/db/client";
-import { register } from "./registory.js";
+// import { register } from "./registory.js";
+import { ExecutionRegister } from "@repo/nodes";
 export async function executeWorkflow(
   workflowExecutionId: string
 ): Promise<void> {
@@ -41,6 +42,14 @@ export async function executeWorkflow(
   console.log(`Total nodes - ${nodes.length}`);
   for (const node of nodes) {
     console.log(`${node.name}, ${node.stage}, ${node.id}th - started Execution`);
+    const nodeExecution = await prismaClient.nodeExecution.create({
+      data:{
+        nodeId: node.id,
+        workflowExecId: workflowExecutionId,
+        status: "Start",
+        startedAt: new Date()
+      }
+    })
     const nodeType = node.AvailableNode.type;
     // Create mutable copy of config
     const nodeConfig = { ...(node.config as Record<string, any>) };
@@ -63,7 +72,7 @@ export async function executeWorkflow(
     console.log(`Executing with context: ${JSON.stringify(context)}`);
     console.log(`Executing with context: ${context.credId}`);
 
-    const execute = await register.execute(nodeType, context);
+    const execute = await ExecutionRegister.execute(nodeType, context);
     if (!execute.success) {
       await prismaClient.workflowExecution.update({
         where: { id: workflowExecutionId },
@@ -73,8 +82,25 @@ export async function executeWorkflow(
           completedAt: new Date(),
         },
       });
+
+      await prismaClient.nodeExecution.update({
+        where: {id: nodeExecution.id},
+        data:{
+          status: "Failed",
+          error: execute.error,
+          completedAt: new Date()
+        }
+      })
       return;
     }
+    await prismaClient.nodeExecution.update({
+      where: {id: nodeExecution.id},
+      data: {
+        completedAt: new Date(),
+        outputData: execute.output,
+        status: "Completed"
+      }
+    })
     currentInputData = execute.output;
     console.log("output: ", JSON.stringify(execute));
   }

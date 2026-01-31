@@ -40,6 +40,11 @@ export const NodeSchema = z.object({
 export const ExecuteWorkflow = z.object({
   workflowId : z.string(),
 })
+
+export const ExecuteNode = z.object({
+  NodeId: z.string(),
+  Config: z.any().optional()
+})
 export const NodeUpdateSchema = z.object({
   NodeId: z.string(),
   Config: z.any().optional(),

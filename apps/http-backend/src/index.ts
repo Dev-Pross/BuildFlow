@@ -12,13 +12,14 @@ console.log("📁 Loaded .env from:", envPath);
 console.log("🔐 GOOGLE_REDIRECT_URI:", process.env.GOOGLE_REDIRECT_URI || "NOT SET");
 
 import cookieParser from 'cookie-parser'
-import { NodeRegistry } from "@repo/nodes/nodeClient";
+import { ExecutionRegister, NodeRegistry } from "@repo/nodes/nodeClient";
 import express from "express";
 import { userRouter } from "./routes/userRoutes/userRoutes.js";
 import cors from "cors"
 import { sheetRouter } from "./routes/sheet.routes.js";
 import { googleAuth } from "./routes/google_callback.js";
 import { tokenScheduler } from "./scheduler/token-scheduler.js";
+import { execRouter } from "./routes/userRoutes/executionRoutes.js";
 
 const app = express()
 
@@ -33,13 +34,15 @@ app.use(cookieParser());
 
 app.use("/user" , userRouter)
 app.use('/node', sheetRouter)
-app.use('/auth/google', googleAuth)  // ← CHANGED THIS LINE!
+app.use('/auth/google', googleAuth) 
+app.use('/execute', execRouter)
 
 const PORT= 3002
 
 async function startServer() {
   await NodeRegistry.registerAll()
   tokenScheduler.start();
+  ExecutionRegister.initialize()
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
    })
