@@ -113,7 +113,7 @@ export const api = {
       })
       const tabs = data.data.files.data
       return tabs.map((tab: any) =>({
-        id: tab.id,
+        id: tab.name,
         name: tab.name
       }))
     },

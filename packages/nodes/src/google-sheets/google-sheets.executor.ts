@@ -204,7 +204,7 @@ class GoogleSheetsNodeExecutor{
         try{
             const rows = await sheetsService.readRows({
                 spreadsheetId: context.config.spreadsheetId,
-                range: context.config.range
+                range: `${context.config.sheetName}!${context.config.range}`
             });
 
             return {

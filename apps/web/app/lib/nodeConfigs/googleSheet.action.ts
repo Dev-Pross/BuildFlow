@@ -38,9 +38,9 @@ export const googleSheetActionConfig: NodeConfig = {
       label: "Action",
       type: "dropdown",
       options: [
-        { label: "Read Rows", value: "read_rows" },
-        { label: "Append Row", value: "append_row" },
-        { label: "Update Row", value: "update_row" }
+        { label: "Read Rows", id: "read_rows" },
+        { label: "Append Row", id: "append_row" },
+        { label: "Update Row", id: "update_row" }
       ],
       required: true,
       defaultValue: "read_rows",
