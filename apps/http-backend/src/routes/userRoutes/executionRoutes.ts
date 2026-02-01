@@ -7,7 +7,7 @@ export const execRouter: Router = Router()
 
 execRouter.post('/node', userMiddleware,  async(req: AuthRequest, res: Response)=>{
     try{
-        if(!req.user){
+        if(!req.user?.sub){
             return res.status(statusCodes.BAD_REQUEST).json({
             message: "User is not logged in ",
         });
@@ -30,15 +30,17 @@ execRouter.post('/node', userMiddleware,  async(req: AuthRequest, res: Response)
             const type = nodeData.AvailableNode.type
             const config = dataSafe.data.Config ? dataSafe.data.Config : nodeData.config // for test api data prefered fist then config in db 
             console.log(`config and type: ${JSON.stringify(config)} & ${type}`)
+            // if(nodeData.CredentialsID)
             const context = {
-                userId: req.user.sub || "",
-                config: config   
+                userId: req.user.sub,
+                config: config  ,
+                // credentialsId: nodeData.CredentialsID  || ""
             }
             const executionResult = await ExecutionRegister.execute(type, context)
 
             console.log(`Execution result: ${executionResult}`)
 
-            if(executionResult)
+            if(executionResult.success)
                 return res.status(statusCodes.ACCEPTED).json({
                 message: `${nodeData.name} node execution done` ,
                 data: executionResult       

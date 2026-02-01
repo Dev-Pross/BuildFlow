@@ -47,6 +47,7 @@ export async function executeWorkflow(
         nodeId: node.id,
         workflowExecId: workflowExecutionId,
         status: "Start",
+        inputData: currentInputData ? currentInputData : {},
         startedAt: new Date()
       }
     })

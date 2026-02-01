@@ -27,7 +27,7 @@ class ExecutionRegistry {
     } catch (error: any) {
       return {
         success: false,
-        error: error,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -38,8 +38,8 @@ class ExecutionRegistry {
 
 
     //wehen visits this next time make sure chang gmail executor implements NodeExecutor
-    this.register("gmail", new GmailExecutor() as unknown as NodeExecutor);
-    this.register("google_sheet", new GoogleSheetsNodeExecutor() as unknown as NodeExecutor)
+    this.register("gmail", new GmailExecutor() as NodeExecutor);
+    this.register("google_sheet", new GoogleSheetsNodeExecutor() as NodeExecutor)
     console.log(`The current Executors are ${this.executors.size}`);
   }
 }
