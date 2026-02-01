@@ -1,6 +1,7 @@
 import { Kafka } from "kafkajs";
 import { executeWorkflow } from "./engine/executor.js";
-import { register } from "./engine/registory.js";
+import { ExecutionRegister } from "@repo/nodes";
+// import { register } from "./engine/registory.js";
 const kafka = new Kafka({
   // clientId: "Processing App",
   clientId: "BuildFlow-Worker",
@@ -8,7 +9,7 @@ const kafka = new Kafka({
 });
 const TOPIC_NAME = "First-Client";
 
-register.initialize()
+ExecutionRegister.initialize()
 
 async function main() {
   const consumer = kafka.consumer({ groupId: "test-group" });
