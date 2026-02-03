@@ -17,7 +17,7 @@ import {
   HOOKS_URL,
 } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
-import axios, { Axios } from "axios";
+import axios from "axios";
 const router: Router = Router();
 
 router.post("/createAvaliableNode", async (req: AuthRequest, res: Response) => {
@@ -60,7 +60,7 @@ router.get(
         message: "User has to be logged in , This is from getNodesEnd pont",
       });
     }
-    const userID = req.user.id;
+    // const userID = req.user.id;
     // console.log(userID)
     try {
       const Data = await prismaClient.availableNode.findMany();
@@ -120,7 +120,7 @@ router.get(
       console.log("RequestRecieved  from the frontend");
       if (!req.user)
         return res
-          .status(statusCodes.BAD_GATEWAY)
+          .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User isnot logged in /not authorized" });
 
       const Data = await prismaClient.availableTrigger.findMany();
@@ -141,7 +141,7 @@ router.get(
 router.get(
   "/getCredentials/:type",
   userMiddleware,
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       // console.log("user from getcredentials: ", req.user);
       if (!req.user) {
@@ -186,12 +186,12 @@ router.get(
       //   Data: credentials,
       // });
       if (credentials.length === 0) {
-        return res.status(200).json({
+        return res.status(statusCodes.OK).json({
           message: "No credentials found",
         });
       }
 
-      return res.status(200).json({
+      return res.status(statusCodes.OK).json({
         message: "Credentials fetched",
         data: credentials,
         hasCredentials: true,
@@ -244,7 +244,7 @@ router.get(
 router.post(
   "/create/workflow",
   userMiddleware,
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response) => {
 
     if (!req.user) {
       return res.status(statusCodes.BAD_REQUEST).json({
@@ -253,7 +253,7 @@ router.post(
     }
     const Data = req.body;
     const ParsedData = WorkflowSchema.safeParse(Data);
-    const UserID = req.user.id;
+    const UserID = req.user.sub;
     // const UserID = "343c9a0a-9c3f-40d0-81de-9a5969e03f92";
     // Ensure that the required fields are present in the parsed data and create the workflow properly.
     if (!ParsedData.success) {
@@ -298,7 +298,7 @@ router.get(
         return res
           .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User is not logged in /not authorized" });
-      const userId = req.user.id;
+      const userId = req.user.sub;
 
       const workflows = await prismaClient.workflow.findMany({
         where: {
@@ -313,7 +313,7 @@ router.get(
       console.log("The error is from getting wrkflows", error.message);
 
       return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-        meesage: "Internal Server Error From  getting workflows for the user",
+        message: "Internal Server Error From  getting workflows for the user",
       });
     }
   }
@@ -328,7 +328,7 @@ router.get(
         return res
           .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User is not logged in /not authorized" });
-      const userId = req.user.id;
+      const userId = req.user.sub;
       const workflow = await prismaClient.workflow.findFirst({
         where: {
           userId: userId,
@@ -348,7 +348,7 @@ router.get(
       );
 
       return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-        meesage: "Internal Server Error From  getting workflows for the user",
+        message: "Internal Server Error From  getting workflows for the user",
       });
     }
   }
@@ -363,7 +363,7 @@ router.get(
         return res
           .status(statusCodes.BAD_GATEWAY)
           .json({ message: "User isnot logged in /not authorized" });
-      const userId = req.user.id;
+      const userId = req.user.sub;
 
       const workflowId = req.params.workflowId;
       const getWorkflow = await prismaClient.workflow.findFirst({
@@ -411,7 +411,7 @@ router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Res
       message: "User Not Authenticated"
     })
   }
-  const userId = req.user.id
+  const userId = req.user.sub
   try {
     const workflowValid = await prismaClient.workflow.findFirst({
       where: { id: workflowId, userId: userId }
@@ -637,7 +637,7 @@ router.put(
   }
 );
 
-router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res) => {
+router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Response) => {
   console.log("REcieved REquest to the  execute route ")
   const Data = req.body
   if (!req.user) {
@@ -654,7 +654,7 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res) =>
     })
   }
   const workflowId = parsedData.data.workflowId;
-  const userId = req.user.id
+  const userId = req.user.sub
   try {
     const trigger = await prismaClient.workflow.findFirst({
       where: { id: workflowId, userId: userId },
@@ -684,7 +684,7 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res) =>
         }
         )
       }
-      return res.status(200).json({
+      return res.status(statusCodes.OK).json({
         success: true,
         workflowExecutionId: data.data.workflowExecutionId
       });

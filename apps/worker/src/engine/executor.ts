@@ -62,16 +62,36 @@ export async function executeWorkflow(
         : String(currentInputData);
       nodeConfig.body = nodeConfig.body + inputStr;
     }
+    if(!node.CredentialsID){
+      await prismaClient.workflowExecution.update({
+        where: { id: workflowExecutionId },
+        data: {
+          status: "Failed",
+          error: "Credential id not found",
+          completedAt: new Date(),
+        },
+      });
+
+      await prismaClient.nodeExecution.update({
+        where: {id: nodeExecution.id},
+        data:{
+          status: "Failed",
+          error: "Credential id not found",
+          completedAt: new Date()
+        }
+      })
+      return;
+    }
     const context = {
       // nodeId: node.id,
       userId: data.workflow.userId,
-      credId: node.CredentialsID,
+      credentialId: node.CredentialsID,
       // config: node.config as Record<string, any>,
       config: nodeConfig,
       inputData: currentInputData,
     };
     console.log(`Executing with context: ${JSON.stringify(context)}`);
-    console.log(`Executing with context: ${context.credId}`);
+    console.log(`Executing with context: ${context.credentialId}`);
 
     const execute = await ExecutionRegister.execute(nodeType, context);
     if (!execute.success) {

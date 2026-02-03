@@ -1,7 +1,7 @@
 export interface ExecutionContext {
   nodeId?: string;
   userId: string;
-  credentialsId?: string;
+  credentialId?: string;
   config: Record<string, any>;
   inputData?: any;
 }

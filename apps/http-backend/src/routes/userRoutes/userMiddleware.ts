@@ -35,7 +35,7 @@ export async function userMiddleware(
     req.user = payload;
     return next();
   } catch (e) {
-    return res.status(401).json({
+    return res.status(statusCodes.UNAUTHORIZED).json({
       message: `Invalid token: ${e instanceof Error ? e.message : "Unknown error"}`,
     });
   }

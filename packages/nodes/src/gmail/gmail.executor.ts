@@ -2,7 +2,7 @@ import { GoogleOAuthService } from "../common/google-oauth-service.js";
 import { GmailService, GmailCredentials } from "./gmail.service.js";
 
 interface NodeExecutionContext {
-  credId: string;
+  credentialId: string;
   userId: string;
   config?: any;
   inputData?: any;
@@ -27,7 +27,7 @@ class GmailExecutor {
       // Get credentials
       const credentials = await this.oauthService.getCredentials(
         context.userId,
-        context.credId
+        context.credentialId
       );
 
       if (!credentials) {

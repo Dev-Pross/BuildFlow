@@ -7,7 +7,7 @@ export async function retryLogic<T>(
       const result = await fn();
       return result;
     } catch (error) {
-      if (attempt === maxRetries - 1)
+      if (attempt === maxRetries)
         throw Error("Max Retries Reached. Try again after some time");
 
       const delay = Math.pow(2, attempt) * 1000;
