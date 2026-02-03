@@ -3,7 +3,7 @@ import { GoogleOAuthService } from "../common/google-oauth-service.js";
 import { GoogleSheetsService, GoogleSheetsCredentials } from "./google-sheets.service.js";
 
 interface NodeExecutionContext{
-    credId: string,
+    credentialId: string,
     userId: string,
     config?: any,    //sheet id / range...
     inputData?: any // previous node data
@@ -88,7 +88,7 @@ class GoogleSheetsNodeExecutor{
 
     private async ensureSheetService(context: NodeExecutionContext): Promise<{ credentialId: string } | NodeExecutionResult> {
         try {
-            const credentials = await this.oauthService.getCredentials(context.userId, context.credId);
+            const credentials = await this.oauthService.getCredentials(context.userId, context.credentialId);
             console.log("credentails from sheet.executor: ",credentials)
             if (!credentials) {
                 return {

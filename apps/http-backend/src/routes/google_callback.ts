@@ -6,6 +6,7 @@ import { Router, Request, Response } from "express";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { statusCodes } from "@repo/common/zod";
 
 // Get the directory of this file
 const __filename = fileURLToPath(import.meta.url);
@@ -190,7 +191,7 @@ googleAuth.get('/debug/config', async(req: Request, res: Response)=>{
                 : "❌ Redirect URI mismatch detected!"
         });
     } catch (err) {
-        return res.status(500).json({ 
+        return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({ 
             error: err instanceof Error ? err.message : 'Unknown error',
             stack: err instanceof Error ? err.stack : undefined
         });
@@ -232,6 +233,6 @@ googleAuth.get('/debug/credentials', async(req: Request, res: Response)=>{
 
         return res.json({ credentials: debugInfo });
     } catch (err) {
-        return res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+        return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({ error: err instanceof Error ? err.message : 'Unknown error' });
     }
 });

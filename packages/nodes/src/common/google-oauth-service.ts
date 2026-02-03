@@ -85,13 +85,13 @@ class GoogleOAuthService {
 
   async getCredentials(
     userId: string,
-    credId: string
+    credentialId: string
   ): Promise<{ id: string; tokens: OAuthTokens } | null> {
     try {
-      console.log("user id: ", userId, " & ", credId, " from oauth service");
+      console.log("user id: ", userId, " & ", credentialId, " from oauth service");
       const credentials = await this.prisma.credential.findFirst({
         where: {
-          id: credId,
+          id: credentialId,
           // userId: userId,
           type: "google_oauth",
         },

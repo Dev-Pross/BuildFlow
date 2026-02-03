@@ -1,6 +1,6 @@
 import { executeWorkflow } from "../engine/executor.js";
-import { register } from "../engine/registory.js";
-
+// import { register } from "../engine/registory.js";
+import { ExecutionRegister as register } from "@repo/nodes";
 async function testDirect() {
   console.log("🧪 Testing Gmail integration directly...\n");
 

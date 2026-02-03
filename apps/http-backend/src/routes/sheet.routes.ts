@@ -13,10 +13,10 @@ sheetRouter.get(
     try {
       if (!req.user)
         return res
-          .status(statusCodes.BAD_GATEWAY)
+          .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User isnot logged in /not authorized" });
-      const credId = req.params.cred;
-      if (!credId) {
+      const credentialId = req.params.cred;
+      if (!credentialId) {
         return res
           .status(statusCodes.BAD_REQUEST)
           .json({ message: "credentials id not provided" });
@@ -29,7 +29,7 @@ sheetRouter.get(
           .json({ message: "User id not provided" });
       const sheets = await sheetExecutor.getSheets({
         userId: userId,
-        credId: credId,
+        credentialId: credentialId,
       });
       if ((sheets as any)?.success === false) {
         return res.status(statusCodes.NOT_FOUND).json({
@@ -61,11 +61,11 @@ sheetRouter.get(
       const userId = req.user?.sub;
       if (!userId)
         return res
-          .status(statusCodes.BAD_GATEWAY)
+          .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User isnot logged in /not authorized" });
-      const credId = req.params.cred;
+      const credentialId = req.params.cred;
       const sheetId = req.params.sheetId;
-      if (!credId || !sheetId) {
+      if (!credentialId || !sheetId) {
         return res
           .status(statusCodes.BAD_REQUEST)
           .json({ message: `credentials id not provided ` });
@@ -76,7 +76,7 @@ sheetRouter.get(
         });
       }
       const sheets = await sheetExecutor.getSheetTabs(
-        { userId: userId, credId: credId },
+        { userId: userId, credentialId: credentialId },
         sheetId
       );
 
