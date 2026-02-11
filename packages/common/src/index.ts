@@ -1,6 +1,9 @@
 import z from "zod";
 import { number } from "zod/v4";
 
+// Export interpolation utilities
+export * from "./interpolation";
+
 export const BACKEND_URL = "http://localhost:3002";
 export const HOOKS_URL = "http://localhost:3003";
 export const AvailableTriggers = z.object({

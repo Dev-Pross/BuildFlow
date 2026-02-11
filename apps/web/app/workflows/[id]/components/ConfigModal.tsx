@@ -2,10 +2,21 @@
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
 import { useEffect, useState } from "react";
 import { HOOKS_URL } from "@repo/common/zod";
-import { useAppSelector } from "@/app/hooks/redux";
+import { extractVariablesFromOutput, resolveConfigVariables, InterpolationContext } from "@repo/common/zod";
+import { useAppSelector, useAppDispatch } from "@/app/hooks/redux";
 import { toast } from "sonner";
 import { useCredentials } from "@/app/hooks/useCredential";
 import { api } from "@/app/lib/api";
+import { PreviousNodeOutput, VariableDefinition } from "@/app/lib/types/node.types";
+import { VariablePanel } from "@/app/components/ui/variable-panel";
+import { 
+  setNodeOutput, 
+  setNodeLoading, 
+  selectNodeOutput, 
+  selectNodeLoading,
+  selectAllOutputs,
+  NodeTestOutput 
+} from "@/store/slices/nodeOutputSlice";
 
 interface ConfigModalProps {
   isOpen: boolean;
@@ -13,6 +24,7 @@ interface ConfigModalProps {
   onClose: () => void;
   onSave: (selectedNode: string, config: any, userId: string) => Promise<void>;
   workflowId?: string;
+  previousNodes: PreviousNodeOutput[];
 }
 
 export default function ConfigModal({
@@ -21,38 +33,162 @@ export default function ConfigModal({
   onClose,
   onSave,
   workflowId,
+  previousNodes
 }: ConfigModalProps) {
   const [config, setConfig] = useState<Record<string, any>>({});
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
+  const [activeField, setActiveField] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<any>(null);
+  
+  const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.user.userId) as string;
+  
+  // Get all tested outputs from Redux (for variable resolution)
+  const allTestedOutputs = useAppSelector(selectAllOutputs);
+  
+  // Get test output from Redux for this node
+  const nodeTestOutput = useAppSelector((state) => 
+    selectedNode ? selectNodeOutput(state, selectedNode.id) : undefined
+  );
+  const isTestingNode = useAppSelector((state) => 
+    selectedNode ? selectNodeLoading(state, selectedNode.id) : false
+  );
 
   const fetchOptionsMap: Record<string, (params: any) => Promise<any>> = {
     "google.getDocuments" : ({credentialId}) => api.google.getDocuments(credentialId),
     "google.getSheets" : ({spreadsheetId, credentialId}) => api.google.getSheets(spreadsheetId, credentialId)
   }
+  
+  // Build interpolation context from all previously tested nodes
+  const buildTestContext = (): InterpolationContext => {
+    const context: InterpolationContext = {};
+    console.log('[buildTestContext] All tested outputs:', allTestedOutputs);
+    
+    for (const [nodeId, testOutput] of Object.entries(allTestedOutputs)) {
+      console.log(`[buildTestContext] Processing node ${nodeId}:`, {
+        nodeName: testOutput.nodeName,
+        success: testOutput.success,
+        hasData: !!testOutput.data
+      });
+      
+      if (testOutput.success && testOutput.data) {
+        // Normalize node name: "Google Sheet" -> "google_sheet"
+        const normalizedName = testOutput.nodeName.toLowerCase().replace(/\s+/g, '_');
+        console.log(`[buildTestContext] Normalized "${testOutput.nodeName}" -> "${normalizedName}"`);
+        context[normalizedName] = testOutput.data;
+      }
+    }
+    
+    console.log('[buildTestContext] Final context:', context);
+    return context;
+  };
+
+  // Test the current node and store output in Redux
+  const handleTestNode = async () => {
+    if (!selectedNode) return;
+    
+    console.log('[ConfigModal] Testing node:', selectedNode.id, selectedNode.name);
+    dispatch(setNodeLoading({ nodeId: selectedNode.id, loading: true }));
+    
+    try {
+      // Build context from previously tested nodes for variable resolution
+      const interpolationContext = buildTestContext();
+      console.log('[ConfigModal] Interpolation context:', interpolationContext);
+      
+      // Resolve any {{variable}} in the config before testing
+      const resolvedConfig = resolveConfigVariables(config, interpolationContext);
+      console.log('[ConfigModal] Original config:', config);
+      console.log('[ConfigModal] Resolved config:', resolvedConfig);
+      
+      // Check if any variables couldn't be resolved
+      const unresolvedVars = Object.entries(resolvedConfig)
+        .filter(([_, value]) => typeof value === 'string' && value.includes('{{'))
+        .map(([key, value]) => `${key}: ${value}`);
+      
+      if (unresolvedVars.length > 0) {
+        toast.warning(`Some variables couldn't be resolved. Test the previous nodes first.\n${unresolvedVars.join('\n')}`);
+      }
+      
+      const response = await api.execute.node(selectedNode.id, resolvedConfig);
+      console.log('[ConfigModal] API response (already extracted output):', response);
+      
+      // api.execute.node already returns res.data.data.output directly
+      const outputData = response;
+      console.log('[ConfigModal] Output data for extraction:', outputData);
+      
+      // Extract variables from the output for the variable panel
+      const extractedVariables = extractVariablesFromOutput(outputData);
+      console.log('[ConfigModal] Extracted variables:', extractedVariables);
+      
+      // Convert to VariableDefinition format
+      const variables: VariableDefinition[] = extractedVariables.map(v => ({
+        name: v.name,
+        path: v.path,
+        type: v.type as any,
+        sampleValue: v.sampleValue
+      }));
+      
+      // Store in Redux
+      const testOutput: NodeTestOutput = {
+        nodeId: selectedNode.id,
+        nodeName: selectedNode.name || selectedNode.data?.label || 'Node',
+        nodeType: selectedNode.type || '',
+        data: outputData,
+        variables,
+        testedAt: Date.now(),
+        success: true
+      };
+      
+      dispatch(setNodeOutput(testOutput));
+      setTestResult(outputData);
+      toast.success("Node test successful!");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || "Test failed";
+      
+      dispatch(setNodeOutput({
+        nodeId: selectedNode.id,
+        nodeName: selectedNode.name || 'Node',
+        nodeType: selectedNode.type || '',
+        data: null,
+        variables: [],
+        testedAt: Date.now(),
+        success: false,
+        error: errorMessage
+      }));
+      
+      toast.error(`Test failed: ${errorMessage}`);
+    }
+  };
+
+  const handleVariableInsert = (variableSyntax: string)=>  {
+    if(!activeField) return;
+
+    const currentValue = config[activeField] || "";
+    setConfig({...config, [activeField]: currentValue + variableSyntax})
+  }
 
   const handleFieldChange = async (fieldName: string, value: string, nodeConfig: any) => {
-  // Update config with new value
-  const updatedConfig = ({ ...config, [fieldName]: value })
-  console.log(fieldName, " ", value, " ", nodeConfig)
-  console.log(config, "from handle field function - 1")
-  setConfig((prev) => ({ ...prev, [fieldName]: value }));
-  console.log(config, "from handle field fun - 2")
-  console.log({ ...config, [fieldName]: value }, "what we're setting")
-  // Find fields that depend on this field
-  const dependentFields = nodeConfig.fields.filter((f:any) => f.dependsOn === fieldName);
-  
-  for (const depField of dependentFields) {
-    const fetchFn = depField.fetchOptions ? fetchOptionsMap[depField.fetchOptions] : undefined;
-    console.log(fetchFn, "fecth FN")
-    if (fetchFn) {
-      const options = await fetchFn(updatedConfig);
-      // console.log(({ ...config, [depField.name]: options }), "optiops setting")
-      setDynamicOptions((prev) => ({ ...prev, [depField.name]: options }));
+    // Update config with new value
+    const updatedConfig = ({ ...config, [fieldName]: value })
+    console.log(fieldName, " ", value, " ", nodeConfig)
+    console.log(config, "from handle field function - 1")
+    setConfig((prev) => ({ ...prev, [fieldName]: value }));
+    console.log(config, "from handle field fun - 2")
+    console.log({ ...config, [fieldName]: value }, "what we're setting")
+    // Find fields that depend on this field
+    const dependentFields = nodeConfig.fields.filter((f:any) => f.dependsOn === fieldName);
+    
+    for (const depField of dependentFields) {
+      const fetchFn = depField.fetchOptions ? fetchOptionsMap[depField.fetchOptions] : undefined;
+      console.log(fetchFn, "fecth FN")
+      if (fetchFn) {
+        const options = await fetchFn(updatedConfig);
+        // console.log(({ ...config, [depField.name]: options }), "optiops setting")
+        setDynamicOptions((prev) => ({ ...prev, [depField.name]: options }));
+      }
     }
-  }
-};
+  };
   // console.log("This is the credential Data from config from backend" , config);
   // Fetch credentials with hook based on node config (google, etc) if appropriate
   let credType: string | null = null;
@@ -97,6 +233,7 @@ export default function ConfigModal({
             <>
               <select
                 value={fieldValue}
+                onFocus={()=> setActiveField(field.name)}
                 onChange={async(e) => {
                   await handleFieldChange(field.name, e.target.value, nodeConfig);
                   console.log(field.name, nodeConfig, e.target.value)
@@ -163,6 +300,7 @@ export default function ConfigModal({
           </label>
           <select
             value={fieldValue}
+            onFocus={()=> setActiveField(field.name)}
             onChange={async(e) => {
               console.log("log for options: ",fieldValue)
               await handleFieldChange(field.name, e.target.value, nodeConfig);
@@ -192,6 +330,7 @@ export default function ConfigModal({
           <textarea
             value={fieldValue}
             placeholder={field.placeholder}
+            onFocus={()=> setActiveField(field.name)}
             onChange={(e) =>
               setConfig({
                 ...config,
@@ -215,6 +354,7 @@ export default function ConfigModal({
         <input
           type={field.type}
           value={fieldValue}
+          onFocus={()=> setActiveField(field.name)}
           placeholder={field.placeholder}
           onChange={(e) =>
             setConfig({
@@ -237,6 +377,11 @@ export default function ConfigModal({
         overflowY: "auto",
       }}
     >
+      <VariablePanel
+        previousNodes={previousNodes}
+        onInsert={handleVariableInsert}
+        activeField={activeField}
+        />
       <div
         className="rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col"
         style={{
@@ -362,37 +507,80 @@ export default function ConfigModal({
               </div>
             );
           })()}
+          
+          {/* Test Result Display */}
+          {testResult && (
+            <div className="mt-4 p-3 rounded-lg bg-green-900/30 border border-green-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-green-400">✅ Test Output</span>
+                <button 
+                  onClick={() => setTestResult(null)}
+                  className="text-gray-400 hover:text-white text-xs"
+                >
+                  Clear
+                </button>
+              </div>
+              <pre className="text-xs text-gray-300 overflow-auto max-h-32">
+                {JSON.stringify(testResult, null, 2)}
+              </pre>
+            </div>
+          )}
+          
+          {/* Test Error Display */}
+          {nodeTestOutput?.error && (
+            <div className="mt-4 p-3 rounded-lg bg-red-900/30 border border-red-700">
+              <span className="text-sm font-medium text-red-400">❌ Test Failed</span>
+              <p className="text-xs text-gray-300 mt-1">{nodeTestOutput.error}</p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div
-          className="p-6 border-t border-gray-900 flex justify-end gap-3"
+          className="p-6 border-t border-gray-900 flex justify-between gap-3"
           style={{ background: "#181818" }}
         >
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-white hover:bg-gray-700 rounded border border-gray-900"
-            style={{ background: "#111" }}
-            disabled={loading}
+            onClick={handleTestNode}
+            disabled={isTestingNode || loading}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded disabled:opacity-50 flex items-center gap-2"
             type="button"
           >
-            Cancel
+            {isTestingNode ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Testing...
+              </>
+            ) : (
+              <>
+                🧪 Test Node
+              </>
+            )}
           </button>
-          <button
-            onClick={async () => {
-              await handleSave();
-              setConfig({});
-            }}
-            disabled={loading}
-            className="px-6 py-2 bg-gradient-to-r from-white to-gray-400 text-black rounded hover:from-gray-300 hover:to-gray-600 disabled:opacity-50"
-            style={{ fontWeight: 600 }}
-            type="button"
-          >
-            {loading ? "Saving..." : "Save"}
-          </button>
-
-
-
+          
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-white hover:bg-gray-700 rounded border border-gray-900"
+              style={{ background: "#111" }}
+              disabled={loading}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                await handleSave();
+                setConfig({});
+              }}
+              disabled={loading}
+              className="px-6 py-2 bg-gradient-to-r from-white to-gray-400 text-black rounded hover:from-gray-300 hover:to-gray-600 disabled:opacity-50"
+              style={{ fontWeight: 600 }}
+              type="button"
+            >
+              {loading ? "Saving..." : "Save"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

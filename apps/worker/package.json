@@ -11,6 +11,7 @@
   "type": "module",
   "keywords": [],
   "devDependencies": {
+    "@repo/common": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/nodes": "workspace:*",
     "@workspace/typescript-config": "workspace:*"

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build" : "tsc -b",
@@ -13,7 +14,10 @@
     "@workspace/typescript-config": "workspace:*"
   },
   "exports" : {
-    "./zod" : "./dist/index.js"
+    "./zod" : {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "author": "",
   "license": "ISC",

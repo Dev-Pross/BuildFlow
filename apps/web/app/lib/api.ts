@@ -117,5 +117,27 @@ export const api = {
         name: tab.name
       }))
     },
+  },
+  execute: {
+    // Execute a single node for testing
+    node: async (nodeId: string, config?: any) => {
+      const res = await axios.post(`${BACKEND_URL}/execute/node`, 
+        { NodeId: nodeId, Config: config },
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      console.log('[api.execute.node] Response:', res);
+      
+      // Check if execution was successful
+      if (res.data?.data?.success) {
+        return res.data.data.output;
+      }
+      
+      // If not successful, throw error with message
+      const errorMessage = res.data?.data?.error || res.data?.message || "Execution failed";
+      throw new Error(errorMessage);
+    }
   }
 };

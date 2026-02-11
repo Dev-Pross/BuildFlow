@@ -46,5 +46,11 @@ export const gmailActionConfig: NodeConfig = {
   ],
   
   summary: "Send emails via Gmail",  // ✅ Correct description
-  helpUrl: "https://docs.example.com/gmail-action"
+  helpUrl: "https://docs.example.com/gmail-action",
+
+  outputSchema: [
+    { name: "Message ID", path: "messageId", type: "string" },
+    { name: "Status", path: "status", type: "string" },
+    { name: "Thread ID", path: "threadId", type: "string" },
+  ],
 };
