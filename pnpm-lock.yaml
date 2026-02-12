@@ -232,6 +232,9 @@ importers:
         specifier: ^2.2.4
         version: 2.2.4
     devDependencies:
+      '@repo/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
