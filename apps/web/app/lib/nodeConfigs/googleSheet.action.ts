@@ -56,5 +56,20 @@ export const googleSheetActionConfig: NodeConfig = {
   ],
   
   summary: "Interact with Google Sheets spreadsheets",
-  helpUrl: "https://docs.example.com/google-sheets-action"
+  helpUrl: "https://docs.example.com/google-sheets-action",
+
+  outputSchema: [
+    {
+      name: "Rows",
+      path: "rows",
+      type: "array",
+      description: "All rows from the sheet",
+      children: [
+        { name: "Row Index", path: "[*].index", type: "number" },
+        // Dynamic columns added at runtime based on sheet headers
+      ]
+    },
+    { name: "Row Count", path: "rowCount", type: "number" },
+    { name: "Sheet Name", path: "sheetName", type: "string" },
+  ],
 };

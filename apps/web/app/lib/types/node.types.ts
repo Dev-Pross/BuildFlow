@@ -1,5 +1,23 @@
 // What information does a node config need?
 
+export type VariableType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object' | 'any';
+
+export interface VariableDefinition {
+  name: string;           // "Email Address"
+  path: string;           // "rows[0].email" 
+  type: VariableType;
+  description?: string;
+  sampleValue?: any;      // "john@example.com"
+  children?: VariableDefinition[];  // For nested objects/arrays
+}
+// What gets passed to VariablePanel
+export interface PreviousNodeOutput {
+  nodeId: string;        // "node_abc123"
+  nodeName: string;      // "Google Sheets"
+  nodeType: string;      // "google_sheet"
+  icon?: string;         // "📊"
+  variables: VariableDefinition[];
+}
 export interface NodeConfig {
   id: string; // Unique identifier for the node, e.g., "google_sheet"
   type: "trigger" | "action"; // Node category
@@ -19,6 +37,10 @@ export interface NodeConfig {
   tags?: string[]; // Searchable tags
   // Any extra raw config data
   data?: Record<string, any>; // Allow extra arbitrary config as needed
+    // NEW: What this node outputs (for next nodes to use)
+  outputSchema?: VariableDefinition[];
+  // NEW: Sample output for UI preview
+  sampleOutput?: Record<string, any>;
 }
 
 export interface ConfigField {
@@ -37,4 +59,8 @@ export interface ConfigField {
   min?: number; // For number fields: min value
   max?: number; // For number fields: max value
   // You could add validation, inputMask, or other metadata as needed here
+  // NEW: Allow variable insertion
+  acceptsVariables?: boolean;  // default true for text/textarea
+  // NEW: Restrict which variable types can be dropped
+  acceptTypes?: VariableType[];
 }

@@ -13,18 +13,47 @@ import {
   NodeChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-
+import { PreviousNodeOutput } from "../../lib/types/node.types";
 import BaseNode from "@/app/components/nodes/BaseNode";
 import { TriggerSideBar } from "@/app/components/nodes/TriggerSidebar";
 import ActionSideBar from "@/app/components/Actions/ActionSidebar";
 import { api } from "@/app/lib/api";
 import ConfigModal from "./components/ConfigModal";
 import { toast } from "sonner";
+import { getNodeConfig } from "@/app/lib/nodeConfigs";
 
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
 
+  const getPreviousNodes = (
+  selectedNodeId: string,
+  allNodes: Node[],
+  allEdges: Edge[]
+  ): PreviousNodeOutput[] => {
+    // Find edges pointing TO the selected node
+    const incomingEdges = allEdges.filter(edge => edge.target === selectedNodeId);
+    
+    // Get source node IDs
+    const previousNodeIds = incomingEdges.map(edge => edge.source);
+    
+    // Build PreviousNodeOutput for each
+    return allNodes
+      .filter(node => previousNodeIds.includes(node.id))
+      .filter(node => !node.data?.isPlaceholder)
+      .map(node => {
+        const label = (node.data?.label as string) || "";
+        const icon = (node.data?.icon as string) || "⚙️";
+        const nodeConfig = getNodeConfig(label);
+        return {
+          nodeId: node.id,
+          nodeName: label || "Unknown",
+          nodeType: nodeConfig ? nodeConfig.id : "unknown",
+          icon: icon,
+          variables: nodeConfig?.outputSchema || []
+        };
+      });
+  };
   // State
   const handleExecute = async () => {
     setLoading(true);
@@ -551,11 +580,11 @@ export default function WorkflowCanvas() {
         isOpen={configOpen}
         selectedNode={selectedNode}
         workflowId={workflowId}
+        previousNodes={selectedNode ? getPreviousNodes(selectedNode.id, nodes, edges) : []}
         onClose={() => {
           setConfigOpen(false);
           setSelectedNode(null);
         }}
-
         onSave={async (nodeId: string, config: any, userId: string) => {
           try {
             const triggerNode = nodes.find(

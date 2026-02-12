@@ -92,7 +92,7 @@ class GoogleOAuthService {
       const credentials = await this.prisma.credential.findFirst({
         where: {
           id: credentialId,
-          // userId: userId,
+          userId: userId,
           type: "google_oauth",
         },
         orderBy: {

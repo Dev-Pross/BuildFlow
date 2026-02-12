@@ -200,19 +200,85 @@ class GoogleSheetsNodeExecutor{
 
     //     return response.data.files;
     // }
+
+    /**
+     * Checks if user's range starts from row 1 (includes headers)
+     * "A1:Z100" → true, "A7:Z100" → false, "1:100" → true
+     */
+    private rangeStartsFromRow1(range: string): boolean {
+        const match = range.match(/(\d+)/);
+        return match && match[1] ? parseInt(match[1]) === 1 : false;
+    }
+
+    /**
+     * Builds column name → index mapping from header row
+     * ["Email", "Job Title"] → { "email": 0, "job_title": 1 }
+     */
+    private buildColumnsMap(headerRow: any[]): Record<string, number> {
+        const columns: Record<string, number> = {};
+        headerRow.forEach((header, index) => {
+            const normalized = String(header).trim().toLowerCase().replace(/\s+/g, '_');
+            if (normalized) {
+                columns[normalized] = index;
+            }
+        });
+        return columns;
+    }
+
     async executeReadRows(sheetsService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
         try{
-            const rows = await sheetsService.readRows({
-                spreadsheetId: context.config.spreadsheetId,
-                range: `${context.config.sheetName}!${context.config.range}`
-            });
+            const spreadsheetId = context.config.spreadsheetId;
+            const sheetName = context.config.sheetName;
+            const userRange = context.config.range;
+
+            let combinedRows: any[];
+            let dataRowCount: number;
+
+            if (this.rangeStartsFromRow1(userRange)) {
+                // User range already includes row 1 (headers) — single fetch
+                const allRows = await sheetsService.readRows({
+                    spreadsheetId: spreadsheetId,
+                    range: `${sheetName}!${userRange}`
+                });
+                combinedRows = allRows;
+                dataRowCount = Math.max(0, allRows.length - 1);
+            } else {
+                // User range starts after row 1 — fetch headers separately
+                let headers: any[][] = [];
+                try {
+                    headers = await sheetsService.readRows({
+                        spreadsheetId: spreadsheetId,
+                        range: `${sheetName}!1:1`
+                    });
+                } catch (e) {
+                    console.log('[GoogleSheets] Failed to fetch headers:', e);
+                }
+
+                const dataRows = await sheetsService.readRows({
+                    spreadsheetId: spreadsheetId,
+                    range: `${sheetName}!${userRange}`
+                });
+
+                combinedRows = headers.length > 0
+                    ? [headers[0], ...dataRows]
+                    : dataRows;
+                dataRowCount = dataRows.length;
+            }
+
+            // Build columns mapping from first row (headers)
+            const columns = combinedRows.length > 0 && combinedRows[0]
+                ? this.buildColumnsMap(combinedRows[0] as any[])
+                : {};
 
             return {
                 success: true,
                 output: {
-                    rows: rows,
-                    rowCount: rows.length,
-                    sheetId: context.config.spreadsheetId
+                    rows: combinedRows,
+                    columns: columns,
+                    dataStartIndex: 1,
+                    rowCount: dataRowCount,
+                    sheetId: spreadsheetId,
+                    hasHeaders: Object.keys(columns).length > 0
                 }
             }
         }catch(e){

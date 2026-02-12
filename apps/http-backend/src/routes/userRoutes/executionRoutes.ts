@@ -30,12 +30,14 @@ execRouter.post('/node', userMiddleware,  async(req: AuthRequest, res: Response)
             const type = nodeData.AvailableNode.type
             const config = dataSafe.data.Config ? dataSafe.data.Config : nodeData.config // for test api data prefered fist then config in db 
             console.log(`config and type: ${JSON.stringify(config)} & ${type}`)
-            // if(nodeData.CredentialsID)
+            
             const context = {
                 userId: req.user.sub,
-                config: config ,
-                // credentialsId: nodeData.CredentialsID  || ""
+                config: config,
+                credentialId: nodeData.CredentialsID || config?.credentialId || ""
             }
+            
+            console.log(`Execution context: ${JSON.stringify(context)}`)
             const executionResult = await ExecutionRegister.execute(type, context)
 
             console.log(`Execution result: ${executionResult}`)
