@@ -132,7 +132,7 @@ googleAuth.get(
       // Redirect to workflow page if workflowId is provided, otherwise to general workflow page
       const redirectUrl = workflowId 
         ? `http://localhost:3000/workflows/${workflowId}`
-        : "http://localhost:3000/workflow";
+        : "http://localhost:3000/workflows";
       console.log('   Redirecting to:', redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err: any) {

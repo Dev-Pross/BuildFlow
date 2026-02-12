@@ -34,7 +34,7 @@ app.use(cookieParser());
 
 app.use("/user" , userRouter)
 app.use('/node', sheetRouter)
-app.use('/auth/google', googleAuth) 
+app.use('/oauth/google', googleAuth) 
 app.use('/execute', execRouter)
 
 const PORT= 3002
