@@ -1,5 +1,4 @@
 # BuildFlow 🔄
-<img width="1916" height="817" alt="Screenshot from 2026-01-11 15-02-48" src="https://github.com/user-attachments/assets/0aa27aef-30ad-4474-a775-f313bf57a8a1" />
 
 > A modern workflow automation platform with visual interface and event-driven execution engine. BuildFlow enables developers to build, deploy, and manage automated workflows connecting various services and APIs.
 
@@ -19,6 +18,8 @@
 ## 🎯 Overview
 
 BuildFlow is a workflow automation platform inspired by N8N, designed to solve debugging and reliability issues in workflow execution. It provides a visual interface for creating workflows that connect triggers and actions (nodes) to automate business processes.
+
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/2a8de777-7202-4611-9d9b-887bf93bfec3" />
 
 ### Core Concepts
 
@@ -66,7 +67,10 @@ BuildFlow follows a **microservices architecture** with an **event-driven execut
 4. **Execution**: Worker consumes messages and executes workflow nodes
 5. **Status Tracking**: Each node execution tracked with retry logic
 
+<img width="1916" height="817" alt="Screenshot from 2026-01-11 15-02-48" src="https://github.com/user-attachments/assets/0aa27aef-30ad-4474-a775-f313bf57a8a1" />
+
 ## 🛠️ Tech Stack
+
 
 ### Frontend
 - **Framework**: Next.js 15.4.5 (App Router, Turbopack)
