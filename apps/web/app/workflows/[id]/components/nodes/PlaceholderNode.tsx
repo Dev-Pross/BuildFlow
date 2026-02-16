@@ -20,7 +20,7 @@ export function PlaceholderNode({ data }: PlaceholderNodeProps) {
         <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
           <span className="text-2xl">➕</span>
         </div>
-        <p className="text-sm font-medium text-gray-600">Add Action</p>
+        <p className="text-sm font-medium text-gray-600">Add what the hell is Action</p>
       </div>
     </div>
   );

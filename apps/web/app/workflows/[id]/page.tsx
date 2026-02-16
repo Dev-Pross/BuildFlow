@@ -551,7 +551,7 @@ export default function WorkflowCanvas() {
         nodeTypes={nodeTypes}
         fitView
       >
-        <Background />
+        <Background bgColor="#fdfdfd" />
         <Controls />
 
 

@@ -40,15 +40,15 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
         onClick={onConfigure}
         className="
           group
-          w-[240px] 
+          w-[140px] 
           px-4 py-6
-          bg-gray-800/40
+          bg-white
           border-2 border-dashed border-gray-600
           rounded-lg
           cursor-pointer
           transition-all duration-200
           hover:border-blue-500 
-          hover:bg-gray-800/60
+          hover:bg-white
           hover:shadow-lg hover:shadow-blue-500/20
           flex flex-col items-center gap-3
         "
@@ -56,13 +56,9 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
         {/* Icon */}
         <div
           className="
-            w-12 h-12 
-            rounded-full 
-            bg-gray-700/50
-            border border-gray-600
-            flex items-center justify-center
+            w-7 h-7  flex items-center justify-center
+             bg-white
             text-2xl
-            group-hover:bg-blue-500/20
             group-hover:border-blue-500
             transition-all duration-200
           "
@@ -71,10 +67,10 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
         </div>
         {/* Label */}
         <div className="text-center">
-          <p className="text-gray-300 font-medium text-sm group-hover:text-blue-400 transition-colors">
+          <p className="text-black font-bold  text-sm group-hover:text-blue-400 transition-colors">
             {label}
           </p>
-          <p className="text-gray-500 text-xs mt-1">Click to configure</p>
+          {/* <p className="text-gray-500 text-xs mt-1">Click to configure</p> */}
         </div>
 
         {/* Handles */}
