@@ -574,13 +574,13 @@ router.put(
           message: "Invalid input",
         });
       }
-      const { credentialId, ...restConfig } = dataSafe.data.Config;
+      // const { credentialId, ...restConfig } = dataSafe.data.Config;
       const updateNode = await prismaClient.node.update({
         where: { id: dataSafe.data.NodeId },
         data: {
           position: dataSafe.data.position,
-          config: restConfig,
-          CredentialsID: credentialId
+          config: dataSafe.data.Config ,
+          CredentialsID: dataSafe.data.Config?.credentialId || null
         },
       });
 
