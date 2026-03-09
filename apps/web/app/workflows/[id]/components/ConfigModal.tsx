@@ -17,12 +17,13 @@ import {
   selectAllOutputs,
   NodeTestOutput 
 } from "@/store/slices/nodeOutputSlice";
+import { workflowActions } from "@/store/slices/workflowSlice";
 
 interface ConfigModalProps {
   isOpen: boolean;
   selectedNode: any | null;
   onClose: () => void;
-  onSave: (selectedNode: string, config: any, userId: string) => Promise<void>;
+  // onSave: (selectedNode: string, config: any, userId: string) => Promise<void>;
   workflowId?: string;
   previousNodes: PreviousNodeOutput[];
 }
@@ -31,9 +32,9 @@ export default function ConfigModal({
   isOpen,
   selectedNode,
   onClose,
-  onSave,
+  // onSave,
   workflowId,
-  previousNodes
+  previousNodes,
 }: ConfigModalProps) {
   const [config, setConfig] = useState<Record<string, any>>({});
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, any[]>>({});
@@ -43,6 +44,7 @@ export default function ConfigModal({
   
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.user.userId) as string;
+  const reduxWorkflow = useAppSelector((state) => state.workflow.data);
   
   // Get all tested outputs from Redux (for variable resolution)
   const allTestedOutputs = useAppSelector(selectAllOutputs);
@@ -59,6 +61,16 @@ export default function ConfigModal({
     "google.getDocuments" : ({credentialId}) => api.google.getDocuments(credentialId),
     "google.getSheets" : ({spreadsheetId, credentialId}) => api.google.getSheets(spreadsheetId, credentialId)
   }
+
+  const dispatchConfig = (newConfig: Record<string, any>) => {
+    if (!selectedNode) return;
+    const isTrigger = reduxWorkflow.trigger?.TriggerId === selectedNode.id;
+    if (isTrigger) {
+        dispatch(workflowActions.updateTriggerConfig({ config: newConfig }));
+    } else {
+        dispatch(workflowActions.updateNodeConfig({ nodeId: selectedNode.id, config: newConfig }));
+    }
+};
   
   // Build interpolation context from all previously tested nodes
   const buildTestContext = (): InterpolationContext => {
@@ -165,7 +177,9 @@ export default function ConfigModal({
     if(!activeField) return;
 
     const currentValue = config[activeField] || "";
-    setConfig({...config, [activeField]: currentValue + variableSyntax})
+    const newConfig =  {...config, [activeField]: currentValue + variableSyntax};
+    setConfig(newConfig)
+    dispatchConfig(newConfig)
   }
 
   const handleFieldChange = async (fieldName: string, value: string, nodeConfig: any) => {
@@ -174,6 +188,7 @@ export default function ConfigModal({
     console.log(fieldName, " ", value, " ", nodeConfig)
     console.log(config, "from handle field function - 1")
     setConfig((prev) => ({ ...prev, [fieldName]: value }));
+    dispatchConfig(updatedConfig);
     console.log(config, "from handle field fun - 2")
     console.log({ ...config, [fieldName]: value }, "what we're setting")
     // Find fields that depend on this field
@@ -199,24 +214,45 @@ export default function ConfigModal({
   const { cred: credentials = [], authUrl } = useCredentials(credType ?? "", workflowId);
 
   useEffect(() => {
-    setConfig({});
-    // We no longer set local credentials here; handled by useCredentials!
+    if (!selectedNode) {
+      setConfig({});
+      return;
+    }
+    // Load existing saved config from Redux instead of starting empty
+    const isTrigger = reduxWorkflow.trigger?.TriggerId === selectedNode.id;
+    const loadedConfig = isTrigger ? (reduxWorkflow.trigger?.Config || {}) : (reduxWorkflow.nodes.find(n => n.NodeId === selectedNode.id)?.Config || {})
+
+    setConfig(loadedConfig)
+
+    const nodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
+    if(nodeConfig?.fields){
+      for(const field of nodeConfig.fields){
+        if(field.fetchOptions && field.dependsOn && loadedConfig[field.dependsOn]){
+          const fetchFn = fetchOptionsMap[field.fetchOptions];
+          if(fetchFn){
+            fetchFn(loadedConfig)
+            .then((option: any[])=> setDynamicOptions(prev => ({...prev, [field.name]: option})))
+            .catch(()=> {})
+          }
+        }
+      }
+    }
   }, [selectedNode]);
 
   if (!isOpen || !selectedNode) return null;
 
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      await onSave(selectedNode.id, config, userId);
-      toast.success("Configured Successfully");
-    } catch {
-      toast.error("Failed to save config");
-    } finally {
-      setLoading(false);
-      onClose();
-    }
-  };
+  // const handleSave = async () => {
+  //   setLoading(true);
+  //   try {
+  //     await onSave(selectedNode.id, config, userId);
+  //     toast.success("Configured Successfully");
+  //   } catch {
+  //     toast.error("Failed to save config");
+  //   } finally {
+  //     setLoading(false);
+  //     onClose();
+  //   }
+  // };
 
   const renderField = (field: any, nodeConfig: any) => {
     const fieldValue = config[field.name] || "";
@@ -331,11 +367,11 @@ export default function ConfigModal({
             value={fieldValue}
             placeholder={field.placeholder}
             onFocus={()=> setActiveField(field.name)}
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                [field.name]: e.target.value,
-              })
+            onChange={(e) => { 
+              const newConfig = { ...config, [field.name]: e.target.value };
+              setConfig(newConfig)
+              dispatchConfig(newConfig)
+            }
             }
             className="w-full p-3 border border-gray-900 bg-black text-white rounded-md focus:ring-2 focus:ring-white focus:border-white placeholder-gray-400"
             required={field.required}
@@ -356,11 +392,11 @@ export default function ConfigModal({
           value={fieldValue}
           onFocus={()=> setActiveField(field.name)}
           placeholder={field.placeholder}
-          onChange={(e) =>
-            setConfig({
-              ...config,
-              [field.name]: e.target.value,
-            })
+          onChange={(e) => { 
+              const newConfig = { ...config, [field.name]: e.target.value };
+              setConfig(newConfig)
+              dispatchConfig(newConfig)
+            }
           }
           className="w-full p-3 border border-gray-900 bg-black text-white rounded-md focus:ring-2 focus:ring-white focus:border-white placeholder-gray-400"
           required={field.required}
@@ -559,7 +595,7 @@ export default function ConfigModal({
           </button>
           
           <div className="flex gap-3">
-            <button
+            {/* <button
               onClick={onClose}
               className="px-4 py-2 text-white hover:bg-gray-700 rounded border border-gray-900"
               style={{ background: "#111" }}
@@ -567,18 +603,18 @@ export default function ConfigModal({
               type="button"
             >
               Cancel
-            </button>
+            </button> */}
             <button
-              onClick={async () => {
-                await handleSave();
-                setConfig({});
-              }}
+              onClick={()=> {
+                onClose();
+                }
+              }
               disabled={loading}
               className="px-6 py-2 bg-gradient-to-r from-white to-gray-400 text-black rounded hover:from-gray-300 hover:to-gray-600 disabled:opacity-50"
               style={{ fontWeight: 600 }}
               type="button"
             >
-              {loading ? "Saving..." : "Save"}
+              Done
             </button>
           </div>
         </div>

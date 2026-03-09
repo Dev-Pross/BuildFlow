@@ -21,10 +21,17 @@ import { api } from "@/app/lib/api";
 import ConfigModal from "./components/ConfigModal";
 import { toast } from "sonner";
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
+import { useAppDispatch, useAppSelector } from "@/app/hooks/redux";
+import { useAutoSave } from "@/app/hooks/useAutoSave";
+import { workflowActions } from "@/store/slices/workflowSlice";
+import { store } from "@/store";
 
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
+  const dispatch = useAppDispatch()
+  const reduxWorkflow = useAppSelector(s => s.workflow)
+  const { saveStatus, batchSave, displayStatus } = useAutoSave(workflowId)
 
   const getPreviousNodes = (
   selectedNodeId: string,
@@ -56,7 +63,17 @@ export default function WorkflowCanvas() {
   };
   // State
   const handleExecute = async () => {
+
+    const unConfigured = nodes.filter(
+      n=> !n.data.isPlaceholder && !n.data.isConfigured
+    );
+
+    if(unConfigured.length > 0){
+      setError(`Configure these nodes first: ${unConfigured.map(n => n.data.label).join(', ')}`);
+      return
+    }
     setLoading(true);
+
     try {
       const data = await api.workflows.execute({workflowId})
       console.log("This is from the Execute Button", data)
@@ -91,7 +108,7 @@ export default function WorkflowCanvas() {
   const [configOpen, setConfigOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<any>("")
+  const [loading, setLoading] = useState<boolean>(false)
   const nodeTypes = {
     customNode: BaseNode,
   };
@@ -109,131 +126,284 @@ export default function WorkflowCanvas() {
     return pos;
   }
   console.log("The Detaisl of Selected Node is ", selectedNode)
+
+  function checkIsConfigure(nodeName: string, config: any): boolean{
+    const nodeConfig = getNodeConfig(nodeName);
+    if(!nodeConfig ||  !nodeConfig.fields) return true;
+    const requiredFields = nodeConfig.fields.filter((f: any)=> f.required);
+    if(requiredFields.length === 0) return true;
+    return requiredFields.every((f:any)=> config?.[f.name] !== undefined && config?.[f.name] !== '' );
+  }
+
+  useEffect(()=>{
+    setNodes(prev => prev.map(node => {
+      if(node.data?.isPlaceholder) return node;
+      if(node.data?.nodeType === 'trigger'){
+        const reduxConfig = reduxWorkflow.data.trigger?.Config;
+        const name = reduxWorkflow.data.trigger?.name || "";
+        return { ...node, data: { ...node.data, isConfigured: checkIsConfigure(name, reduxConfig)}}
+      }
+
+      if(node.data.nodeType === 'action'){
+        const reduxNode = reduxWorkflow.data.nodes.find(n=> n.NodeId === node.id);
+        if(!reduxNode) return node;
+        return { ...node, data: { ...node.data, isConfigured: checkIsConfigure(reduxNode.name, reduxNode.Config)}};
+      }
+      return node;
+    }));
+  }, [reduxWorkflow.data.nodes, reduxWorkflow.data.trigger])
+
   useEffect(() => {
     const loadWorkflows = async () => {
       try {
-        const workflows = await api.workflows.get(workflowId);
+        if(reduxWorkflow.data.workflowId === workflowId){
+          const { trigger, nodes: reduxNodes, edges: reduxEdges } = reduxWorkflow.data
 
-        // Defensive: Default to empty arrays if not present
-        const dbNodes = Array.isArray(workflows?.data?.Data?.nodes)
-          ? workflows.data.Data.nodes
-          : [];
-        console.log("the node data is", dbNodes)
-        const dbEdges = Array.isArray(workflows?.data?.Data?.Edges)
-          ? workflows.data.Data.Edges
-          : [];
-        const Trigger = workflows?.data?.Data?.Trigger;
+          if (!trigger) {
+            setError("No trigger found in workflow data, so start with selecting the trigger for the workflow");
+            return;
+          }
 
-        if (!Trigger) {
-          setError("No trigger found in workflow data, so start with selecting the trigger for the workflow");
-          return;
-        }
-
-        // Ensure trigger position
-        const triggerPosition = ensurePosition(
-          Trigger?.config?.position,
-          DEFAULT_TRIGGER_POSITION
-        );
-
-        const triggerNode = {
-          id: Trigger.id,
-          type: "customNode",
-          position: triggerPosition,
-          data: {
-            label: Trigger.name || Trigger.data?.label || "Trigger",
-            icon: Trigger.data?.icon || "⚡",
-            nodeType: "trigger",
-            isConfigured: true,
-            onConfigure: () =>
-              handleNodeConfigure({
-                id: Trigger.id,
-                name: Trigger.name
-              }),
-          },
-        };
-
-        // 3. Transform action nodes, ensuring position property is always valid
-        const transformedNodes = dbNodes.map((node: any) => ({
-          id: node.id,
-          type: "customNode",
-          position: ensurePosition(node?.position, {
-            x: triggerPosition.x + 350,
-            y: triggerPosition.y + 150,
-          }),
-          data: {
-            label: node.data?.label || node.name || "Unknown",
-            icon: node.data?.icon || "⚙️",
-            nodeType: "action",
-            onConfigure: () =>
-              handleNodeConfigure({
-                id: node.id,
-                name: node.data?.label || node.name,
-                type: "action",
-                actionType: node.AvailableNodeId,
-              }),
-          },
-        }));
-
-        // 4. Calculate placeholder position: use last action node, fallback to trigger
-        const lastNode =
-          transformedNodes.length > 0
-            ? transformedNodes[transformedNodes.length - 1]
-            : triggerNode;
-
-        const lastPosition = ensurePosition(
-          lastNode?.position,
-          transformedNodes.length > 0
-            ? { x: triggerPosition.x + 350, y: triggerPosition.y + 150 }
-            : triggerPosition
-        );
-
-        const placeholderPosition = {
-          x: lastPosition.x + 550,
-          y: lastPosition.y,
-        };
-
-        const actionPlaceholder = {
-          id: `action-placeholder-${Date.now()}`,
-          type: "customNode",
-          position: placeholderPosition,
-          data: {
-            label: "Add Action",
-            icon: "➕",
-            isPlaceholder: true,
-            nodeType: "action",
-            onConfigure: () => setActionOpen(true),
-          },
-        };
-
-        // 5. Combine nodes
-        const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
-
-        // 6. Manage edges
-        let finalEdges = Array.isArray(dbEdges) ? [...dbEdges] : [];
-
-        const placeholderEdge = {
-          id: `e-${lastNode.id}-${actionPlaceholder.id}`,
-          source: lastNode.id,
-          target: actionPlaceholder.id,
-          type: "default",
-          animated: true,
-        };
-
-        if (dbEdges.length === 0 && transformedNodes.length > 0) {
-          const triggerEdge = {
-            id: `e-${triggerNode.id}-${transformedNodes[0].id}`,
-            source: triggerNode.id,
-            target: transformedNodes[0].id,
-            type: "default",
+          const triggerPosition = ensurePosition(trigger.position, DEFAULT_TRIGGER_POSITION )
+          const triggerNode = {
+            id: trigger.TriggerId,
+            type: "customNode",
+            position: triggerPosition,
+            data: {
+              label: trigger.name || "Trigger",
+              icon: "⚡", // add icon field in redux and db 
+              nodeType: "trigger",
+              isConfigured: checkIsConfigure(trigger.name, trigger.Config),
+              onConfigure: () =>
+                handleNodeConfigure({
+                  id: trigger.TriggerId,
+                  name: trigger.name
+                }),
+            },
           };
-          finalEdges.push(triggerEdge);
+
+          const transformedNodes = reduxNodes.map((node) =>({
+            id: node.NodeId,
+            type: "customNode",
+            position: ensurePosition(node.position, {
+              x: triggerPosition.x + 350,
+              y: triggerPosition.y + 150,
+            }),
+            data: {
+              label: node.name || "Unknown",
+              icon:  "⚙️", // icon add to db and redux
+              nodeType: "action",
+              isConfigured: checkIsConfigure(node.name, node.Config),
+              onConfigure: () =>
+                handleNodeConfigure({
+                  id: node.NodeId,
+                  name: node.name,
+                  type: "action",
+                  actionType: node.AvailableNodeID,
+                }),
+              }
+          }))
+
+          const lastNode =
+            transformedNodes.length > 0
+              ? transformedNodes[transformedNodes.length - 1]
+              : triggerNode;
+
+          const lastPosition = ensurePosition(
+            lastNode?.position,
+            transformedNodes.length > 0
+              ? { x: triggerPosition.x + 350, y: triggerPosition.y + 150 }
+              : triggerPosition
+          );
+
+          const placeholderPosition = {
+            x: lastPosition.x + 550,
+            y: lastPosition.y,
+          };
+
+          const actionPlaceholder = {
+            id: `action-placeholder-${Date.now()}`,
+            type: "customNode",
+            position: placeholderPosition,
+            data: {
+              label: "Add Action",
+              icon: "➕",
+              isPlaceholder: true,
+              nodeType: "action",
+              onConfigure: () => setActionOpen(true),
+            },
+          };
+
+          // 5. Combine nodes
+          const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
+
+          const lastActionNode = reduxNodes.length > 0 ? reduxNodes[reduxNodes.length - 1] : null;
+          const sourceNodeId = lastActionNode ? lastActionNode.NodeId : trigger.TriggerId
+            
+          const cleanReduxEdges = reduxEdges.filter(e => !e.target.startsWith('action-placeholder-'))
+
+          const newEdges = [
+            ...cleanReduxEdges,
+            { id: `e-action-${sourceNodeId}-placeholder`, source: sourceNodeId, target: actionPlaceholder.id },
+          ]
+          setNodes(finalNodes)
+          setEdges(newEdges)
+          setError(null)
+
+          return
         }
 
-        finalEdges.push(placeholderEdge);
 
-        setNodes(finalNodes);
-        setEdges(finalEdges);
-        setError(null);
+        else{
+         const workflows = await api.workflows.get(workflowId);
+        
+        // Defensive: Default to empty arrays if not present
+          const dbNodes = Array.isArray(workflows?.data?.Data?.nodes)
+            ? workflows.data.Data.nodes
+            : [];
+          console.log("the node data is", dbNodes)
+          const dbEdges = Array.isArray(workflows?.data?.Data?.Edges)
+            ? workflows.data.Data.Edges
+            : [];
+          const Trigger = workflows?.data?.Data?.Trigger;
+
+          
+          if (!Trigger) {
+            setError("No trigger found in workflow data, so start with selecting the trigger for the workflow");
+            return;
+          }
+          
+          // store updating
+          dispatch(workflowActions.setWorkflow({
+              workflowId,
+              name: workflows.data.Data.name,
+              description: workflows.data.Data.description,
+              trigger: Trigger ? {
+                TriggerId: Trigger.id,
+                name: Trigger.name,
+                type: Trigger.type,
+                Config: Trigger.config || {},
+                position: Trigger.Position || DEFAULT_TRIGGER_POSITION,
+                AvailableTriggerID: Trigger.AvailableTriggerID
+              } : null,
+              nodes: dbNodes.map((n: any) => ({
+                NodeId: n.id,
+                name: n.name,
+                type: n.type,
+                Config: n.config || {},
+                position: n.position || {  x: 0, y: 0 },
+                stage: n.stage,
+                AvailableNodeID: n.AvailableNodeId
+              })),
+              edges: dbEdges
+            }))
+          // Ensure trigger position
+          const triggerPosition = ensurePosition(
+            Trigger?.Position,
+            DEFAULT_TRIGGER_POSITION
+          );
+
+          const triggerNode = {
+            id: Trigger.id,
+            type: "customNode",
+            position: triggerPosition,
+            data: {
+              label: Trigger.name || Trigger.data?.label || "Trigger",
+              icon: Trigger.data?.icon || "⚡",
+              nodeType: "trigger",
+              isConfigured: checkIsConfigure(Trigger.name, Trigger.config || {}),
+              onConfigure: () =>
+                handleNodeConfigure({
+                  id: Trigger.id,
+                  name: Trigger.name
+                }),
+            },
+          };
+
+          // 3. Transform action nodes, ensuring position property is always valid
+          const transformedNodes = dbNodes.map((node: any) => ({
+            id: node.id,
+            type: "customNode",
+            position: ensurePosition(node?.position, {
+              x: triggerPosition.x + 350,
+              y: triggerPosition.y + 150,
+            }),
+            data: {
+              label: node.data?.label || node.name || "Unknown",
+              icon: node.data?.icon || "⚙️",
+              nodeType: "action",
+              isConfigured: checkIsConfigure(node.name || node.data?.label, node.config || {}),
+              onConfigure: () =>
+                handleNodeConfigure({
+                  id: node.id,
+                  name: node.data?.label || node.name,
+                  type: "action",
+                  actionType: node.AvailableNodeId,
+                }),
+            },
+          }));
+
+          // 4. Calculate placeholder position: use last action node, fallback to trigger
+          const lastNode =
+            transformedNodes.length > 0
+              ? transformedNodes[transformedNodes.length - 1]
+              : triggerNode;
+
+          const lastPosition = ensurePosition(
+            lastNode?.position,
+            transformedNodes.length > 0
+              ? { x: triggerPosition.x + 350, y: triggerPosition.y + 150 }
+              : triggerPosition
+          );
+
+          const placeholderPosition = {
+            x: lastPosition.x + 550,
+            y: lastPosition.y,
+          };
+
+          const actionPlaceholder = {
+            id: `action-placeholder-${Date.now()}`,
+            type: "customNode",
+            position: placeholderPosition,
+            data: {
+              label: "Add Action",
+              icon: "➕",
+              isPlaceholder: true,
+              nodeType: "action",
+              onConfigure: () => setActionOpen(true),
+            },
+          };
+
+          // 5. Combine nodes
+          const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
+
+          // 6. Manage edges
+          let finalEdges = Array.isArray(dbEdges) ? [...dbEdges] : [];
+
+          const placeholderEdge = {
+            id: `e-${lastNode.id}-${actionPlaceholder.id}`,
+            source: lastNode.id,
+            target: actionPlaceholder.id,
+            type: "default",
+            animated: true,
+          };
+
+          if (dbEdges.length === 0 && transformedNodes.length > 0) {
+            const triggerEdge = {
+              id: `e-${triggerNode.id}-${transformedNodes[0].id}`,
+              source: triggerNode.id,
+              target: transformedNodes[0].id,
+              type: "default",
+            };
+            finalEdges.push(triggerEdge);
+          }
+
+          finalEdges.push(placeholderEdge);
+
+          setNodes(finalNodes);
+          setEdges(finalEdges);
+          setError(null);
+        }
       } catch (err: any) {
         console.error("Failed to load workflow:", err);
         setError(
@@ -254,38 +424,39 @@ export default function WorkflowCanvas() {
 
   const handleNodesChange = (changes: NodeChange[]) => {
     onNodesChange(changes);
-    try {
-      changes.forEach((change) => {
-        if (change.type === "position" && change.position) {
-          const changedNode = nodes.find((n) => n.id === change.id);
+  };
 
-          if (changedNode?.data?.nodeType === "trigger") {
-            api.triggers.update({
-              TriggerId: change.id,
-              Config: {
-                ...(typeof changedNode.data.config === "object" &&
-                  changedNode.data.config !== null
-                  ? changedNode.data.config
-                  : {}),
-                position: change.position,
-              },
-            });
-          } else {
-            api.nodes.update({
-              NodeId: change.id,
-              position: change.position,
-            });
-          }
-        }
-      });
-      setError(null);
+  const nodeChangeDb = async (event: React.MouseEvent, node: Node)=>{
+    try {
+      if (node.data?.nodeType === "trigger") {
+      // await api.triggers.update({
+      //   TriggerId: node.id,
+      //   Config: {
+      //     ...(typeof node.data.config === "object" && node.data.config !== null
+      //       ? node.data.config
+      //       : {}),
+      //     position: node.position,
+      //   },
+      // });
+        dispatch(workflowActions.updateTriggerPosition(node.position))
+    }
+     else {
+      // await api.nodes.update({
+      //   NodeId: node.id,
+      //   position: node.position,
+      // });
+      dispatch(workflowActions.updateNodePosition({
+        nodeId:node.id,
+        position: node.position
+      }))
+    }
     } catch (err: any) {
       setError(
         err?.message ??
         "Failed to update node position. Please try again."
       );
     }
-  };
+  }
 
   const handleActionSelection = async (action: any) => {
     // Defensive: Ensure at least one trigger present
@@ -316,15 +487,37 @@ export default function WorkflowCanvas() {
       const result = await api.nodes.create({
         Name: action.name,
         AvailableNodeId: action.id,
-        Config: {
-          CredentialsID: "",
-        },
         WorkflowId: workflowId,
         position: newNodePosition,
         stage: nextIndex,
       });
       console.log("The data of Node Positions from 201", newNodePosition)
       const actionId = result.data.data.id;
+
+      // const reduxState = store.getState().workflow.data
+      // const existingReduxNodes = reduxState.nodes
+      // const sourceNodeId = existingReduxNodes.length > 0
+      //     ? existingReduxNodes[existingReduxNodes.length - 1]!.NodeId
+      //     : triggerNode.id
+      // const filterEdges = reduxState.edges.filter(e => !e.target.startsWith('action-placeholder-'))
+
+      const sourceNodeId = currentActionNodes.length > 0 ? currentActionNodes[currentActionNodes.length - 1]!.id : triggerNode.id
+      
+      const cleanReduxEdges = edges.filter(
+        e => !e.target.startsWith('action-placeholder-') && 
+        e.target !== 'action-holder'
+      )
+      // store updating
+
+      dispatch(workflowActions.addWorkflowNode({
+        NodeId: actionId,
+        name: action.name,
+        type: action.type,
+        Config: {},
+        position: newNodePosition,
+        stage: nextIndex,
+        AvailableNodeID: action.id
+      }))
 
       const newNode = {
         id: actionId,
@@ -367,7 +560,7 @@ export default function WorkflowCanvas() {
         },
       };
 
-      const triggerId = triggerNode.id;
+      // const triggerId = triggerNode.id;
 
       setNodes((prevNodes) => {
         // Remove any existing action placeholder nodes
@@ -377,40 +570,23 @@ export default function WorkflowCanvas() {
         return [...filtered, newNode, actionPlaceholder];
       });
 
-      setEdges((prevEdges) => {
-        // Remove placeholder-targeting edges
-        const filtered = prevEdges.filter((e) => {
-          const targetNode = nodes.find((n) => n.id === e.target);
-          return !(
-            targetNode?.data.isPlaceholder &&
-            targetNode?.data.nodeType === "action"
-          );
-        });
+      // const reduxState = store.getState().workflow.data
+      // const existingReduxNodes = reduxState.nodes
+      // const sourceNodeId = existingReduxNodes.length > 0 
+      //     ? existingReduxNodes[existingReduxNodes.length - 1]!.NodeId 
+      //     : triggerId 
+      // // Remove placeholder-targeting edges
+      // const filterEdges = reduxState.edges.filter(e => !e.target.startsWith('action-placeholder-'))
 
-        const existingActionNodes = nodes.filter(
-          (n) => n.data.nodeType === "action" && !n.data.isPlaceholder
-        );
+      const newEdges = [
+        ...cleanReduxEdges,
+        {id: `e-action-${sourceNodeId}-${actionId}`, source: sourceNodeId, target: actionId },
+        { id: `e-action-${actionId}-placeholder`, source: actionId, target: actionPlaceholder.id },
+      ]
 
-        const sourceNodeId =
-          existingActionNodes.length > 0
-            ? existingActionNodes[existingActionNodes.length - 1]!.id
-            : triggerId;
-
-        return [
-          ...filtered,
-          {
-            id: `e-action-${sourceNodeId}-${actionId}`,
-            source: sourceNodeId,
-            target: actionId,
-          },
-          {
-            id: `e-action-${actionId}-placeholder`,
-            source: actionId,
-            target: actionPlaceholder.id,
-          },
-        ];
-      });
-
+      setEdges(newEdges);
+      const reduxEdges = newEdges.filter(e => !e.target.startsWith('action-placeholder-') && e.target !== 'action-holder')
+      dispatch(workflowActions.setEdge(reduxEdges))
       setActionOpen(false);
       setError(null);
     } catch (err: any) {
@@ -432,6 +608,8 @@ export default function WorkflowCanvas() {
       });
       const triggerId = result.data.data.id as string;
 
+      
+
       const newNode = {
         id: triggerId,
         type: "customNode",
@@ -441,7 +619,7 @@ export default function WorkflowCanvas() {
           icon: trigger.icon,
           isPlaceholder: false,
           nodeType: "trigger",
-          isConfigured: false,
+          isConfigured: checkIsConfigure(trigger.name, {}),
           config: {},
           onConfigure: () =>
             handleNodeConfigure({
@@ -467,13 +645,25 @@ export default function WorkflowCanvas() {
       };
 
       setNodes([newNode, actionPlaceholder]);
-      setEdges([
+      const newEdge = [
         {
           id: "e1",
           source: triggerId,
           target: "action-holder",
         },
-      ]);
+      ]
+      setEdges(newEdge);
+      const reduxEdge = newEdge.filter(e => e.target !== 'action-holder')
+
+      dispatch(workflowActions.setWorkflowTrigger({
+        TriggerId: triggerId,
+        name: trigger.name,
+        type: trigger.type,
+        Config: {},
+        position: DEFAULT_TRIGGER_POSITION,
+        AvailableTriggerID: trigger.id
+      }))
+      dispatch(workflowActions.setEdge(reduxEdge))
       setTriggerOpen(false);
       setError(null);
     } catch (err: any) {
@@ -484,21 +674,21 @@ export default function WorkflowCanvas() {
     }
   };
 
-  const handleSave = async () => {
-    try {
-      await api.workflows.put({
-        workflowId: workflowId,
-        edges: edges,
-      });
-      setError(null);
-    } catch (err: any) {
-      setError(
-        err?.message ??
-        "Failed to save workflow. Please try again."
-      );
-    }
-  };
-  console.log("THis log from page.tsx about the nodeConfig", selectedNode)
+  // const handleSave = async () => {
+  //   try {
+  //     await api.workflows.put({
+  //       workflowId: workflowId,
+  //       edges: edges,
+  //     });
+  //     setError(null);
+  //   } catch (err: any) {
+  //     setError(
+  //       err?.message ??
+  //       "Failed to save workflow. Please try again."
+  //     );
+  //   }
+  // };
+  // console.log("THis log from page.tsx about the nodeConfig", selectedNode)
 
   return (
     <div style={{ width: "100%", height: "100vh" }}>
@@ -549,6 +739,7 @@ export default function WorkflowCanvas() {
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        onNodeDragStop={nodeChangeDb}
         fitView
       >
         <Background bgColor="#fdfdfd" />
@@ -557,10 +748,10 @@ export default function WorkflowCanvas() {
 
         <div style={{ position: "fixed", bottom: "1rem", right: "10rem", display: "flex", gap: "1rem", zIndex: 50 }}>
           <button
-            onClick={handleSave}
+            onClick={batchSave}
             className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"
           >
-            Save
+            { displayStatus }
           </button>
           <button
             onClick={async () => {
@@ -585,43 +776,50 @@ export default function WorkflowCanvas() {
           setConfigOpen(false);
           setSelectedNode(null);
         }}
-        onSave={async (nodeId: string, config: any, userId: string) => {
-          try {
-            const triggerNode = nodes.find(
-              (n) => n.data.nodeType === "trigger"
-            );
-            const isTrigger = triggerNode?.id === nodeId;
+        // onNodeConfigured={(nodeId, isConfigured)=>{
+        //   setNodes(prev=> prev.map(n=>
+        //     n.id === nodeId ? { ...n, data: {...n.data, isConfigured}} : n
+        //   ))
+        // }}
+        // onSave={async (nodeId: string, config: any, userId: string) => {
+        //   try {
+        //     const triggerNode = nodes.find(
+        //       (n) => n.data.nodeType === "trigger"
+        //     );
+        //     const isTrigger = triggerNode?.id === nodeId;
 
-            if (isTrigger) {
-              await api.triggers.update({
-                TriggerId: nodeId,
-                Config: config,
-              });
-            } else {
-              await api.nodes.update({
-                NodeId: nodeId,
-                Config: config,
-              });
-            }
+        //     if (isTrigger) {
+        //       // await api.triggers.update({
+        //       //   TriggerId: nodeId,
+        //       //   Config: config,
+        //       // });
+        //       dispatch(workflowActions.updateTriggerConfig({config}))
+        //     } else {
+        //       // await api.nodes.update({
+        //       //   NodeId: nodeId,
+        //       //   Config: config,
+        //       // });
+        //       dispatch(workflowActions.updateNodeConfig({nodeId, config}))
+        //     }
 
-            setNodes((prevNodes) =>
-              prevNodes.map((node) =>
-                node.id === nodeId
-                  ? {
-                    ...node,
-                    data: { ...node.data, config, isConfigured: true },
-                  }
-                  : node
-              )
-            );
-            setError(null);
-          } catch (err: any) {
-            setError(
-              err?.message ??
-              "Failed to save configuration. Please try again."
-            );
-          }
-        }}
+        //     setNodes((prevNodes) =>
+        //       prevNodes.map((node) =>
+        //         node.id === nodeId
+        //           ? {
+        //             ...node,
+        //             data: { ...node.data, config, isConfigured: true },
+        //           }
+        //           : node
+        //       )
+        //     );
+        //     setError(null);
+        //   } catch (err: any) {
+        //     setError(
+        //       err?.message ??
+        //       "Failed to save configuration. Please try again."
+        //     );
+        //   }
+        // }}
       />
 
       <TriggerSideBar

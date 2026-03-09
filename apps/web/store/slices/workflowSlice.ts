@@ -1,55 +1,144 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface Trigger {
-    id: string;
+    TriggerId: string;
     name: string;
     type: string;
-    config: any;
+    Config: any;
+    position: Position;
     AvailableTriggerID: string
 }
 
+interface Position {
+    x: number;
+    y: number;
+}
 interface NodeItem {
-    id: string;
+    NodeId: string;
     name: string;
     type: string;
-    config: any;
-    position: number;
+    Config: any;
+    position: Position;
+    stage: number;
     AvailableNodeID: string
 }
 
+interface EdgeItem {
+    id: string;
+    source: string;
+    target: string;
+}
+
 type Nodes = NodeItem[];
-export interface WorkflowSlice {
-    workflow_id: string | null;
-    empty: boolean | null;
+export interface Workflow {
+    workflowId: string | null;
+    name: string | null;
+    description: string | null
     trigger: Trigger | null;
-    nodes: Nodes;
+    nodes: NodeItem[];
+    edges: EdgeItem[];
+
+}
+
+export interface WorkflowSlice {
+    data: Workflow;
+    isChanged: {
+        trigger: boolean;
+        nodes: boolean;
+        edges: boolean;
+    }
+    lastSynced: number | null;
+    changedNodeIds: string[];
+}
+
+const initialData = {
+    workflowId: null,
+    name: null,
+    description: null,
+    trigger: null,
+    nodes: [],
+    edges: []
 }
 
 const initialState: WorkflowSlice = {
-    workflow_id: null,
-    empty: true,
-    trigger: null,
-    nodes: []
+    data: initialData,
+    lastSynced: null,
+    isChanged: {
+        trigger: false,
+        nodes: false,
+        edges: false
+    },
+    changedNodeIds: []
 }
 
 const workflowSlice = createSlice({
     name: 'workflow',
     initialState,
     reducers: {
-        setWorkflowId(state, action: PayloadAction<string | null>) {
-            state.workflow_id = action.payload
+        setWorkflow(state, action: PayloadAction<Workflow>){
+            state.data = action.payload;
+            state.isChanged = { trigger: false, nodes: false, edges: false };
+            state.changedNodeIds = []
         },
-        setWorkflowStatus(state, action: PayloadAction<boolean | null>) {
-            state.empty = action.payload
-        },
+
         setWorkflowTrigger(state, action: PayloadAction<Trigger | null>) {
-            state.trigger = action.payload
+            state.data.trigger = action.payload
+            state.isChanged.trigger = true
         },
-        setWorkflowNodes(state, action: PayloadAction<Nodes>) {
-            state.nodes = action.payload
-        },
+
         addWorkflowNode(state, action: PayloadAction<NodeItem>) {
-            state.nodes.push(action.payload)
+            state.data.nodes.push(action.payload)
+            state.isChanged.nodes = true
+            if(!state.changedNodeIds?.includes(action.payload.NodeId))
+                state.changedNodeIds?.push(action.payload.NodeId)
+        },
+
+        updateNodePosition(state, action: PayloadAction<{nodeId: string, position: Position}>){
+            const node = state.data.nodes.find((n)=> n.NodeId === action.payload.nodeId)
+
+            if(node){
+                node.position = action.payload.position
+                state.isChanged.nodes = true
+
+                if(!state.changedNodeIds?.includes(action.payload.nodeId))
+                    state.changedNodeIds?.push(action.payload.nodeId)
+            }
+        
+        },
+        updateNodeConfig(state, action: PayloadAction<{nodeId: string,config: any}>){
+            const node = state.data.nodes.find((n)=> n.NodeId === action.payload.nodeId);
+            if(node){
+                node.Config = action.payload.config
+                state.isChanged.nodes = true
+
+                if(!state.changedNodeIds?.includes(action.payload.nodeId))
+                    state.changedNodeIds?.push(action.payload.nodeId)
+            }
+        },
+        updateTriggerPosition(state, action: PayloadAction<Position>){
+            if(state.data.trigger){
+                state.data.trigger.position = action.payload
+                state.isChanged.trigger = true
+            }
+        },
+        updateTriggerConfig(state, action: PayloadAction<{config: any}>){
+            if(state.data.trigger){
+                state.data.trigger.Config = action.payload.config
+                state.isChanged.trigger = true
+            }
+        },
+        setEdge(state, action: PayloadAction<EdgeItem[]>){
+            state.data.edges = action.payload
+            state.isChanged.edges = true
+        },
+        markSynced(state){
+            state.isChanged = {
+                trigger: false,
+                nodes: false,
+                edges: false
+            }
+            state.changedNodeIds = []
+            state.lastSynced = Date.now()
         },
         clearWorkflow() {
             return initialState

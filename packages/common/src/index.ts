@@ -26,6 +26,7 @@ export const TriggerSchema = z.object({
   Config: z.any().optional(),
   WorkflowId: z.string(),
   TriggerType: z.string().optional(),
+  Position: z.object({x: z.number(), y: z.number()}).optional()
 });
 
 export const NodeSchema = z.object({
@@ -37,7 +38,8 @@ export const NodeSchema = z.object({
   position : z.object({
     x : z.number() ,
     y : z.number()
-  })
+  }),
+  CredentialId: z.string().optional()
 });
 
 export const ExecuteWorkflow = z.object({
@@ -56,7 +58,9 @@ export const NodeUpdateSchema = z.object({
 
 export const TriggerUpdateSchema = z.object({
   TriggerId: z.string(),
-  Config: z.any(),
+  Config: z.any().optional(),
+  Position: z.object({ x: z.number(), y: z.number()}).optional(),
+  CredentialID: z.string().optional()
 });
 
 export const WorkflowSchema = z.object({
