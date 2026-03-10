@@ -1,6 +1,6 @@
 // lib/api.ts
 import axios from "axios";
-import { BACKEND_URL, NodeUpdateSchema } from "@repo/common/zod";
+import { BACKEND_URL, NodeSchema, NodeUpdateSchema, workflowUpdateSchema } from "@repo/common/zod";
 import { TriggerUpdateSchema } from "@repo/common/zod";
 import z from "zod";
 import { getCredentials } from "../workflow/lib/config";
@@ -31,7 +31,7 @@ export const api = {
         headers: { "Content-Type": "application/json" },
       });
     },
-    put: async (data: any) => {
+    put: async (data: z.infer<typeof workflowUpdateSchema>) => {
       return await axios.put(`${BACKEND_URL}/user/workflow/update`,
         data,
         {
@@ -70,7 +70,7 @@ export const api = {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       }),
-    create: async (data: any) =>
+    create: async (data: z.infer<typeof NodeSchema>) =>
       await axios.post(`${BACKEND_URL}/user/create/node`, data, {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },

@@ -36,6 +36,7 @@
     "react-dialog": "link:@types/@radix-ui/react-dialog",
     "react-dom": "^19.1.1",
     "react-redux": "^9.2.0",
+    "redux-persist": "^6.0.0",
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "trpc": "^0.11.3",

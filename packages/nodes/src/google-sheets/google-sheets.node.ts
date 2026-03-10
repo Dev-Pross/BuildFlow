@@ -34,7 +34,7 @@ export class GoogleSheetNode {
     static async register(){
         await NodeRegistry.register(this.definition)
         // console.log(`✅ Registered node: ${this.definition.name}`);
-        await NodeRegistry.registerTrigger(this.definition)
+        // await NodeRegistry.registerTrigger(this.definition)
         // console.log(`✅ Registered Trigger: ${this.definition.name}`);
     }
 

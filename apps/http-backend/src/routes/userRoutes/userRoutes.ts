@@ -361,7 +361,7 @@ router.get(
     try {
       if (!req.user)
         return res
-          .status(statusCodes.BAD_GATEWAY)
+          .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User isnot logged in /not authorized" });
       const userId = req.user.sub;
 
@@ -373,7 +373,7 @@ router.get(
         },
         include: {
           Trigger: true,
-          nodes: { orderBy: { position: "asc" } },
+          nodes: { orderBy: { stage: "asc" } },
         },
       });
       if (!getWorkflow) {
@@ -441,6 +441,9 @@ router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Res
   }
 })
 
+//------------------------------------------ TRIGGER AND NODE CREATION ------------------------------
+
+//TRIGGER CREATION
 router.post(
   "/create/trigger",
   userMiddleware,
@@ -465,6 +468,7 @@ router.post(
           AvailableTriggerID: dataSafe.data.AvailableTriggerID,
           config: dataSafe.data.Config,
           workflowId: dataSafe.data.WorkflowId,
+          Position: dataSafe.data.Position || {}
           // trigger type pettla db lo ledu aa column
         },
       });
@@ -499,6 +503,7 @@ router.post(
   }
 );
 
+//NODE CREATION
 router.post(
   "/create/node",
   userMiddleware,
@@ -510,7 +515,7 @@ router.post(
         });
       }
       const data = req.body;
-      console.log(" from http-backeden", data);
+      // console.log(" from http-backeden", data);
 
       const dataSafe = NodeSchema.safeParse(data);
       console.log("The error is ", dataSafe.error);
@@ -524,19 +529,18 @@ router.post(
       // Config must be valid JSON (not an empty string)
       // const stage = dataSafe.data.Position
       console.log("This is from the backend log of positions", dataSafe.data.position)
-      const { credentialId, ...restConfig } = dataSafe.data.Config;
       const createdNode = await prismaClient.node.create({
         data: {
           name: dataSafe.data.Name,
           workflowId: dataSafe.data.WorkflowId,
-          config: restConfig || {},
+          config: dataSafe.data.Config || {},
           stage: Number(dataSafe.data.stage ?? 0),
           position: {
             x: dataSafe.data.position.x,
             y: dataSafe.data.position.y
           },
           AvailableNodeID: dataSafe.data.AvailableNodeId,
-          CredentialsID: credentialId
+          CredentialsID: dataSafe.data.CredentialId
         },
       });
 
@@ -556,8 +560,7 @@ router.post(
 
 // ------------------------- UPDATE NODES AND TRIGGES ---------------------------
 
-router.put(
-  "/update/node",
+router.put("/update/node",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -578,10 +581,11 @@ router.put(
       const updateNode = await prismaClient.node.update({
         where: { id: dataSafe.data.NodeId },
         data: {
-          position: dataSafe.data.position,
-          config: dataSafe.data.Config ,
-          CredentialsID: dataSafe.data.Config?.credentialId || null
-        },
+
+        ...(dataSafe.data.position !== undefined ? { position: dataSafe.data.position } : {}),
+        ...(dataSafe.data.Config !== undefined ? { config: dataSafe.data.Config } : {}),
+        ...(dataSafe.data.Config?.credentialId ? { CredentialsID: dataSafe.data.Config.credentialId } : {})
+        }
       });
 
       if (updateNode)
@@ -598,8 +602,7 @@ router.put(
   }
 );
 
-router.put(
-  "/update/trigger",
+router.put("/update/trigger",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -619,7 +622,9 @@ router.put(
       const updatedTrigger = await prismaClient.trigger.update({
         where: { id: dataSafe.data.TriggerId },
         data: {
-          config: dataSafe.data.Config,
+          ...(dataSafe.data.Config !== undefined ? { config: dataSafe.data.Config} : {}) ,
+          ...(dataSafe.data.CredentialID !== undefined ? { CredentialsID: dataSafe.data.CredentialID} : {}),
+          ...(dataSafe.data.Position !== undefined ? {Position: dataSafe.data.Position} : {})
         },
       });
 

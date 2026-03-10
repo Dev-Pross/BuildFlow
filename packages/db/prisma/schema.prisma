@@ -33,9 +33,10 @@ model Credential {
 model Trigger {
   id                 String           @id @default(uuid())
   name               String
-  config             Json
+  config             Json?
   workflowId         String?          @unique
   AvailableTriggerID String
+  Position           Json?
   CredentialsID      String?
   triggerType        AvailableTrigger @relation(fields: [AvailableTriggerID], references: [id])
   Credential         Credential?      @relation(fields: [CredentialsID], references: [id])
