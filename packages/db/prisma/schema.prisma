@@ -36,8 +36,8 @@ model Trigger {
   config             Json?
   workflowId         String?          @unique
   AvailableTriggerID String
-  Position           Json?
   CredentialsID      String?
+  Position           Json?
   triggerType        AvailableTrigger @relation(fields: [AvailableTriggerID], references: [id])
   Credential         Credential?      @relation(fields: [CredentialsID], references: [id])
   workflow           Workflow?        @relation(fields: [workflowId], references: [id])
@@ -48,6 +48,7 @@ model AvailableTrigger {
   name     String
   type     String    @unique
   config   Json
+  icon     String?
   triggers Trigger[]
 }
 
@@ -59,6 +60,7 @@ model AvailableNode {
   authType    String?
   requireAuth Boolean?
   description String?
+  icon        String?
   Node        Node[]
 }
 

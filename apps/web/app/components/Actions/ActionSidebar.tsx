@@ -60,7 +60,9 @@ export const ActionSideBar = ({ isOpen, onClose, onSelectAction }: SideBarProps)
               {availableActions.length ? (
                 availableActions.map((action: any) => (
                   <SelectItem key={action.id} value={String(action.id)}>
-                    {'icon' in action && action.icon ? action.icon : '⚡'} {action.name}
+                    <div className="flex items-center gap-2">
+                      {'icon' in action && action.icon ? <img src={action.icon} className="w-8 h-4" /> : '⚡'} {action.name}
+                    </div>
                   </SelectItem>
                 ))
               ) : (

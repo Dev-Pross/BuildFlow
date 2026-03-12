@@ -24,15 +24,66 @@ import { getNodeConfig } from "@/app/lib/nodeConfigs";
 import { useAppDispatch, useAppSelector } from "@/app/hooks/redux";
 import { useAutoSave } from "@/app/hooks/useAutoSave";
 import { workflowActions } from "@/store/slices/workflowSlice";
-import { store } from "@/store";
-
+import { setNodeOutput, setNodeLoading, selectAllOutputs } from "@/store/slices/nodeOutputSlice";
+import { resolveConfigVariables } from "@repo/common/zod";
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
   const dispatch = useAppDispatch()
   const reduxWorkflow = useAppSelector(s => s.workflow)
-  const { saveStatus, batchSave, displayStatus } = useAutoSave(workflowId)
+  const allTestedOutputs = useAppSelector(selectAllOutputs);
+  const { batchSave, displayStatus } = useAutoSave(workflowId)
 
+
+  // context rebuilding for test function
+
+  const buildTestContext =  ()=>{
+    const context: Record<string, any> = {};
+    for (const [nodeId, testOutput] of Object.entries(allTestedOutputs)){
+      if(testOutput.success && testOutput.data){
+        const normalizedName = testOutput.nodeName.toLowerCase().replace(/\s+/g, '_')
+        context[normalizedName] = testOutput.data
+      }
+    }
+    return context;
+  }
+
+  const testNodeFromCanvas = async(nodeId: string, nodeName: string, nodeType: string)=>{
+    dispatch(setNodeLoading({nodeId: nodeId, loading: true}));
+    try{
+      const isTrigger = reduxWorkflow.data.trigger?.TriggerId === nodeId;
+      const savedConfig = isTrigger ? reduxWorkflow.data.trigger?.Config : 
+                           reduxWorkflow.data.nodes.find(n=> n.NodeId === nodeId)?.Config ;
+      console.log(savedConfig, "-- from 57852")
+      const interpolationContext = buildTestContext();
+      const resolvedConfig = resolveConfigVariables(savedConfig, interpolationContext);
+      console.log(resolvedConfig, "--from 60")
+      const response = await api.execute.node(nodeId,resolvedConfig);
+      dispatch(setNodeOutput({
+        nodeId: nodeId,
+        nodeName: nodeName,
+        nodeType: nodeType,
+        data: response,
+        testedAt: Date.now(),
+        success: true,
+        variables: []
+      }))
+      toast.success(`Tested ${nodeName} successfully!`);
+    }catch(err: any){
+      console.log(err, "from 73")
+      toast.error(`Test failed: ${err.message}`);
+        dispatch(setNodeOutput({
+            nodeId,
+            nodeName,
+            nodeType,
+            data: null,
+            variables: [],
+            testedAt: Date.now(),
+            success: false,
+            error: err.message
+        }));
+    }
+  }
   const getPreviousNodes = (
   selectedNodeId: string,
   allNodes: Node[],
@@ -163,7 +214,6 @@ export default function WorkflowCanvas() {
             setError("No trigger found in workflow data, so start with selecting the trigger for the workflow");
             return;
           }
-
           const triggerPosition = ensurePosition(trigger.position, DEFAULT_TRIGGER_POSITION )
           const triggerNode = {
             id: trigger.TriggerId,
@@ -171,17 +221,20 @@ export default function WorkflowCanvas() {
             position: triggerPosition,
             data: {
               label: trigger.name || "Trigger",
-              icon: "⚡", // add icon field in redux and db 
+              icon: trigger.icon || "⚡", // add icon field in redux and db 
               nodeType: "trigger",
               isConfigured: checkIsConfigure(trigger.name, trigger.Config),
               onConfigure: () =>
                 handleNodeConfigure({
                   id: trigger.TriggerId,
-                  name: trigger.name
+                  name: trigger.name,
+                  icon: trigger.icon
                 }),
+              onTest: ( trigger.name.toLowerCase().includes('webhook') ? undefined : ()=> testNodeFromCanvas(trigger.TriggerId, trigger.name, "trigger") ),
             },
           };
 
+          console.log(JSON.stringify(reduxNodes), "from 236")
           const transformedNodes = reduxNodes.map((node) =>({
             id: node.NodeId,
             type: "customNode",
@@ -191,7 +244,7 @@ export default function WorkflowCanvas() {
             }),
             data: {
               label: node.name || "Unknown",
-              icon:  "⚙️", // icon add to db and redux
+              icon:  node.icon || "⚙️", 
               nodeType: "action",
               isConfigured: checkIsConfigure(node.name, node.Config),
               onConfigure: () =>
@@ -200,7 +253,9 @@ export default function WorkflowCanvas() {
                   name: node.name,
                   type: "action",
                   actionType: node.AvailableNodeID,
+                  icon: node.icon
                 }),
+                onTest: ()=> testNodeFromCanvas(node.NodeId, node.name, "action")
               }
           }))
 
@@ -282,6 +337,7 @@ export default function WorkflowCanvas() {
                 TriggerId: Trigger.id,
                 name: Trigger.name,
                 type: Trigger.type,
+                icon: Trigger.icon,
                 Config: Trigger.config || {},
                 position: Trigger.Position || DEFAULT_TRIGGER_POSITION,
                 AvailableTriggerID: Trigger.AvailableTriggerID
@@ -290,6 +346,7 @@ export default function WorkflowCanvas() {
                 NodeId: n.id,
                 name: n.name,
                 type: n.type,
+                icon: n.icon,
                 Config: n.config || {},
                 position: n.position || {  x: 0, y: 0 },
                 stage: n.stage,
@@ -309,14 +366,17 @@ export default function WorkflowCanvas() {
             position: triggerPosition,
             data: {
               label: Trigger.name || Trigger.data?.label || "Trigger",
-              icon: Trigger.data?.icon || "⚡",
+              icon: Trigger?.icon || "⚡",
               nodeType: "trigger",
               isConfigured: checkIsConfigure(Trigger.name, Trigger.config || {}),
               onConfigure: () =>
                 handleNodeConfigure({
                   id: Trigger.id,
-                  name: Trigger.name
+                  name: Trigger.name,
+                  icon: Trigger.icon
                 }),
+              onTest: ( Trigger.name.toLowerCase() === 'webhook' ? undefined : ()=> testNodeFromCanvas(Trigger.TriggerId, Trigger.name, "trigger") )
+
             },
           };
 
@@ -330,7 +390,7 @@ export default function WorkflowCanvas() {
             }),
             data: {
               label: node.data?.label || node.name || "Unknown",
-              icon: node.data?.icon || "⚙️",
+              icon: node.icon || "⚙️",
               nodeType: "action",
               isConfigured: checkIsConfigure(node.name || node.data?.label, node.config || {}),
               onConfigure: () =>
@@ -338,8 +398,10 @@ export default function WorkflowCanvas() {
                   id: node.id,
                   name: node.data?.label || node.name,
                   type: "action",
+                  icon: node.icon,
                   actionType: node.AvailableNodeId,
                 }),
+              onTest: ()=> testNodeFromCanvas(node.NodeId, node.name, "action")
             },
           }));
 
@@ -514,6 +576,7 @@ export default function WorkflowCanvas() {
         name: action.name,
         type: action.type,
         Config: {},
+        icon: "",
         position: newNodePosition,
         stage: nextIndex,
         AvailableNodeID: action.id
@@ -536,7 +599,9 @@ export default function WorkflowCanvas() {
               name: action.name,
               type: "action",
               actionType: action.id,
+              icon: action.icon
             }),
+          onTest: ()=> testNodeFromCanvas(action.NodeId, action.name, "action")
         },
       };
 
@@ -626,7 +691,10 @@ export default function WorkflowCanvas() {
               id: triggerId,
               name: trigger.name,
               type: "trigger",
+              icon: trigger.icon
             }),
+          onTest: ( trigger.name.toLowerCase() === 'webhook' ? undefined : ()=> testNodeFromCanvas(trigger.TriggerId, trigger.name, "trigger") )
+
         },
       };
 
@@ -660,6 +728,7 @@ export default function WorkflowCanvas() {
         name: trigger.name,
         type: trigger.type,
         Config: {},
+        icon: "",
         position: DEFAULT_TRIGGER_POSITION,
         AvailableTriggerID: trigger.id
       }))

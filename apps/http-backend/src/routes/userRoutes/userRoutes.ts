@@ -372,8 +372,20 @@ router.get(
           userId: userId,
         },
         include: {
-          Trigger: true,
-          nodes: { orderBy: { stage: "asc" } },
+          Trigger: {
+            include: { 
+              triggerType: {
+                select:{icon : true}
+              }
+            }
+          },
+          nodes: { orderBy: { stage: "asc" }, 
+          include: {
+            AvailableNode: {
+              select: { icon: true}
+            }
+          }  
+        },
         },
       });
       if (!getWorkflow) {
@@ -381,9 +393,22 @@ router.get(
           message: "Workflow Not found or not authorized",
         });
       }
+      const workflow = {
+        ...getWorkflow,
+        Trigger: getWorkflow.Trigger ? {
+          ...getWorkflow.Trigger,
+          icon: getWorkflow.Trigger.triggerType.icon || null,
+          AvailableTrigger: undefined
+        } : null,
+        nodes:  getWorkflow.nodes.map(node=> ({
+          ...node,
+          icon: node.AvailableNode.icon || null,
+          AvailableNode: undefined
+        }))
+      }
       return res.status(statusCodes.OK).json({
         message: "workflow Fetched succesfully",
-        Data: getWorkflow,
+        Data: workflow,
       });
     } catch (error: any) {
       console.log("Error Fetching the workflow ", error.message);

@@ -80,7 +80,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField }: Variable
             {/* Node Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                <span>{node.icon || "⚙️"}</span>
+                <span><img src={node.icon} className="w-12 h-8"/></span>
                 <span>{node.nodeName}</span>
               </div>
               {isTested && (

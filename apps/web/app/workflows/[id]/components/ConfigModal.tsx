@@ -23,7 +23,6 @@ interface ConfigModalProps {
   isOpen: boolean;
   selectedNode: any | null;
   onClose: () => void;
-  // onSave: (selectedNode: string, config: any, userId: string) => Promise<void>;
   workflowId?: string;
   previousNodes: PreviousNodeOutput[];
 }
@@ -32,7 +31,6 @@ export default function ConfigModal({
   isOpen,
   selectedNode,
   onClose,
-  // onSave,
   workflowId,
   previousNodes,
 }: ConfigModalProps) {
@@ -407,28 +405,18 @@ export default function ConfigModal({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{
-        background: "linear-gradient(135deg, #000 80%, #333 100%)",
-        overflowY: "auto",
-      }}
-    >
+      className="fixed inset-0 flex gap-2 items-center justify-between z-50 p-4 bg-white/80">
       <VariablePanel
         previousNodes={previousNodes}
         onInsert={handleVariableInsert}
         activeField={activeField}
         />
       <div
-        className="rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col"
-        style={{
-          background: "linear-gradient(160deg, #131313 70%, #191919 100%)",
-          color: "white",
-        }}
-      >
+        className="rounded-lg shadow-xl max-w-md m-10 w-full h-[90%] overflow-y-scroll  py-2 flex flex-col bg-black/80 ">
         {/* Header */}
         <div className="p-6 border-b border-gray-900 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-xl font-semibold text-white">
-            Configure {selectedNode.name}
+          <h2 className="text-xl font-semibold flex gap-1 text-white">
+            <img src={selectedNode.icon} className="w-12 h-8"/> {selectedNode.name}
           </h2>
           <button
             onClick={onClose}
@@ -576,6 +564,7 @@ export default function ConfigModal({
           className="p-6 border-t border-gray-900 flex justify-between gap-3"
           style={{ background: "#181818" }}
         >
+          { !selectedNode.name.includes("webhook") &&
           <button
             onClick={handleTestNode}
             disabled={isTestingNode || loading}
@@ -593,17 +582,9 @@ export default function ConfigModal({
               </>
             )}
           </button>
-          
+          }
           <div className="flex gap-3">
-            {/* <button
-              onClick={onClose}
-              className="px-4 py-2 text-white hover:bg-gray-700 rounded border border-gray-900"
-              style={{ background: "#111" }}
-              disabled={loading}
-              type="button"
-            >
-              Cancel
-            </button> */}
+            
             <button
               onClick={()=> {
                 onClose();

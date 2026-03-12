@@ -3,6 +3,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 interface Trigger {
     TriggerId: string;
     name: string;
+    icon: string | null;
     type: string;
     Config: any;
     position: Position;
@@ -16,6 +17,7 @@ interface Position {
 interface NodeItem {
     NodeId: string;
     name: string;
+    icon: string | null;
     type: string;
     Config: any;
     position: Position;
