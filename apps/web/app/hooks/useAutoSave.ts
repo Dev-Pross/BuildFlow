@@ -65,7 +65,9 @@ export function useAutoSave(workflowId: string){
             const { isChanged } = store.getState().workflow
             if(isChanged.edges || isChanged.nodes || isChanged.trigger){
                 e.preventDefault()
-                batchSave();
+                // batchSave();
+                e.returnValue = true;
+                return true
             }
         }
 

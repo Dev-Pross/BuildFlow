@@ -54,7 +54,9 @@ export const TriggerSideBar = ({ isOpen, onClose, onSelectTrigger }:  SideBarPro
               {triggers.map((trigger) => (
                 <SelectItem key={trigger.id} value={trigger.type}>
                   {/* Display a placeholder icon if 'icon' is missing */}
-                  {"icon" in trigger ? (trigger as any).icon : "⚡"} {trigger.name}
+                  <div className="flex items-center gap-2">
+                      {'icon' in trigger && trigger.icon ? <img src={trigger.icon as string} className="w-8 h-4" /> : '⚡'} {trigger.name}
+                    </div>
                 </SelectItem>
               ))}
             </SelectContent>
