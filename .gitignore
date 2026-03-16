@@ -51,3 +51,4 @@ apps/http-backend/tsconfig.tsbuildinfo
 packages/common/tsconfig.tsbuildinfo
 packages/db/tsconfig.tsbuildinfo
 apps/http-backend/tsconfig.tsbuildinfo
+packages/nodes/tsconfig.tsbuildinfo

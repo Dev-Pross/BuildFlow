@@ -89,16 +89,29 @@ export default function WorkflowCanvas() {
   allNodes: Node[],
   allEdges: Edge[]
   ): PreviousNodeOutput[] => {
-    // Find edges pointing TO the selected node
-    const incomingEdges = allEdges.filter(edge => edge.target === selectedNodeId);
-    
-    // Get source node IDs
-    const previousNodeIds = incomingEdges.map(edge => edge.source);
-    
-    // Build PreviousNodeOutput for each
-    return allNodes
-      .filter(node => previousNodeIds.includes(node.id))
-      .filter(node => !node.data?.isPlaceholder)
+    // BFS backward through the graph to find ALL ancestor nodes
+    const visited = new Set<string>();
+    const queue = [selectedNodeId];
+    const previousNodeIds: string[] = [];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const parents = allEdges
+        .filter(e => e.target === current)
+        .map(e => e.source);
+      for (const parentId of parents) {
+        if (!visited.has(parentId)) {
+          visited.add(parentId);
+          previousNodeIds.push(parentId);
+          queue.push(parentId);
+        }
+      }
+    }
+
+    // Build PreviousNodeOutput for each ancestor
+    return previousNodeIds
+      .map(id => allNodes.find(n => n.id === id))
+      .filter((node): node is Node => !!node && !node.data?.isPlaceholder)
       .map(node => {
         const label = (node.data?.label as string) || "";
         const icon = (node.data?.icon as string) || "⚙️";
@@ -601,7 +614,7 @@ export default function WorkflowCanvas() {
               actionType: action.id,
               icon: action.icon
             }),
-          onTest: ()=> testNodeFromCanvas(action.NodeId, action.name, "action")
+          onTest: ()=> testNodeFromCanvas(actionId, action.name, "action")
         },
       };
 
