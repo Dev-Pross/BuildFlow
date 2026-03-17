@@ -59,7 +59,14 @@ class GmailExecutor {
 
       return {
         success: result.success,
-        output: result.data,
+        output: {
+          status: "sent",
+          messageId: result.data?.id,
+          threadId: result.data?.threadId,
+          to: to,
+          subject: subject,
+          summary: `Email sent to ${to} with subject "${subject}"`,
+        },
         error: result.error,
       };
     } catch (error) {
