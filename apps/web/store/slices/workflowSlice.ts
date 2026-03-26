@@ -14,6 +14,8 @@ interface Position {
     x: number;
     y: number;
 }
+
+const DEFAULT_TRIGGER_POSITION = { x: 250, y: 50 };
 interface NodeItem {
     NodeId: string;
     name: string;
@@ -77,6 +79,60 @@ const workflowSlice = createSlice({
     name: 'workflow',
     initialState,
     reducers: {
+        setWorkflowFromBackend(
+            state,
+            action: PayloadAction<{ workflowId: string; data: any }>
+        ) {
+            const { workflowId, data } = action.payload;
+
+            // Backend casing is inconsistent (e.g. Trigger vs trigger, Edges vs edges),
+            // so normalize the payload here so the rest of the app can rely on Redux's shape.
+            const backendData = data ?? {};
+            const backendNodes = Array.isArray(backendData?.nodes)
+                ? backendData.nodes
+                : [];
+            const backendEdges = Array.isArray(backendData?.Edges)
+                ? backendData.Edges
+                : [];
+            const backendTrigger = backendData?.Trigger ?? null;
+
+            state.data = {
+                workflowId,
+                name: backendData?.name ?? null,
+                description: backendData?.description ?? null,
+                trigger: backendTrigger
+                    ? {
+                          TriggerId: backendTrigger?.id ?? "",
+                          name: backendTrigger?.name ?? "",
+                          type: backendTrigger?.type ?? "",
+                          icon: backendTrigger?.icon ?? null,
+                          Config: backendTrigger?.config || {},
+                          position:
+                              backendTrigger?.Position || DEFAULT_TRIGGER_POSITION,
+                          AvailableTriggerID:
+                              backendTrigger?.AvailableTriggerID ?? "",
+                      }
+                    : null,
+                nodes: backendNodes.map((n: any) => ({
+                    NodeId: n?.id ?? "",
+                    name: n?.name ?? "",
+                    type: n?.type ?? "",
+                    icon: n?.icon ?? null,
+                    Config: n?.config || {},
+                    position: n?.position || { x: 0, y: 0 },
+                    stage: n?.stage ?? 0,
+                    AvailableNodeID: n?.AvailableNodeId ?? "",
+                })),
+                edges: backendEdges.map((e: any) => ({
+                    id: e?.id ?? "",
+                    source: e?.source ?? "",
+                    target: e?.target ?? "",
+                })),
+            };
+            state.isChanged = { trigger: false, nodes: false, edges: false };
+            state.changedNodeIds = [];
+        },
+
         setWorkflow(state, action: PayloadAction<Workflow>){
             state.data = action.payload;
             state.isChanged = { trigger: false, nodes: false, edges: false };

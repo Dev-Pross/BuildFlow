@@ -26,6 +26,8 @@ import { useAutoSave } from "@/app/hooks/useAutoSave";
 import { workflowActions } from "@/store/slices/workflowSlice";
 import { setNodeOutput, setNodeLoading, selectAllOutputs } from "@/store/slices/nodeOutputSlice";
 import { resolveConfigVariables } from "@repo/common/zod";
+import { SidebarProvider } from "@workspace/ui/components/sidebar";
+import { AppSidebar } from "@/app/components/ui/app-sidebar";
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
@@ -342,31 +344,12 @@ export default function WorkflowCanvas() {
           }
           
           // store updating
-          dispatch(workflowActions.setWorkflow({
+          dispatch(
+            workflowActions.setWorkflowFromBackend({
               workflowId,
-              name: workflows.data.Data.name,
-              description: workflows.data.Data.description,
-              trigger: Trigger ? {
-                TriggerId: Trigger.id,
-                name: Trigger.name,
-                type: Trigger.type,
-                icon: Trigger.icon,
-                Config: Trigger.config || {},
-                position: Trigger.Position || DEFAULT_TRIGGER_POSITION,
-                AvailableTriggerID: Trigger.AvailableTriggerID
-              } : null,
-              nodes: dbNodes.map((n: any) => ({
-                NodeId: n.id,
-                name: n.name,
-                type: n.type,
-                icon: n.icon,
-                Config: n.config || {},
-                position: n.position || {  x: 0, y: 0 },
-                stage: n.stage,
-                AvailableNodeID: n.AvailableNodeId
-              })),
-              edges: dbEdges
-            }))
+              data: workflows.data.Data,
+            })
+          )
           // Ensure trigger position
           const triggerPosition = ensurePosition(
             Trigger?.Position,
@@ -773,7 +756,7 @@ export default function WorkflowCanvas() {
   // console.log("THis log from page.tsx about the nodeConfig", selectedNode)
 
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
+    <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "row" }}>
       {error && (
         <div
           style={{
@@ -815,7 +798,14 @@ export default function WorkflowCanvas() {
           </button>
         </div>
       )}
-      <ReactFlow
+      <div className=" w-auto h-full text-black">
+      <SidebarProvider>
+      <AppSidebar />
+      
+        {/* {children} */}
+      </SidebarProvider>
+    </div>
+       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
@@ -847,7 +837,7 @@ export default function WorkflowCanvas() {
             {loading ? "Executing..." : "Execute"}
           </button>
         </div>
-      </ReactFlow>
+      </ReactFlow> 
 
       <ConfigModal
         isOpen={configOpen}

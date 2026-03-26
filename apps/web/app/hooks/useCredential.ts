@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getCredentials } from "../workflow/lib/config";
 import { BACKEND_URL } from "@repo/common/zod";
+import { api } from "../lib/api";
 
 export const useCredentials = (type: string, workflowId?: string): any => {
   const [cred, setCred] = useState<any[]>([]);
@@ -17,7 +17,7 @@ export const useCredentials = (type: string, workflowId?: string): any => {
           return;
         }
 
-        const response = await getCredentials(type);
+        const response = await api.Credentials.getCredentials(type)
         const data = JSON.stringify(response)
         console.log("This is the log from usecredentials" , data)
         // Backend should ONLY return stored credentials

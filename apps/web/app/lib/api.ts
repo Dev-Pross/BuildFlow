@@ -3,7 +3,6 @@ import axios from "axios";
 import { BACKEND_URL, NodeSchema, NodeUpdateSchema, workflowUpdateSchema } from "@repo/common/zod";
 import { TriggerUpdateSchema } from "@repo/common/zod";
 import z from "zod";
-import { getCredentials } from "../workflow/lib/config";
 // Wrap all API calls in async functions and make sure to set withCredentials: true and add Content-Type header.
 export const api = {
   user: {
@@ -38,6 +37,14 @@ export const api = {
           withCredentials: true,
           headers: { "Content-Type": "application/json" },
         })
+    },
+    getAll: async () =>{
+      return await axios.get(`${BACKEND_URL}/user/workflows`,
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
     },
     execute: async (data: any) => {
       return await axios.post(`${BACKEND_URL}/user/executeWorkflow`, data, {
@@ -87,7 +94,7 @@ export const api = {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       });
-      return res.data.Data;
+      return res.data.data;
     },
 
     getAllCreds: async () =>
