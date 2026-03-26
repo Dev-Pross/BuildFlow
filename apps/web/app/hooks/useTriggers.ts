@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { AvailableTrigger } from "../types/workflow.types";
-import { getAvailableTriggers } from "../workflow/lib/config";
+import { api } from "../lib/api";
 
 export function useTriggers(shouldFetch: boolean) {
   const [triggers, setTriggers] = useState<AvailableTrigger[]>([]);
@@ -16,9 +16,9 @@ export function useTriggers(shouldFetch: boolean) {
       setError(null);
 
       try {
-        const response = await getAvailableTriggers();
-        setTriggers(response.Data);
-        console.log(response.Data);
+        const response = await api.triggers.getAvailable();
+        setTriggers(response.data.Data);
+        console.log(response.data.Data);
         console.log(JSON.stringify(response));
       } catch (err) {
         setError("Error while fetching triggers");

@@ -24,15 +24,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@workspace/ui/components/dropdown-menu'
-import { ChevronDown, ChevronUp, Key, LogOut, LucideLayoutDashboard, PlusCircle, User2, WorkflowIcon } from 'lucide-react'
+import { ChevronDown, ChevronUp, Key, LogOut, LucideLayoutDashboard, LucidePlus, PlusCircle, User2, WorkflowIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { createWorkflow, getAllCredentials, getAllWorkflows, getEmptyWorkflow, getworkflowData } from '@/app/workflow/lib/config'
+// import { createWorkflow, getAllCredentials, getAllWorkflows, getworkflowData } from '@/app/workflow/lib/config'
 import { useAppDispatch, useAppSelector } from '@/app/hooks/redux'
 import { userAction } from '@/store/slices/userSlice'
-import { workflowActions, workflowReducer } from '@/store/slices/workflowSlice'
+import { workflowActions } from '@/store/slices/workflowSlice'
 import { toast } from 'sonner'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { api } from '@/app/lib/api'
+import { CardDemo } from './Design/WorkflowCard'
 
 export function AppSidebar() {
 
@@ -41,61 +43,52 @@ export function AppSidebar() {
   console.log('redux workflow from sidebar: ',flow)
   const dispatch = useAppDispatch()
   const router = useRouter()
-  const [selectedWorkflow, setSelectedWorkflow] = useState<string | null >(flow.workflow_id)
-  const [workflow, setWorkflow] = useState<Array<any>>()
+  const reduxWorkflowId = flow.data.workflowId
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string | null >(reduxWorkflowId)
+  type WorkflowSummary = { id: string; name: string; description?: string | null }
+  const [workflows, setWorkflows] = useState<WorkflowSummary[] | undefined>()
   const [creds, setCreds] = useState<Array<any>>()
+  const [createOpen, setCreateOpen] = useState(false);
   
-  async function getWorkflows(){
-        const flows = await getAllWorkflows();
-        if(flows) setWorkflow(flows)
-    }
   useEffect(()=>{
+    
+    async function getWorkflows(){
+          const flows = await api.workflows.getAll();
+          if(flows) setWorkflows(flows.data.Data)
+      }
 
     async function getCreds(){
-        const credentials = await getAllCredentials();
-        if(credentials) setCreds(credentials)
+        const credentials = await api.Credentials.getAllCreds();
+        console.log(`--- 60 ${JSON.stringify(credentials)}`)
+        if(credentials.data) setCreds(credentials.data.data)
     }
 
     async function getWorkflowData(){
-      console.log("workflow data called")
-      if(!flow.workflow_id) return
-      const workflow = await getworkflowData(flow.workflow_id)
-      if(workflow.success){
-        console.log("workflow data fetchedsuceesully: ", workflow.data)
-        dispatch(workflowActions.setWorkflowStatus(false))
-        dispatch(workflowActions.setWorkflowNodes(workflow.data.nodes))
-        dispatch(workflowActions.setWorkflowTrigger(workflow.data.Trigger))
+      if(!selectedWorkflow) return
+      const workflow = await api.workflows.get(selectedWorkflow);
+      if(workflow.data){
+        console.log("workflow data fetchedsuceesully: ", workflow.data.Data)
+        // dispatch(workflowActions.addWorkflowNode(workflow.data.nodes))
+        dispatch(
+          workflowActions.setWorkflowFromBackend({
+            workflowId: selectedWorkflow,
+            data: workflow.data.Data,
+          })
+        )
+        // dispatch(workflowActions.setWorkflowTrigger(workflow.data.Trigger))
         // console.log(`workfklow from redux: ${workflow.data}`)
       }
     }
-    // async function setEmptyFlow(){
-    //   const workflow = await getEmptyWorkflow()
-    //   if(workflow){
-    //     const {id, isEmpty} = workflow
-    //     dispatch(workflowActions.setWorkflowId(id))
-    //     dispatch(workflowActions.setWorkflowStatus(isEmpty))
-    //   }
-    //   else{
-    //         const newWorkflow = await createWorkflow()
-    //         dispatch(workflowActions.clearWorkflow())
-    //         setSelectedWorkflow(null)
-    //         dispatch(workflowActions.setWorkflowId(newWorkflow.id))
-    //         dispatch(workflowActions.setWorkflowStatus(newWorkflow.isEmpty))
-    //         toast.success("Workflow created")
-    //         getWorkflows()
-    //     }
-    // }
-
     if(!creds) getCreds()
-    if(!workflow) {
+    if(!workflows) {
       getWorkflows()
-      createNewWorkflow()
     }
     getWorkflowData()
-  },[flow.workflow_id, dispatch])
+  },[selectedWorkflow, dispatch])
   
-  const workflowHandler = (wId: string)=>{
-    dispatch(workflowActions.setWorkflowId(wId))
+  const workflowHandler = (workflow: WorkflowSummary) => {
+    setSelectedWorkflow(workflow.id)
+    router.push(`/workflows/${workflow.id}`)
   }
   const credHandler = (cId: string)=> {
     // console.log(cId);
@@ -109,27 +102,9 @@ export function AppSidebar() {
     router.push('/login')
   }
 
-  const createNewWorkflow = async()=>{
-    const workflow = await getEmptyWorkflow()
-          
-        if(workflow){
-        const {id, isEmpty} = workflow
-        dispatch(workflowActions.setWorkflowId(id))
-        dispatch(workflowActions.setWorkflowStatus(isEmpty))
-        toast.info("You are in empty workflow")
-        }
-        else{
-            const newWorkflow = await createWorkflow()
-            dispatch(workflowActions.clearWorkflow())
-            setSelectedWorkflow(null)
-            dispatch(workflowActions.setWorkflowId(newWorkflow.id))
-            dispatch(workflowActions.setWorkflowStatus(newWorkflow.isEmpty))
-            toast.success("Workflow created")
-            getWorkflows()
-        }
-    }
 //   console.log(`workflow form ${workflow}`)
   return (
+    <>
     <Sidebar collapsible='icon'>
       <SidebarHeader className='flex items-center justify-between p-4'>
         <span className='text-2xl font-bold'>Logo</span>
@@ -139,11 +114,11 @@ export function AppSidebar() {
       <SidebarContent className='p-2'>
         <SidebarMenu>
 
-                <SidebarMenuItem>
-                    <SidebarMenuButton className='text-xl font-bold text-white h-14' onClick={createNewWorkflow}>
-                        <PlusCircle className='my-2'/> Create Workflow
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
+          <SidebarMenuItem>
+              <SidebarMenuButton className='text-xl font-bold text-white h-14' onClick={()=> setCreateOpen(true)}>
+                  <LucidePlus className='my-2'/> Create Workflow
+              </SidebarMenuButton>
+          </SidebarMenuItem>
 
             {/* WORKFLOWS LIST */}
           <Collapsible defaultOpen className="group/collapsible">
@@ -157,15 +132,15 @@ export function AppSidebar() {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub className="max-h-64 overflow-y-auto cursor-pointer">
-                  {workflow ? (workflow.length === 0 ? (
+                  {workflows ? (workflows.length === 0 ? (
                     <SidebarMenuSubItem key={0}>
                       <SidebarMenuSubButton>
                         <span>Create Workflow</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
-                  ) : (workflow.map((i:any) => (
-                    <SidebarMenuSubItem onClick={()=>workflowHandler(i.id)} key={i.id}>
-                      <SidebarMenuSubButton isActive={flow.workflow_id === i.id}>
+                  ) : (workflows.map((i) => (
+                    <SidebarMenuSubItem onClick={()=>workflowHandler(i)} key={i.id}>
+                      <SidebarMenuSubButton isActive={selectedWorkflow === i.id}>
                         <span>{i.name}</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>)
@@ -249,5 +224,7 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+							{ createOpen && <CardDemo onClose={() => setCreateOpen(false)}/>}
+    </>
   )
 }
