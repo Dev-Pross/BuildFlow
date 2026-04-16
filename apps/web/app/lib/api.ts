@@ -146,5 +146,21 @@ export const api = {
       const errorMessage = res.data?.data?.error || res.data?.message || "Execution failed";
       throw new Error(errorMessage);
     }
+  },
+  executions: {
+    // Fetch execution logs for a workflow
+    getWorkflowLogs: async (workflowId: string, skip: number = 0, take: number = 20) => {
+      const res = await axios.get(`${BACKEND_URL}/user/workflow/logs/${workflowId}`, {
+        params: { skip, take },
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      if (res.data?.data) {
+        return res.data.data;
+      }
+      
+      throw new Error(res.data?.message || "Failed to fetch execution logs");
+    }
   }
 };

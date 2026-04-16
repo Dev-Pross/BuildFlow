@@ -119,6 +119,7 @@ model NodeExecution {
   outputData        Json?
   error             String?
   retries           Int               @default(0)
+  isTest            Boolean           @default(false)
   workflowExecId    String
   status            WorkflowStatus
   node              Node              @relation(fields: [nodeId], references: [id])
