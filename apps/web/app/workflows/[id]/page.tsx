@@ -28,6 +28,7 @@ import { setNodeOutput, setNodeLoading, selectAllOutputs } from "@/store/slices/
 import { resolveConfigVariables } from "@repo/common/zod";
 import { SidebarProvider } from "@workspace/ui/components/sidebar";
 import { AppSidebar } from "@/app/components/ui/app-sidebar";
+import ExecutionHistoryFooter from "@/app/components/ExecutionHistoryFooter";
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
@@ -904,6 +905,11 @@ export default function WorkflowCanvas() {
         isOpen={actionOpen}
         onClose={() => setActionOpen(false)}
         onSelectAction={handleActionSelection}
+      />
+
+      <ExecutionHistoryFooter
+        workflowId={workflowId}
+        onExecutionFetch={() => {}}
       />
     </div>
   );

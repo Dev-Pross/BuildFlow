@@ -44,15 +44,14 @@ router.post("/createAvaliableNode", async (req: AuthRequest, res: Response) => {
       Data: createNode,
     });
   } catch (e) {
-    console.log("This is the error from Node creating", e);
+    // console.log("This is the error from Node creating", e);
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
       message: "Internal server Error from Node creation",
     });
   }
 });
 
-router.get(
-  "/getAvailableNodes",
+router.get("/getAvailableNodes",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     if (!req.user) {
@@ -77,8 +76,7 @@ router.get(
   }
 );
 
-router.post(
-  "/createAvaliableTriggers",
+router.post("/createAvaliableTriggers",
   // userMiddleware,
   async (req: Request, res: Response) => {
     try {
@@ -112,12 +110,11 @@ router.post(
   }
 );
 
-router.get(
-  "/getAvailableTriggers",
+router.get("/getAvailableTriggers",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
-      console.log("RequestRecieved  from the frontend");
+      // console.log("RequestRecieved  from the frontend");
       if (!req.user)
         return res
           .status(statusCodes.UNAUTHORIZED)
@@ -138,8 +135,7 @@ router.get(
 );
 
 
-router.get(
-  "/getCredentials/:type",
+router.get("/getCredentials/:type",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -151,7 +147,7 @@ router.get(
       }
       const userId = req.user.sub;
       const type = req.params.type;
-      console.log("The type of data comming to backed is ", type)
+      // console.log("The type of data comming to backed is ", type)
       // console.log(userId, " -userid");
 
       if (!type || !userId) {
@@ -208,8 +204,7 @@ router.get(
   }
 );
 
-router.get(
-  "/getAllCreds",
+router.get("/getAllCreds",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -241,8 +236,7 @@ router.get(
 );
 // ----------------------------------- CREATE WORKFLOW ---------------------------------
 
-router.post(
-  "/create/workflow",
+router.post("/create/workflow",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
 
@@ -289,8 +283,7 @@ router.post(
 
 // ------------------------------------ FETCHING WORKFLOWS -----------------------------------
 
-router.get(
-  "/workflows",
+router.get("/workflows",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -305,7 +298,7 @@ router.get(
           userId,
         },
       });
-      console.log(workflows);
+      // console.log(workflows);
       return res
         .status(statusCodes.OK)
         .json({ message: "Workflows fetched succesfullu", Data: workflows });
@@ -319,8 +312,7 @@ router.get(
   }
 );
 
-router.get(
-  "/empty/workflow",
+router.get("/empty/workflow",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -354,8 +346,7 @@ router.get(
   }
 );
 
-router.get(
-  "/workflow/:workflowId",
+router.get("/workflow/:workflowId",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -373,19 +364,20 @@ router.get(
         },
         include: {
           Trigger: {
-            include: { 
+            include: {
               triggerType: {
-                select:{icon : true}
+                select: { icon: true }
               }
             }
           },
-          nodes: { orderBy: { stage: "asc" }, 
-          include: {
-            AvailableNode: {
-              select: { icon: true}
+          nodes: {
+            orderBy: { stage: "asc" },
+            include: {
+              AvailableNode: {
+                select: { icon: true }
+              }
             }
-          }  
-        },
+          },
         },
       });
       if (!getWorkflow) {
@@ -400,7 +392,7 @@ router.get(
           icon: getWorkflow.Trigger.triggerType.icon || null,
           AvailableTrigger: undefined
         } : null,
-        nodes:  getWorkflow.nodes.map(node=> ({
+        nodes: getWorkflow.nodes.map(node => ({
           ...node,
           icon: node.AvailableNode.icon || null,
           AvailableNode: undefined
@@ -469,8 +461,7 @@ router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Res
 //------------------------------------------ TRIGGER AND NODE CREATION ------------------------------
 
 //TRIGGER CREATION
-router.post(
-  "/create/trigger",
+router.post("/create/trigger",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -481,7 +472,7 @@ router.post(
       }
       const data = req.body;
       const dataSafe = TriggerSchema.safeParse(data);
-      console.log("The error from creation of trigger is ", dataSafe.error);
+      // console.log("The error from creation of trigger is ", dataSafe.error);
 
       if (!dataSafe.success)
         return res.status(statusCodes.BAD_REQUEST).json({
@@ -529,8 +520,7 @@ router.post(
 );
 
 //NODE CREATION
-router.post(
-  "/create/node",
+router.post("/create/node",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -543,7 +533,7 @@ router.post(
       // console.log(" from http-backeden", data);
 
       const dataSafe = NodeSchema.safeParse(data);
-      console.log("The error is ", dataSafe.error);
+      // console.log("The error is ", dataSafe.error);
       if (!dataSafe.success) {
         return res.status(statusCodes.BAD_REQUEST).json({
           message: "Invalid input",
@@ -553,7 +543,7 @@ router.post(
       // Use an empty array for credentials (if required) or don't pass it at all
       // Config must be valid JSON (not an empty string)
       // const stage = dataSafe.data.Position
-      console.log("This is from the backend log of positions", dataSafe.data.position)
+      // console.log("This is from the backend log of positions", dataSafe.data.position)
       const createdNode = await prismaClient.node.create({
         data: {
           name: dataSafe.data.Name,
@@ -607,9 +597,9 @@ router.put("/update/node",
         where: { id: dataSafe.data.NodeId },
         data: {
 
-        ...(dataSafe.data.position !== undefined ? { position: dataSafe.data.position } : {}),
-        ...(dataSafe.data.Config !== undefined ? { config: dataSafe.data.Config } : {}),
-        ...(dataSafe.data.Config?.credentialId ? { CredentialsID: dataSafe.data.Config.credentialId } : {})
+          ...(dataSafe.data.position !== undefined ? { position: dataSafe.data.position } : {}),
+          ...(dataSafe.data.Config !== undefined ? { config: dataSafe.data.Config } : {}),
+          ...(dataSafe.data.Config?.credentialId ? { CredentialsID: dataSafe.data.Config.credentialId } : {})
         }
       });
 
@@ -647,9 +637,9 @@ router.put("/update/trigger",
       const updatedTrigger = await prismaClient.trigger.update({
         where: { id: dataSafe.data.TriggerId },
         data: {
-          ...(dataSafe.data.Config !== undefined ? { config: dataSafe.data.Config} : {}) ,
-          ...(dataSafe.data.CredentialID !== undefined ? { CredentialsID: dataSafe.data.CredentialID} : {}),
-          ...(dataSafe.data.Position !== undefined ? {Position: dataSafe.data.Position} : {})
+          ...(dataSafe.data.Config !== undefined ? { config: dataSafe.data.Config } : {}),
+          ...(dataSafe.data.CredentialID !== undefined ? { CredentialsID: dataSafe.data.CredentialID } : {}),
+          ...(dataSafe.data.Position !== undefined ? { Position: dataSafe.data.Position } : {})
         },
       });
 
@@ -668,7 +658,7 @@ router.put("/update/trigger",
 );
 
 router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Response) => {
-  console.log("REcieved REquest to the  execute route ")
+  // console.log("REcieved REquest to the  execute route ")
   const Data = req.body
   if (!req.user) {
     return res.status(statusCodes.UNAUTHORIZED).json({
@@ -676,7 +666,7 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Re
     })
   }
   const parsedData = ExecuteWorkflow.safeParse(Data);
-  console.log("This is the log data of execute work flow zod", parsedData.error)
+  // console.log("This is the log data of execute work flow zod", parsedData.error)
   if (!parsedData.success) {
     return res.status(statusCodes.BAD_REQUEST).json({
       message: "Error in Zod Schma",
@@ -697,8 +687,8 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Re
         message: "Workflow not found or not authorized"
       });
     }
-    console.log("This is the Trigger Name of  the workflow", trigger?.Trigger?.name)
-    console.log("This is the Trigger Data of  the workflow", trigger)
+    // console.log("This is the Trigger Name of  the workflow", trigger?.Trigger?.name)
+    // console.log("This is the Trigger Data of  the workflow", trigger)
 
     if (trigger?.Trigger?.name === "webhook") {
       const data = await axios.post(`${HOOKS_URL}/hooks/catch/${userId}/${workflowId}`, {
@@ -706,7 +696,7 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Re
 
       },
         { timeout: 30000 },)
-      console.log("Workflow Execution for webhook  started with Execution Id is ", data.data.workflowExecutionId)
+      // console.log("Workflow Execution for webhook  started with Execution Id is ", data.data.workflowExecutionId)
       const workflowExecutionId = data.data.workflowExecutionId;
       if (!workflowExecutionId) {
         return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
@@ -735,6 +725,48 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Re
   }
 
 })
+
+router.get("/workflow/logs/:workflowId", userMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // if (!req.user)
+    //     return res
+    //       .status(statusCodes.UNAUTHORIZED)
+    //       .json({ message: "User isnot logged in /not authorized" });
+    // const userId = req.user.sub;
+    const workflowId = req.params.workflowId;
+    if (!workflowId)
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Invalid input"
+      })
+
+    const executions = await prismaClient.workflowExecution.findMany({
+      where: { workflowId: workflowId },
+      include: {
+        nodeExecutions: { include: { node: true } },
+      }
+    })
+
+    if (!executions) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        message: `logs not found for ${workflowId}`
+      })
+    }
+
+    return res.status(statusCodes.ACCEPTED).json({
+      message: `logs found for ${workflowId}`,
+      data: executions
+    })
+
+  }
+  catch (e) {
+    console.log("Error workflow logs:", e);
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Internal Server Error from workflow logs",
+      error: e instanceof Error ? e.message : "Unknown error"
+    })
+  }
+})
+
 router.get("/protected", userMiddleware, (req: AuthRequest, res) => {
   return res.json({
     ok: true,

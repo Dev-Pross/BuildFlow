@@ -74,6 +74,52 @@ export const workflowUpdateSchema = z.object({
   edges : z.any().optional(),
   workflowId : z.string()
 })
+
+// Execution Logs Schemas - for GET /user/workflow/logs/:workflowId
+export const ExecutionStatusEnum = z.enum(['Start', 'Pending', 'InProgress', 'ReConnecting', 'Failed', 'Completed']);
+
+export const NodeExecutionSchema = z.object({
+  id: z.string(),
+  nodeId: z.string(),
+  workflowExecId: z.string(),
+  status: ExecutionStatusEnum,
+  startedAt: z.string().or(z.date()),
+  completedAt: z.string().or(z.date()).nullable().optional(),
+  inputData: z.any().nullable().optional(),
+  outputData: z.any().nullable().optional(),
+  error: z.string().nullable().optional(),
+  retries: z.number().default(0),
+  isTest: z.boolean().default(false),
+  node: z.object({
+    id: z.string(),
+    name: z.string(),
+    config: z.any(),
+    AvailableNode: z.object({
+      id: z.string(),
+      name: z.string(),
+      type: z.string(),
+      description: z.string().optional(),
+      icon: z.string().optional(),
+    }).optional(),
+  }).optional(),
+});
+
+export const WorkflowExecutionSchema = z.object({
+  id: z.string(),
+  workflowId: z.string(),
+  status: ExecutionStatusEnum,
+  startAt: z.string().or(z.date()),
+  completedAt: z.string().or(z.date()).nullable().optional(),
+  error: z.string().nullable().optional(),
+  metadata: z.any().optional(),
+  nodeExecutions: z.array(NodeExecutionSchema).optional(),
+});
+
+export const WorkflowExecutionResponseSchema = z.object({
+  message: z.string(),
+  data: z.array(WorkflowExecutionSchema),
+});
+
 export enum statusCodes {
   OK = 200,
   CREATED = 201,
