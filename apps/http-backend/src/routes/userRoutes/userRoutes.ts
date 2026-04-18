@@ -743,7 +743,8 @@ router.get("/workflow/logs/:workflowId", userMiddleware, async (req: AuthRequest
       where: { workflowId: workflowId },
       include: {
         nodeExecutions: { include: { node: true } },
-      }
+      },
+      orderBy: { startAt: "desc" },
     })
 
     if (!executions) {
