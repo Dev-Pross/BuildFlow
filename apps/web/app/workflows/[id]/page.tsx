@@ -819,7 +819,7 @@ export default function WorkflowCanvas() {
         <Controls />
 
 
-        <div style={{ position: "fixed", bottom: "1rem", right: "10rem", display: "flex", gap: "1rem", zIndex: 50 }}>
+        <div style={{ position: "fixed", bottom: "60px", right: "10rem", display: "flex", gap: "1rem", zIndex: 50 }}>
           <button
             onClick={batchSave}
             className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"

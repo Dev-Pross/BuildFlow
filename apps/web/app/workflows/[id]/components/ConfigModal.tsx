@@ -440,7 +440,7 @@ export default function ConfigModal({
       );
     }
 
-    if (field.type === "text") {
+    if (field.type === "textarea") {
       return (
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">

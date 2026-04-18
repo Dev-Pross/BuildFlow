@@ -18,7 +18,9 @@ interface LoopExecutionResult {
   totalProcessed: number;
   successful: number;
   failed: number;
+  skipped: number;
   failures: Array<{ row: number; error: string; retries: number }>;
+  skippedRows: Array<{ row: number; reason: string }>;
   results: any[];
 }
 
@@ -105,13 +107,8 @@ export async function executeWorkflow(
     nodeConfig = resolveConfigVariables(nodeConfig, interpolationContext);
     console.log(`[Interpolation] After: ${JSON.stringify(nodeConfig)}`);
     
-    // Properly concatenate body with input data (legacy behavior, skip for spreadsheet loop)
-    if (nodeConfig.body && currentInputData && !isSpreadsheetInput(currentInputData)) {
-      const inputStr = typeof currentInputData === 'object' 
-        ? JSON.stringify(currentInputData) 
-        : String(currentInputData);
-      nodeConfig.body = nodeConfig.body + inputStr;
-    }
+    // NOTE: Removed legacy body concatenation that appended raw JSON to email body.
+    // Variables should be resolved via the {{interpolation}} system instead.
     if(!node.CredentialsID){
       await prismaClient.workflowExecution.update({
         where: { id: workflowExecutionId },
@@ -151,7 +148,9 @@ export async function executeWorkflow(
         totalProcessed: 0,
         successful: 0,
         failed: 0,
+        skipped: 0,
         failures: [],
+        skippedRows: [],
         results: []
       };
 
@@ -175,6 +174,27 @@ export async function executeWorkflow(
         const resolvedRowConfig = resolveConfigVariables(originalConfig, loopInterpolationCtx);
         
         console.log(`[Loop] Row ${rowIdx}: resolved config = ${JSON.stringify(resolvedRowConfig)}`);
+
+        // Skip rows with empty/null required fields (e.g. empty email recipient)
+        const skipReasons: string[] = [];
+        if (resolvedRowConfig.to !== undefined && (!resolvedRowConfig.to || String(resolvedRowConfig.to).trim() === '')) {
+          skipReasons.push('empty recipient (to)');
+        }
+        if (resolvedRowConfig.subject !== undefined && (!resolvedRowConfig.subject || String(resolvedRowConfig.subject).trim() === '')) {
+          skipReasons.push('empty subject');
+        }
+        // Check if any resolved value still has unresolved {{variables}}
+        for (const [key, val] of Object.entries(resolvedRowConfig)) {
+          if (typeof val === 'string' && val.includes('{{') && val.includes('}}')) {
+            skipReasons.push(`unresolved variable in ${key}: ${val}`);
+          }
+        }
+        if (skipReasons.length > 0) {
+          loopResult.skipped++;
+          loopResult.skippedRows.push({ row: rowIdx, reason: skipReasons.join('; ') });
+          console.log(`[Loop] Row ${rowIdx} SKIPPED: ${skipReasons.join('; ')}`);
+          continue;
+        }
         
         const rowCtx = {
           userId: data.workflow.userId,
@@ -222,7 +242,7 @@ export async function executeWorkflow(
         await delay(100);
       }
 
-      console.log(`[Loop] Completed: ${loopResult.successful}/${loopResult.totalProcessed} successful, ${loopResult.failed} failed`);
+      console.log(`[Loop] Completed: ${loopResult.successful}/${loopResult.totalProcessed} successful, ${loopResult.failed} failed, ${loopResult.skipped} skipped`);
 
       // Loop completes even if some rows fail
       const hasFailures = loopResult.failed > 0;
