@@ -18,12 +18,12 @@ interface ExecutionHistoryFooterProps {
 // ─── Status Badge ───
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const styles: Record<string, string> = {
-    Completed: 'background:linear-gradient(135deg,#059669,#10b981);color:#ecfdf5;',
-    Failed: 'background:linear-gradient(135deg,#dc2626,#ef4444);color:#fef2f2;',
-    InProgress: 'background:linear-gradient(135deg,#2563eb,#3b82f6);color:#eff6ff;',
-    Pending: 'background:linear-gradient(135deg,#d97706,#f59e0b);color:#fffbeb;',
-    Start: 'background:linear-gradient(135deg,#6b7280,#9ca3af);color:#f9fafb;',
-    ReConnecting: 'background:linear-gradient(135deg,#ea580c,#f97316);color:#fff7ed;',
+    Completed: 'background:linear-gradient(135deg,#355126,#4a7a2e);color:#baf266;',
+    Failed: 'background:linear-gradient(135deg,#7f1d1d,#991b1b);color:#fca5a5;',
+    InProgress: 'background:linear-gradient(135deg,#1a3a18,#2a5a25);color:#82c246;',
+    Pending: 'background:linear-gradient(135deg,#5a4a10,#7a6420);color:#f59e0b;',
+    Start: 'background:linear-gradient(135deg,#2a3525,#3a4a32);color:#8a9178;',
+    ReConnecting: 'background:linear-gradient(135deg,#5a3510,#7a4a18);color:#f97316;',
   };
   return (
     <span
@@ -53,8 +53,8 @@ const TestBadge: React.FC<{ isTest: boolean }> = ({ isTest }) => {
   if (!isTest) return <span style={{ color: '#6b7280', fontSize: '11px' }}>—</span>;
   return (
     <span style={{
-      background: 'linear-gradient(135deg,#7c3aed,#a855f7)',
-      color: '#f5f3ff',
+      background: 'linear-gradient(135deg,#355126,#4a7a2e)',
+      color: '#baf266',
       padding: '2px 8px',
       borderRadius: '6px',
       fontSize: '10px',
@@ -99,8 +99,8 @@ const JsonViewer: React.FC<{ data: any; label: string; accent: string }> = ({ da
         <pre style={{
           marginTop: '6px',
           padding: '12px',
-          background: '#0c0f1a',
-          border: '1px solid #1e293b',
+          background: '#0a0d0a',
+          border: '1px solid #2a3525',
           borderRadius: '8px',
           fontSize: '11px',
           fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
@@ -310,8 +310,8 @@ export default function ExecutionHistoryFooter({
           left: sidebarWidth,
           right: 0,
           height: '48px',
-          background: 'linear-gradient(135deg, #0f1420 0%, #141b2d 100%)',
-          borderTop: '1px solid #1e293b',
+          background: 'linear-gradient(135deg, #0c100c 0%, #111611 100%)',
+          borderTop: '1px solid #2a3525',
           zIndex: 9,
           display: 'flex',
           alignItems: 'center',
@@ -343,8 +343,8 @@ export default function ExecutionHistoryFooter({
               padding: '4px 12px',
               fontSize: '11px',
               fontWeight: 600,
-              background: footerLoading ? '#1e293b' : 'linear-gradient(135deg, #2563eb, #3b82f6)',
-              color: '#fff',
+              background: footerLoading ? '#1a2118' : 'linear-gradient(135deg, #355126, #4a7a2e)',
+              color: '#baf266',
               border: 'none',
               borderRadius: '6px',
               cursor: footerLoading ? 'wait' : 'pointer',
@@ -359,9 +359,9 @@ export default function ExecutionHistoryFooter({
               padding: '4px 10px',
               fontSize: '11px',
               fontWeight: 600,
-              background: autoRefreshEnabled ? 'linear-gradient(135deg, #059669, #10b981)' : '#1e293b',
-              color: autoRefreshEnabled ? '#ecfdf5' : '#94a3b8',
-              border: autoRefreshEnabled ? 'none' : '1px solid #334155',
+              background: autoRefreshEnabled ? 'linear-gradient(135deg, #355126, #4a7a2e)' : '#1a2118',
+              color: autoRefreshEnabled ? '#baf266' : '#8a9178',
+              border: autoRefreshEnabled ? 'none' : '1px solid #2a3525',
               borderRadius: '6px',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
@@ -378,9 +378,9 @@ export default function ExecutionHistoryFooter({
               padding: '4px 14px',
               fontSize: '11px',
               fontWeight: 600,
-              background: isExpanded ? '#1e293b' : 'linear-gradient(135deg, #6366f1, #818cf8)',
-              color: isExpanded ? '#94a3b8' : '#fff',
-              border: isExpanded ? '1px solid #334155' : 'none',
+              background: isExpanded ? '#1a2118' : 'linear-gradient(135deg, #355126, #4a7a2e)',
+              color: isExpanded ? '#8a9178' : '#baf266',
+              border: isExpanded ? '1px solid #2a3525' : 'none',
               borderRadius: '6px',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
@@ -400,8 +400,8 @@ export default function ExecutionHistoryFooter({
             left: sidebarWidth,
             right: 0,
             height: '55vh',
-            background: 'linear-gradient(180deg, #0a0e17 0%, #0f1420 100%)',
-            borderTop: '1px solid #1e293b',
+            background: 'linear-gradient(180deg, #0a0d0a 0%, #0c100c 100%)',
+            borderTop: '1px solid #2a3525',
             zIndex: 8,
             display: 'flex',
             flexDirection: 'column',
@@ -413,7 +413,7 @@ export default function ExecutionHistoryFooter({
           <div style={{
             padding: '12px 20px',
             borderBottom: '1px solid #1e293b',
-            background: 'linear-gradient(135deg, #0f1420 0%, #141b2d 100%)',
+            background: 'linear-gradient(135deg, #0c100c 0%, #111611 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -426,8 +426,8 @@ export default function ExecutionHistoryFooter({
                     onClick={() => setSelectedExecution(null)}
                     style={{
                       background: 'none',
-                      border: '1px solid #334155',
-                      color: '#94a3b8',
+                      border: '1px solid #2a3525',
+                      color: '#8a9178',
                       padding: '2px 8px',
                       borderRadius: '4px',
                       cursor: 'pointer',
@@ -487,8 +487,8 @@ export default function ExecutionHistoryFooter({
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{
-                    background: '#0c1019',
-                    borderBottom: '1px solid #1e293b',
+                    background: '#0a0d0a',
+                    borderBottom: '1px solid #2a3525',
                     position: 'sticky',
                     top: 0,
                     zIndex: 2,

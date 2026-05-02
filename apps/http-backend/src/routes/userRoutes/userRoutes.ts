@@ -15,10 +15,42 @@ import {
   workflowUpdateSchema,
   ExecuteWorkflow,
   HOOKS_URL,
+  DashboardRangeSchema,
 } from "@repo/common/zod";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes";
 import axios from "axios";
 const router: Router = Router();
+
+const DASHBOARD_RANGE_DAYS = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+} as const;
+
+const FALLBACK_EXECUTION_QUOTA = 1000;
+
+const isTestingExecution = (metadata: unknown): boolean => {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return false;
+  }
+
+  return (metadata as Record<string, unknown>).isTesting === true;
+};
+
+const toDayKey = (date: Date): string => date.toISOString().slice(0, 10);
+
+const getExecutionQuota = (): number => {
+  const parsedQuota = Number.parseInt(
+    process.env.DASHBOARD_EXECUTION_QUOTA || "",
+    10
+  );
+
+  if (Number.isFinite(parsedQuota) && parsedQuota > 0) {
+    return parsedQuota;
+  }
+
+  return FALLBACK_EXECUTION_QUOTA;
+};
 
 router.post("/createAvaliableNode", async (req: AuthRequest, res: Response) => {
   try {
@@ -231,6 +263,239 @@ router.get("/getAllCreds",
       return res
         .status(statusCodes.INTERNAL_SERVER_ERROR)
         .json({ message: "Internal server from fetching the credentials" });
+    }
+  }
+);
+
+router.get("/dashboard/overview",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.sub;
+
+      if (!userId) {
+        return res.status(statusCodes.UNAUTHORIZED).json({
+          message: "User is not authorized",
+        });
+      }
+
+      const [workflowCount, recentWorkflows, credentials, executionRows] =
+        await Promise.all([
+          prismaClient.workflow.count({
+            where: { userId },
+          }),
+          prismaClient.workflow.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              createdAt: true,
+              status: true,
+            },
+          }),
+          prismaClient.credential.findMany({
+            where: { userId },
+            select: { type: true },
+          }),
+          prismaClient.workflowExecution.findMany({
+            where: {
+              workflow: {
+                userId,
+              },
+            },
+            select: {
+              status: true,
+              metadata: true,
+            },
+          }),
+        ]);
+
+      const executions = executionRows.filter(
+        (execution) => !isTestingExecution(execution.metadata)
+      );
+
+      const executionCount = executions.length;
+      const failedExecutions = executions.filter(
+        (execution) => execution.status === "Failed"
+      ).length;
+      const successfulExecutions = executions.filter(
+        (execution) => execution.status === "Completed"
+      ).length;
+
+      const failedRate = executionCount
+        ? Number(((failedExecutions / executionCount) * 100).toFixed(2))
+        : 0;
+      const successRate = executionCount
+        ? Number(((successfulExecutions / executionCount) * 100).toFixed(2))
+        : 0;
+
+      const executionQuota = getExecutionQuota();
+      const remainingExecutions = Math.max(0, executionQuota - executionCount);
+
+      const credentialTypes = new Set(credentials.map((credential) => credential.type));
+      const hasSharedGoogleOAuth = credentialTypes.has("google_oauth");
+
+      const gmailConnected =
+        hasSharedGoogleOAuth || credentialTypes.has("gmail_oauth");
+      const googleSheetsConnected =
+        hasSharedGoogleOAuth || credentialTypes.has("google_sheets_oauth");
+
+      return res.status(statusCodes.OK).json({
+        message: "Dashboard overview fetched successfully",
+        data: {
+          workflowCount,
+          executionCount,
+          failedRate,
+          successRate,
+          executionQuota,
+          remainingExecutions,
+          integrations: [
+            {
+              key: "gmail",
+              label: "Gmail",
+              connected: gmailConnected,
+            },
+            {
+              key: "googleSheets",
+              label: "Google Sheets",
+              connected: googleSheetsConnected,
+            },
+          ],
+          recentWorkflows,
+        },
+      });
+    } catch (error) {
+      console.log("Error fetching dashboard overview", error);
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal server error while fetching dashboard overview",
+      });
+    }
+  }
+);
+
+router.get("/dashboard/executions/trend",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.sub;
+
+      if (!userId) {
+        return res.status(statusCodes.UNAUTHORIZED).json({
+          message: "User is not authorized",
+        });
+      }
+
+      const rangeInput = req.query.range ?? "7d";
+      const parsedRange = DashboardRangeSchema.safeParse(rangeInput);
+
+      if (!parsedRange.success) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Invalid range. Supported values: 7d, 30d, 90d",
+        });
+      }
+
+      const range = parsedRange.data;
+      const days = DASHBOARD_RANGE_DAYS[range];
+
+      const startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setDate(startDate.getDate() - (days - 1));
+
+      const executionRows = await prismaClient.workflowExecution.findMany({
+        where: {
+          workflow: {
+            userId,
+          },
+          startAt: {
+            gte: startDate,
+          },
+        },
+        select: {
+          startAt: true,
+          status: true,
+          metadata: true,
+        },
+        orderBy: {
+          startAt: "asc",
+        },
+      });
+
+      const executions = executionRows.filter(
+        (execution) => !isTestingExecution(execution.metadata)
+      );
+
+      const pointsMap = new Map<
+        string,
+        {
+          date: string;
+          total: number;
+          completed: number;
+          failed: number;
+          inFlight: number;
+        }
+      >();
+
+      for (let dayOffset = 0; dayOffset < days; dayOffset += 1) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + dayOffset);
+        const dayKey = toDayKey(currentDate);
+
+        pointsMap.set(dayKey, {
+          date: dayKey,
+          total: 0,
+          completed: 0,
+          failed: 0,
+          inFlight: 0,
+        });
+      }
+
+      for (const execution of executions) {
+        const dayKey = toDayKey(execution.startAt);
+        const point = pointsMap.get(dayKey);
+
+        if (!point) {
+          continue;
+        }
+
+        point.total += 1;
+
+        if (execution.status === "Completed") {
+          point.completed += 1;
+        } else if (execution.status === "Failed") {
+          point.failed += 1;
+        } else {
+          point.inFlight += 1;
+        }
+      }
+
+      const points = Array.from(pointsMap.values());
+      const totals = points.reduce(
+        (acc, point) => {
+          acc.total += point.total;
+          acc.completed += point.completed;
+          acc.failed += point.failed;
+          acc.inFlight += point.inFlight;
+          return acc;
+        },
+        { total: 0, completed: 0, failed: 0, inFlight: 0 }
+      );
+
+      return res.status(statusCodes.OK).json({
+        message: "Dashboard trend fetched successfully",
+        data: {
+          range,
+          points,
+          totals,
+        },
+      });
+    } catch (error) {
+      console.log("Error fetching dashboard trend", error);
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Internal server error while fetching dashboard trend",
+      });
     }
   }
 );
