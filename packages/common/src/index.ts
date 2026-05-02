@@ -1,5 +1,4 @@
 import z from "zod";
-import { number } from "zod/v4";
 
 // Export interpolation utilities
 export * from "./interpolation";
@@ -118,6 +117,62 @@ export const WorkflowExecutionSchema = z.object({
 export const WorkflowExecutionResponseSchema = z.object({
   message: z.string(),
   data: z.array(WorkflowExecutionSchema),
+});
+
+export const DashboardRangeSchema = z.enum(["7d", "30d", "90d"]);
+
+export const DashboardIntegrationSchema = z.object({
+  key: z.enum(["gmail", "googleSheets"]),
+  label: z.string(),
+  connected: z.boolean(),
+});
+
+export const DashboardRecentWorkflowSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  createdAt: z.string().or(z.date()),
+  status: z.string().nullable().optional(),
+});
+
+export const DashboardOverviewSchema = z.object({
+  workflowCount: z.number(),
+  executionCount: z.number(),
+  failedRate: z.number(),
+  successRate: z.number(),
+  executionQuota: z.number(),
+  remainingExecutions: z.number(),
+  integrations: z.array(DashboardIntegrationSchema),
+  recentWorkflows: z.array(DashboardRecentWorkflowSchema),
+});
+
+export const DashboardOverviewResponseSchema = z.object({
+  message: z.string(),
+  data: DashboardOverviewSchema,
+});
+
+export const DashboardExecutionTrendPointSchema = z.object({
+  date: z.string(),
+  total: z.number(),
+  completed: z.number(),
+  failed: z.number(),
+  inFlight: z.number(),
+});
+
+export const DashboardExecutionTrendSchema = z.object({
+  range: DashboardRangeSchema,
+  points: z.array(DashboardExecutionTrendPointSchema),
+  totals: z.object({
+    total: z.number(),
+    completed: z.number(),
+    failed: z.number(),
+    inFlight: z.number(),
+  }),
+});
+
+export const DashboardExecutionTrendResponseSchema = z.object({
+  message: z.string(),
+  data: DashboardExecutionTrendSchema,
 });
 
 export enum statusCodes {

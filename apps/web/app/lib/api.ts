@@ -103,6 +103,28 @@ export const api = {
         headers: { "Content-Type": "application/json" },
       }),
   },
+  dashboard: {
+    getOverview: async () => {
+      const res = await axios.get(`${BACKEND_URL}/user/dashboard/overview`, {
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" },
+      });
+
+      return res.data.data;
+    },
+    getExecutionTrend: async (range: "7d" | "30d" | "90d" = "7d") => {
+      const res = await axios.get(
+        `${BACKEND_URL}/user/dashboard/executions/trend`,
+        {
+          params: { range },
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      return res.data.data;
+    },
+  },
   google: {
     getDocuments: async (CredentialId : string) => {
       const data =  await axios.get(`${BACKEND_URL}/node/getDocuments/${CredentialId}`,{

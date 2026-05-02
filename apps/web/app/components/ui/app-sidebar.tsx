@@ -210,7 +210,7 @@ export function AppSidebar() {
                   side="top"
                   className="w-[--radix-popper-anchor-width] flex gap-1 justify-between"
                 >
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
                     <span >Dashboard</span>
                     <LucideLayoutDashboard className='text-white'/>
                   </DropdownMenuItem>

@@ -69,10 +69,10 @@ const Page = () => {
     }
   }
   return (
-    <div className='bg-black overflow-hidden h-screen flex items-center justify-center'>
-        <Card blur="backdrop-blur-xl border border-white/20" color='bg-white/10' width='w-full max-w-sm md:max-w-md' height='max-h-xl h-sm md:h-md'>
+    <div className='dark bg-[#0a0d0a] overflow-hidden h-screen flex items-center justify-center'>
+        <Card blur="backdrop-blur-xl border border-[#2a3525]/60" color='bg-[#111611]/90' width='w-full max-w-sm md:max-w-md' height='max-h-xl h-sm md:h-md'>
               {error.auth && (
-                        <span className="text-md w-full inline-flex justify-center text-red-500 animate-pulse">! {error.auth}</span>
+                        <span className="text-md w-full inline-flex justify-center text-red-400 animate-pulse">! {error.auth}</span>
                       )}            
               <Input
                 label="Email"
@@ -91,7 +91,7 @@ const Page = () => {
                 type="password"
                 onChange={(e)=>{setPassword(e.target.value)}}
             />
-            <Link href='#' className='p-6 py-1 inline-flex   justify-end text-amber-400'>forgot password?</Link>
+            <Link href='#' className='p-6 py-1 inline-flex justify-end text-[#baf266]/70 hover:text-[#baf266] transition-colors'>forgot password?</Link>
 
 
             <Button 
@@ -99,11 +99,12 @@ const Page = () => {
               text={isLoading ? 'Logging in...' : 'Login'} 
               variant='solid' 
               size='md' 
-              bgColor='bg-green-600' 
-              className='w-full mt-4'
+              bgColor='bg-[#baf266]' 
+              textColor='text-[#0a0d0a]'
+              className='w-full mt-4 font-semibold hover:opacity-90'
               disabled={isLoading}
             />
-            <p className='text-white w-full inline-flex justify-center p-2'>New user? <Link href={'/register'}> <span  className='text-blue-600 px-1'>Register</span></Link></p>
+            <p className='text-[#8a9178] w-full inline-flex justify-center p-2'>New user? <Link href={'/register'}> <span className='text-[#baf266] px-1 hover:underline'>Register</span></Link></p>
         </Card>
     </div>
   )
