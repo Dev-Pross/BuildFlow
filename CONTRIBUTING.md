@@ -19,4 +19,6 @@ Thank you for contributing! To keep the project stable and reviewable, follow th
 4. Issues
    - Open an issue before implementing non-trivial changes to discuss design and scope.
 
+Pick something real 
+
 If you'd like stricter automation (e.g., required status checks, automatic merges after approval), we can add CI and automation in a follow-up PR.
