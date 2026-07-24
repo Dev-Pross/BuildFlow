@@ -34,12 +34,9 @@ export default function IntegrationStatus({ overview }: IntegrationStatusProps) 
               <div className="w-full rounded-lg overflow-hidden bg-[#1a2118] flex-1 flex items-end">
                 <div
                   className="w-full rounded-t-md transition-all duration-500"
-                  style={{
-                    height: int.connected ? "75%" : "25%",
-                    backgroundColor: int.connected ? info.color : "#2a3525",
-                    opacity: int.connected ? 0.7 : 0.3,
-                  }}
+
                 />
+                <img src={'/google.svg'} alt="google" />
               </div>
             </div>
           );
