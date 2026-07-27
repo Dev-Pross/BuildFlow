@@ -38,7 +38,7 @@ export const api = {
           headers: { "Content-Type": "application/json" },
         })
     },
-    getAll: async () =>{
+    getAll: async () => {
       return await axios.get(`${BACKEND_URL}/user/workflows`,
         {
           withCredentials: true,
@@ -94,7 +94,7 @@ export const api = {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       });
-      return res.data.data;
+      return res.data;
     },
 
     getAllCreds: async () =>
@@ -126,31 +126,41 @@ export const api = {
     },
   },
   google: {
-    getDocuments: async (CredentialId : string) => {
-      const data =  await axios.get(`${BACKEND_URL}/node/getDocuments/${CredentialId}`,{
+    getDocuments: async (CredentialId: string) => {
+      const data = await axios.get(`${BACKEND_URL}/node/getDocuments/${CredentialId}`, {
         withCredentials: true,
-        headers: {"Content-Type" : "application/json"},
+        headers: { "Content-Type": "application/json" },
       })
-      
+
       console.log(data.data.files)
       return data.data.files
     },
     getSheets: async (documentId: string, CredentialId: string) => {
-      const data = await axios.get(`${BACKEND_URL}/node/getSheets/${CredentialId}/${documentId}`,{
+      const data = await axios.get(`${BACKEND_URL}/node/getSheets/${CredentialId}/${documentId}`, {
         withCredentials: true,
-        headers: {"Content-Type":"application/json"}
+        headers: { "Content-Type": "application/json" }
       })
       const tabs = data.data.files.data
-      return tabs.map((tab: any) =>({
+      return tabs.map((tab: any) => ({
         id: tab.name,
         name: tab.name
       }))
     },
+    getHeaders: async (credentialId: string, sheetId: string, sheetName: string) => {
+      const res = await axios.get(
+        `${BACKEND_URL}/node/getHeaders/${credentialId}/${sheetId}/${sheetName}`,
+        {
+          withCredentials: true,
+          headers: { 'Content-Type': "application/json" }
+        }
+      );
+      return res.data.headers
+    }
   },
   execute: {
     // Execute a single node for testing
     node: async (nodeId: string, config?: any) => {
-      const res = await axios.post(`${BACKEND_URL}/execute/node`, 
+      const res = await axios.post(`${BACKEND_URL}/execute/node`,
         { NodeId: nodeId, Config: config },
         {
           withCredentials: true,
@@ -158,12 +168,12 @@ export const api = {
         }
       );
       console.log('[api.execute.node] Response:', res);
-      
+
       // Check if execution was successful
       if (res.data?.data?.success) {
         return res.data.data.output;
       }
-      
+
       // If not successful, throw error with message
       const errorMessage = res.data?.data?.error || res.data?.message || "Execution failed";
       throw new Error(errorMessage);
@@ -177,11 +187,11 @@ export const api = {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       });
-      
+
       if (res.data?.data) {
         return res.data.data;
       }
-      
+
       throw new Error(res.data?.message || "Failed to fetch execution logs");
     }
   }

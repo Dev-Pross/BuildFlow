@@ -1,13 +1,13 @@
 "use client";
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { HOOKS_URL } from "@repo/common/zod";
 import { extractVariablesFromOutput, resolveConfigVariables, InterpolationContext } from "@repo/common/zod";
 import { useAppSelector, useAppDispatch } from "@/app/hooks/redux";
 import { toast } from "sonner";
 import { useCredentials } from "@/app/hooks/useCredential";
 import { api } from "@/app/lib/api";
-import { PreviousNodeOutput, VariableDefinition } from "@/app/lib/types/node.types";
+import { ConfigField, NodeConfig, PreviousNodeOutput, VariableDefinition } from "@/app/lib/types/node.types";
 import { VariablePanel } from "@/app/components/ui/variable-panel";
 import {
   setNodeOutput,
@@ -39,12 +39,19 @@ export default function ConfigModal({
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
+  const [activeSubField, setActiveSubField] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<any>(null);
+  const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
+  const [isLoadingHeaders, setIsLoadingHeaders] = useState(false);
 
   // Reset test result when switching to a different node
   useEffect(() => {
     setTestResult(null);
   }, [selectedNode?.id]);
+
+  // Add a ref to track which sheet's headers are currently loaded
+  const loadedSheetRef = useRef<string>("");
+
 
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.user.userId) as string;
@@ -79,6 +86,7 @@ export default function ConfigModal({
   // Build interpolation context from all previously tested nodes
   const buildTestContext = (): InterpolationContext => {
     const context: InterpolationContext = {};
+    const nameCounts: Record<string, number> = {};
     console.log('[buildTestContext] All tested outputs:', allTestedOutputs);
 
     for (const [nodeId, testOutput] of Object.entries(allTestedOutputs)) {
@@ -90,9 +98,23 @@ export default function ConfigModal({
 
       if (testOutput.success && testOutput.data) {
         // Normalize node name: "Google Sheet" -> "google_sheet"
-        const normalizedName = testOutput.nodeName.toLowerCase().replace(/\s+/g, '_');
-        console.log(`[buildTestContext] Normalized "${testOutput.nodeName}" -> "${normalizedName}"`);
-        context[normalizedName] = testOutput.data;
+        const baseName = testOutput.nodeName
+          .replace(/ Output$/i, '')
+          .replace(/ Node$/i, '')
+          .toLowerCase()
+          .replace(/\s+/g, '_');
+        console.log(`[buildTestContext] Normalized "${testOutput.nodeName}" -> "${baseName}"`);
+
+        context[nodeId] = testOutput.data;
+
+        if (!nameCounts[baseName]) {
+          nameCounts[baseName] = 1;
+          context[baseName] = testOutput.data; // e.g. "google_sheet"
+        } else {
+          nameCounts[baseName]++;
+          const uniqueKey = `${baseName}_${nameCounts[baseName]}`; // e.g. "google_sheet_2"
+          context[uniqueKey] = testOutput.data;
+        }
       }
     }
 
@@ -260,6 +282,17 @@ export default function ConfigModal({
   const handleVariableInsert = (variableSyntax: string) => {
     if (!activeField) return;
 
+    if (activeField === "mappedColumns" && activeSubField) {
+      const currentMapped = config.mappedColumns || {};
+      const currentVal = currentMapped[activeSubField] || "";
+      const updatedMapped = { ...currentMapped, [activeSubField]: currentVal + variableSyntax };
+
+      const newConfig = { ...config, mappedColumns: updatedMapped };
+      setConfig(newConfig);
+      dispatchConfig(newConfig);
+      return;
+    }
+
     const currentValue = config[activeField] || "";
     const newConfig = { ...config, [activeField]: currentValue + variableSyntax };
     setConfig(newConfig)
@@ -285,6 +318,22 @@ export default function ConfigModal({
         const options = await fetchFn(updatedConfig);
         // console.log(({ ...config, [depField.name]: options }), "optiops setting")
         setDynamicOptions((prev) => ({ ...prev, [depField.name]: options }));
+      }
+    }
+
+    if ((fieldName === 'sheetName' || fieldName === 'spreadsheetId' || fieldName === "operation") && updatedConfig.sheetName) {
+      const { credentialId, spreadsheetId, sheetName, operation } = updatedConfig;
+
+      if (credentialId && spreadsheetId && sheetName && ["append_rows", "write_rows"].includes(operation)) {
+        setIsLoadingHeaders(true);
+        try {
+          const headers = await api.google.getHeaders(credentialId, spreadsheetId, sheetName);
+          setSheetHeaders(headers || []);
+        } catch (e) {
+          console.error("Failed to load sheet headers", e);
+        } finally {
+          setIsLoadingHeaders(false);
+        }
       }
     }
   };
@@ -320,6 +369,14 @@ export default function ConfigModal({
           }
         }
       }
+
+      if (loadedConfig.credentialId && loadedConfig.spreadsheetId && loadedConfig.sheetName && ["append_rows", "write_rows"].includes(loadedConfig.operation)) {
+        setIsLoadingHeaders(true)
+        api.google.getHeaders(loadedConfig.credentialId, loadedConfig.spreadsheetId, loadedConfig.sheetName)
+          .then((headers) => setSheetHeaders(headers || []))
+          .catch((e) => console.error("Failed to load sheet headers", e))
+          .finally(() => setIsLoadingHeaders(false));
+      }
     }
   }, [selectedNode]);
 
@@ -338,8 +395,36 @@ export default function ConfigModal({
   //   }
   // };
 
-  const renderField = (field: any, nodeConfig: any) => {
-    const fieldValue = config[field.name] || "";
+  const isFieldVisible = (field: ConfigField, formData: any) => {
+    const currentOps = formData.operation || "read_rows";
+
+    if (field.showForOperation && (!field.showForOperation.includes(currentOps)))
+      return false;
+
+    if (field.name === 'range') {
+      if (currentOps === 'read_rows' && (formData.fetchEntireTable ?? true))
+        return false
+      if (currentOps === 'clear_rows' && (formData.clearEntireTable ?? true))
+        return false
+      if (currentOps === 'write_rows')
+        return true
+    }
+
+    if (field.name === 'includeHeaderRow') {
+      if (currentOps === 'clear_rows' && !(formData.clearEntireTable ?? true))
+        return false
+    }
+
+    if (field.name === 'mappedColumns')
+      return (config.mappingMode ?? 'visual') === 'visual'
+
+    if (field.name === 'bulkValues')
+      return config.mappingMode === 'bulk'
+    return true
+  }
+
+  const renderField = (field: ConfigField, nodeConfig: any) => {
+    const fieldValue = config[field.name] ?? field.defaultValue ?? "";
 
     if (field.type === "dropdown" && field.name === "credentialId") {
       // Use the values from useCredentials: credentials and authUrl
@@ -364,7 +449,7 @@ export default function ConfigModal({
                 <option value="">Select Google Account</option>
                 {credentials.map((cred: any) => (
                   <option key={cred.id} value={cred.id}>
-                    {cred.email || cred.name || "Google Account"}
+                    {cred.config.email || cred.name || "Google Account"}
                   </option>
                 ))}
               </select>
@@ -428,7 +513,7 @@ export default function ConfigModal({
             className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
             required={field.required}
           >
-            {console.log(options)}
+            {/* {console.log(options)} */}
             <option value="">Select {field.label.toLowerCase()}</option>
             {options.map((opt: any) => (
               <option key={opt.value || opt.id || opt} value={opt.value || opt.id !== undefined ? opt.id : opt}>
@@ -465,6 +550,130 @@ export default function ConfigModal({
       );
     }
 
+    if (field.type === 'checkbox') {
+      const isChecked = Boolean(fieldValue ?? field.defaultValue ?? true)
+
+      return (
+        <div key={field.name} className="flex items-center gap-3 p-2 bg-[#0a0e17] rounded-lg border border-[#1e293b]">
+          <input
+            type="checkbox"
+            id={field.name}
+            checked={isChecked}
+            onChange={(e) => {
+              const newConfig = { ...config, [field.name]: e.target.checked };
+              setConfig(newConfig);
+              dispatchConfig(newConfig);
+            }}
+            className="w-4 h-4 text-indigo-600 bg-gray-900 border-gray-700 rounded focus:ring-indigo-500"
+          />
+          <label htmlFor={field.name} className="text-sm font-medium text-gray-200 cursor-pointer">
+            {field.label}
+          </label>
+        </div>
+      )
+    }
+
+    if (field.type === 'column_mapper') {
+      const mappedValues = config[field.name] || {};
+      const mappedKeys = Object.keys(mappedValues);
+
+      // Filter out headers that are already mapped
+      const availableHeaders = sheetHeaders.filter(h => !mappedKeys.includes(h));
+
+      return (
+        <div key={field.name} className="flex flex-col gap-3 p-4 bg-[#0f141f] rounded-lg border border-[#1e293b]">
+          <label className="text-sm font-medium text-gray-200">{field.label}</label>
+
+          {isLoadingHeaders ? (
+            <div className="text-sm text-gray-400">Loading columns from Google Sheets...</div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2">
+                {mappedKeys.map((header) => (
+                  <div key={header} className="flex items-center gap-2">
+                    <div className="w-1/3 text-sm text-gray-400 truncate" title={header}>
+                      {header}
+                    </div>
+                    <input
+                      type="text"
+                      value={mappedValues[header] || ""}
+                      onFocus={() => {
+                        setActiveField(field.name);     // "mappedColumns"
+                        setActiveSubField(header);      // e.g. "Email"
+                      }}
+                      onChange={(e) => {
+                        const newMapped = { ...mappedValues, [header]: e.target.value };
+                        const newConfig = { ...config, [field.name]: newMapped };
+                        setConfig(newConfig);
+                        dispatchConfig(newConfig);
+                      }}
+                      placeholder="Enter value..."
+                      className="flex-1 p-2 bg-[#1e293b] border border-gray-700 rounded-md text-sm text-gray-200 outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      onClick={() => {
+                        const newMapped = { ...mappedValues };
+                        delete newMapped[header];
+                        const newConfig = { ...config, [field.name]: newMapped };
+                        setConfig(newConfig);
+                        dispatchConfig(newConfig);
+                      }}
+                      className="p-2 text-gray-500 hover:text-red-400"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {availableHeaders.length > 0 && (
+                <div className="mt-2">
+                  <select
+                    className="w-full p-2 bg-[#0a0e17] border border-gray-700 rounded-md text-sm text-gray-400 outline-none cursor-pointer hover:border-gray-600"
+                    value=""
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const newMapped = { ...mappedValues, [e.target.value]: "" };
+                      const newConfig = { ...config, [field.name]: newMapped };
+                      setConfig(newConfig);
+                      dispatchConfig(newConfig);
+                    }}
+                  >
+                    <option value="">+ Add Column to Map</option>
+                    {availableHeaders.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    const isRequired = field.required || (field.name === "range" && config.operation === "write_rows");
+    return (
+      <div key={field.name} className="form-group">
+        <label className="block text-sm font-medium text-white mb-1">
+          {field.label}
+          {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+        </label>
+        <input
+          type={field.type}
+          value={fieldValue}
+          onFocus={() => setActiveField(field.name)}
+          placeholder={field.placeholder}
+          onChange={(e) => {
+            const newConfig = { ...config, [field.name]: e.target.value };
+            setConfig(newConfig);
+            dispatchConfig(newConfig);
+          }}
+          className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm placeholder-gray-600"
+          required={isRequired}
+        />
+      </div>
+    );
     return (
       <div key={field.name} className="form-group">
         <label className="block text-sm font-medium text-white mb-1">
@@ -616,7 +825,9 @@ export default function ConfigModal({
               }
               return (
                 <div className="space-y-4">
-                  {nodeConfig.fields.map((field) => renderField(field, nodeConfig))}
+                  {nodeConfig.fields
+                    .filter((field) => isFieldVisible(field, config))
+                    .map((field) => renderField(field, nodeConfig))}
                 </div>
               );
             })()}

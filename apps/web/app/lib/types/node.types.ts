@@ -37,7 +37,7 @@ export interface NodeConfig {
   tags?: string[]; // Searchable tags
   // Any extra raw config data
   data?: Record<string, any>; // Allow extra arbitrary config as needed
-    // NEW: What this node outputs (for next nodes to use)
+  // NEW: What this node outputs (for next nodes to use)
   outputSchema?: VariableDefinition[];
   // NEW: Sample output for UI preview
   sampleOutput?: Record<string, any>;
@@ -46,14 +46,15 @@ export interface NodeConfig {
 export interface ConfigField {
   name: string; // Field's internal key, e.g., "sheetId"
   label: string; // Human-readable label, e.g., "Sheet ID"
-  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password";
+  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password" | "column_mapper" | "bulk_payload";
   required?: boolean;
   defaultValue?: string | number | boolean; // Initial value if not set
   placeholder?: string;
-  fetchOptions?: string, 
-  value? : string,
+  fetchOptions?: string,
+  value?: string,
   options?: Array<{ label: string; id: string | number }>; // For dropdowns
   dependsOn?: string; // Name of another field this depends on
+  showForOperation?: Array<string>;
   description?: string; // Help text for this field
   multiline?: boolean; // For textarea: allow specifying multiline
   min?: number; // For number fields: min value

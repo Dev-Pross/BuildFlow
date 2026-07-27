@@ -17,7 +17,7 @@ import {
   HOOKS_URL,
   DashboardRangeSchema,
 } from "@repo/common/zod";
-import { GoogleSheetsNodeExecutor } from "@repo/nodes";
+import { GoogleOAuthService, GoogleSheetsNodeExecutor } from "@repo/nodes";
 import axios from "axios";
 const router: Router = Router();
 
@@ -187,7 +187,7 @@ router.get("/getCredentials/:type",
           message: "Incorrect type Input",
         });
       }
-      const exec = new GoogleSheetsNodeExecutor()
+      const authService = new GoogleOAuthService()
 
       // Check if credentials exist in database
       // const credentials = await prismaClient.credential.findMany({
@@ -196,7 +196,7 @@ router.get("/getCredentials/:type",
       //     type: type,
       //   },
       // });
-      const credentials = await exec.getAllCredentials(userId, type)
+      const credentials = await authService.getAllCredentials(userId, type)
 
       // if (credentials.length === 0) {
       //   // No credentials found - return the correct auth URL
@@ -213,16 +213,11 @@ router.get("/getCredentials/:type",
       //   message: "Credentials Fetched successfully",
       //   Data: credentials,
       // });
-      if (credentials.length === 0) {
-        return res.status(statusCodes.OK).json({
-          message: "No credentials found",
-        });
-      }
 
       return res.status(statusCodes.OK).json({
         message: "Credentials fetched",
         data: credentials,
-        hasCredentials: true,
+        hasCredentials: credentials.length > 0,
       });
     } catch (e) {
       console.log(
@@ -341,7 +336,7 @@ router.get("/dashboard/overview",
       const gmailConnected =
         hasSharedGoogleOAuth || credentialTypes.has("gmail_oauth");
       const googleSheetsConnected =
-        hasSharedGoogleOAuth || credentialTypes.has("google_sheets_oauth");
+        hasSharedGoogleOAuth || credentialTypes.has("gsheet_oauth");
 
       return res.status(statusCodes.OK).json({
         message: "Dashboard overview fetched successfully",

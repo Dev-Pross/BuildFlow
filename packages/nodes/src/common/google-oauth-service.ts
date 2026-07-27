@@ -6,6 +6,7 @@ interface OAuthTokens {
   refresh_token: string;
   token_type: string;
   expiry_date: number;
+  email?: string;
   scope: string;
 }
 
@@ -24,18 +25,29 @@ class GoogleOAuthService {
     );
   }
 
-  getAuthUrl(userId: string): string {
-    const scopes = [
+  getAuthUrl(userId: string, type: string, redirect_uri?: string): string {
+    const sheetScope = [
       "https://www.googleapis.com/auth/spreadsheets",
       "https://www.googleapis.com/auth/drive.readonly",
-      "https://www.googleapis.com/auth/gmail.send", 
+      "https://www.googleapis.com/auth/userinfo.email",
+    ]
+    const gmailScopes = [
+      "https://www.googleapis.com/auth/gmail.send",
       "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/userinfo.email",
     ];
 
+    const scopes = type.includes('mail') ? gmailScopes : sheetScope;
+
+    const state = {
+      userId,
+      type,
+      redirect_uri
+    }
     return this.oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: scopes,
-      state: userId,
+      state: Buffer.from(JSON.stringify(state)).toString('base64'),
       prompt: "consent",
     });
   }
@@ -43,13 +55,17 @@ class GoogleOAuthService {
   async getTokens(code: string): Promise<OAuthTokens> {
     try {
       const { tokens } = await this.oauth2Client.getToken(code);
-
+      this.oauth2Client.setCredentials(tokens)
+      const oauth2 = await google.oauth2({ version: 'v2', auth: this.oauth2Client })
+      const userinfo = await oauth2.userinfo.get();
+      console.log("User Info: ", userinfo.data);
       return {
         access_token: tokens.access_token || "",
         refresh_token: tokens.refresh_token || "",
         expiry_date: tokens.expiry_date || 0,
         token_type: tokens.token_type || "",
         scope: tokens.scope || "",
+        email: userinfo.data.email || ''
       };
     } catch (error) {
       throw new Error(
@@ -61,21 +77,22 @@ class GoogleOAuthService {
   async saveCredentials(
     userId: string,
     tokens: OAuthTokens,
-    nodeId?: string
+    type: string,
+    nodeId?: string,
   ): Promise<void> {
     try {
       // const credentialId = `cred_google_${userId}_${Date.now()}`
 
-     const Data =  await this.prisma.credential.create({
+      const Data = await this.prisma.credential.create({
         data: {
           // id:credentialId,
           userId: userId,
-          type: "google_oauth",
+          type: type,
           config: JSON.parse(JSON.stringify(tokens)),
           nodeId: nodeId || null,
         },
       });
-      console.log("THis  log is writing  to see  if google auth tokens is storing to db or not ",Data)
+      console.log("THis  log is writing  to see  if google auth tokens is storing to db or not ", Data)
     } catch (error) {
       throw new Error(
         `failed to store data in Credentials: ${error instanceof Error ? error.message : "Unknown Error"}`
@@ -85,7 +102,8 @@ class GoogleOAuthService {
 
   async getCredentials(
     userId: string,
-    credentialId: string
+    credentialId: string,
+    type: string
   ): Promise<{ id: string; tokens: OAuthTokens } | null> {
     try {
       console.log("user id: ", userId, " & ", credentialId, " from oauth service");
@@ -93,7 +111,7 @@ class GoogleOAuthService {
         where: {
           id: credentialId,
           userId: userId,
-          type: "google_oauth",
+          type: type,
         },
         orderBy: {
           id: "desc",
@@ -128,45 +146,45 @@ class GoogleOAuthService {
       );
     }
   }
-    async updateCredentials(credentialId: string, tokens: Partial<OAuthTokens>): Promise<void> {
-        try{
-            const existing = await this.prisma.credential.findUnique({
-                where:{
-                    id: credentialId
-                }
-            });
-
-            if(!existing) throw new Error(`No Credential found`);
-
-            // Filter out empty/falsy values to prevent overwriting valid tokens
-            const filteredTokens: Partial<OAuthTokens> = {};
-            if (tokens.access_token) filteredTokens.access_token = tokens.access_token;
-            if (tokens.refresh_token) filteredTokens.refresh_token = tokens.refresh_token;
-            if (tokens.token_type) filteredTokens.token_type = tokens.token_type;
-            if (tokens.expiry_date) filteredTokens.expiry_date = tokens.expiry_date;
-            if (tokens.scope) filteredTokens.scope = tokens.scope;
-
-            const updatedConfig = {
-                ...(existing.config as object),
-                ...filteredTokens
-            }
-
-            await this.prisma.credential.update({
-                where:{
-                    id:credentialId
-                },
-                data:{
-                    config: updatedConfig as any
-                }
-            });
-
-            console.log(`✅ Credentials updated for ${credentialId}`);
+  async updateCredentials(credentialId: string, tokens: Partial<OAuthTokens>): Promise<void> {
+    try {
+      const existing = await this.prisma.credential.findUnique({
+        where: {
+          id: credentialId
         }
-        catch(e){ 
-            throw new Error(`Failed to update Credentials: ${e instanceof Error ? e.message : "unknown error"}`)
+      });
+
+      if (!existing) throw new Error(`No Credential found`);
+
+      // Filter out empty/falsy values to prevent overwriting valid tokens
+      const filteredTokens: Partial<OAuthTokens> = {};
+      if (tokens.access_token) filteredTokens.access_token = tokens.access_token;
+      if (tokens.refresh_token) filteredTokens.refresh_token = tokens.refresh_token;
+      if (tokens.token_type) filteredTokens.token_type = tokens.token_type;
+      if (tokens.expiry_date) filteredTokens.expiry_date = tokens.expiry_date;
+      if (tokens.scope) filteredTokens.scope = tokens.scope;
+
+      const updatedConfig = {
+        ...(existing.config as object),
+        ...filteredTokens
+      }
+
+      await this.prisma.credential.update({
+        where: {
+          id: credentialId
+        },
+        data: {
+          config: updatedConfig as any
         }
+      });
+
+      console.log(`✅ Credentials updated for ${credentialId}`);
+    }
+    catch (e) {
+      throw new Error(`Failed to update Credentials: ${e instanceof Error ? e.message : "unknown error"}`)
     }
   }
+}
 
 
 export { GoogleOAuthService };

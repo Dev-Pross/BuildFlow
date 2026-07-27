@@ -19,12 +19,14 @@ export const useCredentials = (type: string, workflowId?: string): any => {
 
         const response = await api.Credentials.getCredentials(type)
         const data = JSON.stringify(response)
-        console.log("This is the log from usecredentials" , data)
+        console.log("This is the log from usecredentials", data)
         // Backend should ONLY return stored credentials
-        if (Array.isArray(response)) {
-          setCred(response);
-        } else if(typeof response === "string"){
-          setAuthUrl(response)
+        if (response.hasCredentials) {
+          setCred(response.data);
+        } else {
+          console.log("Redirect url:", window.location.pathname)
+          const url = `${BACKEND_URL}/auth/google/initiate?authType=${type}&redirect_url=${encodeURIComponent(window.location.pathname)}`
+          setAuthUrl(url)
         }
 
         // Frontend defines where to redirect for OAuth

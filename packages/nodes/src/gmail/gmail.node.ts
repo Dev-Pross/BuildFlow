@@ -7,7 +7,7 @@ export class GmailNode {
         type: "gmail",
         description: 'Communicate with Gmail',
         config: {
-            fields:[
+            fields: [
                 {
                     name: "From",
                     type: "email",
@@ -19,25 +19,25 @@ export class GmailNode {
                     require: true
                 },
                 {
-                    name:"Body",
+                    name: "Body",
                     type: "textArea",
                     require: true
                 }
             ]
         },
         requireAuth: true,
-        authType: 'google_oauth'
+        authType: 'gmail_oauth'
 
     };
 
-    static async register(){
+    static async register() {
         await NodeRegistry.register(this.definition)
         // console.log(`✅ Registered node: ${this.definition.name}`);
         // await NodeRegistry.registerTrigger(this.definition)
         // console.log(`✅ Registered Trigger: ${this.definition.name}`);
     }
 
-    static getExecutor(){
+    static getExecutor() {
         return new GmailExecutor();
     }
 }

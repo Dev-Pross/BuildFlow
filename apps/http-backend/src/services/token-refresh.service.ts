@@ -59,11 +59,11 @@ class TokenRefreshService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            
+
             // Handle invalid_grant - refresh token is no longer valid
             if (errorMessage.includes('invalid_grant')) {
                 console.log(`🗑️  Deleting invalid credential ${credentialId} (refresh token expired/revoked)`);
-                
+
                 try {
                     // 1. Clear credId from any Triggers that use this credential
                     const triggers = await prismaClient.trigger.findMany({
@@ -74,7 +74,7 @@ class TokenRefreshService {
                             }
                         }
                     });
-                    
+
                     for (const trigger of triggers) {
                         const config = trigger.config as any;
                         delete config.credId;
@@ -94,7 +94,7 @@ class TokenRefreshService {
                             }
                         }
                     });
-                    
+
                     for (const node of nodes) {
                         const config = node.config as any;
                         delete config.credId;
@@ -109,21 +109,21 @@ class TokenRefreshService {
                     await prismaClient.credential.delete({
                         where: { id: credentialId }
                     });
-                    
+
                     console.log(`✅ Credential ${credentialId} deleted. Cleared from ${triggers.length} triggers and ${nodes.length} nodes.`);
                     console.log(`   User needs to reconnect Google account.`);
-                    
+
                 } catch (deleteError) {
                     console.error(`Failed to delete credential: ${deleteError}`);
                 }
-                
-                return { 
-                    credentialId, 
-                    success: false, 
-                    error: 'Credential deleted. Please reconnect your Google account.' 
+
+                return {
+                    credentialId,
+                    success: false,
+                    error: 'Credential deleted. Please reconnect your Google account.'
                 };
             }
-            
+
             console.error(`❌ Failed to refresh token for credential ${credentialId}: ${errorMessage}`);
             return { credentialId, success: false, error: errorMessage };
         }
@@ -134,12 +134,12 @@ class TokenRefreshService {
      */
     async refreshAllExpiringTokens(): Promise<{ total: number; refreshed: number; failed: number; deleted: number }> {
         console.log('\n🔄 Starting token refresh job...');
-        
+
         try {
             // Fetch all google_oauth credentials
             const credentials = await prismaClient.credential.findMany({
                 where: {
-                    type: 'google_oauth'
+                    type: { in: ['gmail_oauth', 'gsheet_oauth', 'google_oauth'] }
                 }
             });
 
@@ -162,9 +162,9 @@ class TokenRefreshService {
                 if (this.isTokenExpiring(tokens.expiry_date)) {
                     const expiresIn = Math.round((tokens.expiry_date - Date.now()) / 1000 / 60);
                     console.log(`⏰ Credential ${credential.id} expires in ${expiresIn} minutes - refreshing...`);
-                    
+
                     const result = await this.refreshToken(credential.id, tokens);
-                    
+
                     if (result.success) {
                         refreshed++;
                     } else if (result.error?.includes('deleted')) {
@@ -215,10 +215,10 @@ class TokenRefreshService {
             return await this.refreshToken(credentialId, tokens);
 
         } catch (error) {
-            return { 
-                credentialId, 
-                success: false, 
-                error: error instanceof Error ? error.message : 'Unknown error' 
+            return {
+                credentialId,
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
     }
