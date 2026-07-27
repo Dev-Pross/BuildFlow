@@ -5,6 +5,7 @@ interface NodeExecutionContext {
   credentialId: string;
   userId: string;
   config?: any;
+  authType?: string;
   inputData?: any;
 }
 
@@ -27,7 +28,8 @@ class GmailExecutor {
       // Get credentials
       const credentials = await this.oauthService.getCredentials(
         context.userId,
-        context.credentialId
+        context.credentialId,
+        context.authType || 'gmail_oauth'
       );
 
       if (!credentials) {
@@ -78,6 +80,6 @@ class GmailExecutor {
   }
 }
 
-export { GmailExecutor } ;
+export { GmailExecutor };
 // export { default as GmailExecutor } from "./gmail.executor.js";
 // export { GmailService } from "./gmail.service.js";

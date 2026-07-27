@@ -2,23 +2,35 @@ import { google, sheets_v4, drive_v3 } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { OAuthTokens } from '../common/google-oauth-service.js';
 
-interface GoogleSheetsCredentials{
+interface GoogleSheetsCredentials {
     access_token: string,
     refresh_token: string,
     token_type: string,
     expiry_date: number
 }
 
-interface ReadRowsParams{
+interface ReadRowsParams_ClearRows {
     spreadsheetId: string,
     range: string
 }
 
-class GoogleSheetsService{
-    private sheets : sheets_v4.Sheets;
+interface AppendRowsParams {
+    spreadsheetId: string,
+    range: string,
+    values: any[][]
+}
+
+interface WriteRowsParams {
+    spreadsheetId: string,
+    range: string,
+    values: any[][]
+
+}
+class GoogleSheetsService {
+    private sheets: sheets_v4.Sheets;
     private auth: OAuth2Client;
     private drive: drive_v3.Drive;
-    constructor(credentials: GoogleSheetsCredentials){
+    constructor(credentials: GoogleSheetsCredentials) {
         this.auth = new google.auth.OAuth2(
             process.env.GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET,
@@ -44,7 +56,7 @@ class GoogleSheetsService{
 
     }
 
-    async getSheets(): Promise<any>{
+    async getSheets(): Promise<any> {
         const files = await this.drive.files.list({
             q: "mimeType='application/vnd.google-apps.spreadsheet'",
             spaces: 'drive',
@@ -52,7 +64,7 @@ class GoogleSheetsService{
             fields: 'files(id, name, createdTime)',
         })
 
-        if(files){
+        if (files) {
             return {
                 success: true,
                 data: files
@@ -64,8 +76,8 @@ class GoogleSheetsService{
         }
     }
 
-    async getSheetTabs(spreadsheetId: string): Promise<any>{
-        try{
+    async getSheetTabs(spreadsheetId: string): Promise<any> {
+        try {
             const response = await this.sheets.spreadsheets.get({
                 spreadsheetId: spreadsheetId,
                 fields: 'sheets.properties'
@@ -81,7 +93,7 @@ class GoogleSheetsService{
                 data: tabs
             };
         }
-        catch(error){
+        catch (error) {
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Failed to fetch sheet tabs'
@@ -89,29 +101,77 @@ class GoogleSheetsService{
         }
     }
 
-    async readRows(params: ReadRowsParams): Promise<any[][]>{
-        try{
+    async readRows(params: ReadRowsParams_ClearRows): Promise<any[][]> {
+        try {
             const response = await this.sheets.spreadsheets.values.get({
-                                    spreadsheetId: params.spreadsheetId,
-                                    range: params.range
-                                });
+                spreadsheetId: params.spreadsheetId,
+                range: params.range
+            });
             return response.data.values || []
         }
-        catch(error){
+        catch (error) {
             throw new Error(`Failed to fetch the rows: ${error}`)
         }
     }
 
-    isTokenExpired():boolean {
-        const credentials = this.auth.credentials;
-        if( !credentials.expiry_date) return false;
-        
-        return Date.now() >= credentials.expiry_date - (5 *60 * 1000);
+    async appendRows(params: AppendRowsParams): Promise<any> {
+        try {
+            const response = await this.sheets.spreadsheets.values.append({
+                spreadsheetId: params.spreadsheetId,
+                range: params.range,
+                valueInputOption: 'USER_ENTERED',
+                insertDataOption: 'INSERT_ROWS',
+                requestBody: {
+                    values: params.values
+                }
+            })
+            return response.data
+        }
+        catch (error) {
+            throw new Error(`Failed to append the rows: ${error}`)
+        }
     }
 
-    async refreshAccessToken(): Promise <GoogleSheetsCredentials>{
-        try{
-            const {credentials} = await this.auth.refreshAccessToken();
+    async writeRows(params: WriteRowsParams): Promise<any> {
+        try {
+            const response = await this.sheets.spreadsheets.values.update({
+                spreadsheetId: params.spreadsheetId,
+                range: params.range,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: params.values
+                }
+            })
+            return response.data
+        }
+        catch (error) {
+            throw new Error(`Failed to write the rows: ${error}`)
+        }
+    }
+
+    async clearRows(params: ReadRowsParams_ClearRows): Promise<any> {
+        try {
+            const response = await this.sheets.spreadsheets.values.clear({
+                spreadsheetId: params.spreadsheetId,
+                range: params.range
+            })
+            return response.data
+        }
+        catch (error) {
+            throw new Error(`Failed to clear the rows: ${error}`)
+        }
+    }
+
+    isTokenExpired(): boolean {
+        const credentials = this.auth.credentials;
+        if (!credentials.expiry_date) return false;
+
+        return Date.now() >= credentials.expiry_date - (5 * 60 * 1000);
+    }
+
+    async refreshAccessToken(): Promise<GoogleSheetsCredentials> {
+        try {
+            const { credentials } = await this.auth.refreshAccessToken();
 
             // IMPORTANT: Only include refresh_token if Google returns a new one
             // Google doesn't always return a new refresh_token on every refresh
@@ -129,11 +189,11 @@ class GoogleSheetsService{
 
             return result;
         }
-        catch (error){
+        catch (error) {
             throw new Error(`Failed to refresh token: ${error}`)
         }
     }
 }
 
 export { GoogleSheetsService }
-export type { GoogleSheetsCredentials, ReadRowsParams }
+export type { GoogleSheetsCredentials, ReadRowsParams_ClearRows, AppendRowsParams, WriteRowsParams }

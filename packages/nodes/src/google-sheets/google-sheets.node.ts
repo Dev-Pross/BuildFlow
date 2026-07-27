@@ -7,12 +7,12 @@ export class GoogleSheetNode {
         type: "google_sheet",
         description: 'Read and write data to Google Sheets',
         config: {
-            fields:[
+            fields: [
                 {
                     name: "operation",
                     type: "select",
                     required: true,
-                    options: ["read_rows"]
+                    options: ["read_rows", "append_rows", "write_rows", "clear_rows"]
                 },
                 {
                     name: "spreadSheetId",
@@ -27,18 +27,18 @@ export class GoogleSheetNode {
             ]
         },
         requireAuth: true,
-        authType: 'google_oauth'
+        authType: 'gsheet_oauth'
 
     };
 
-    static async register(){
+    static async register() {
         await NodeRegistry.register(this.definition)
         // console.log(`✅ Registered node: ${this.definition.name}`);
         // await NodeRegistry.registerTrigger(this.definition)
         // console.log(`✅ Registered Trigger: ${this.definition.name}`);
     }
 
-    static getExecutor(){
+    static getExecutor() {
         return new GoogleSheetsNodeExecutor();
     }
 }

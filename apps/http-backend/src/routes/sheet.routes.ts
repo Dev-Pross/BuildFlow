@@ -30,6 +30,7 @@ sheetRouter.get(
       const sheets = await sheetExecutor.getSheets({
         userId: userId,
         credentialId: credentialId,
+        authType: 'gsheet_oauth'
       });
       if ((sheets as any)?.success === false) {
         return res.status(statusCodes.NOT_FOUND).json({
@@ -76,7 +77,7 @@ sheetRouter.get(
         });
       }
       const sheets = await sheetExecutor.getSheetTabs(
-        { userId: userId, credentialId: credentialId },
+        { userId: userId, credentialId: credentialId, authType: 'gsheet_oauth' },
         sheetId
       );
 
@@ -101,3 +102,46 @@ sheetRouter.get(
     }
   }
 );
+
+sheetRouter.get(
+  "/getHeaders/:cred/:sheetId/:sheetName",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId)
+        return res.status(statusCodes.UNAUTHORIZED).json({
+          message: "User not authorized"
+        })
+
+      const { cred: credentialId, sheetId, sheetName } = req.params;
+
+      if (!credentialId || !sheetId || !sheetName) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Missing required parameters"
+        })
+      }
+
+      const result = await sheetExecutor.getHeaderRow({
+        userId, credentialId, authType: 'gsheet_oauth'
+      }, sheetId, sheetName
+      )
+
+      if (!result.success)
+        return res.status(statusCodes.NOT_FOUND).json({
+          message: "Failed to fetch headers", error: result
+        });
+
+      return res.status(statusCodes.OK).json({
+        message: "Headers fetched successfully",
+        headers: result.output
+      });
+    }
+    catch (e) {
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Error fetching sheet headers",
+        error: e instanceof Error ? e.message : "Unknown error"
+      });
+    }
+  }
+)

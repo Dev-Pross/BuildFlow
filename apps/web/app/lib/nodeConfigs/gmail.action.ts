@@ -6,8 +6,8 @@ export const gmailActionConfig: NodeConfig = {
   label: "Gmail",           // ✅ Clean name
   icon: "📧",               // ✅ Email icon
   description: "Send emails via Gmail",
-  credentials: "google_oauth",
-  
+  credentials: "gmail_oauth",
+
   fields: [
     {
       name: "credentialId",
@@ -44,7 +44,7 @@ export const gmailActionConfig: NodeConfig = {
       description: "Body content of the email"
     }
   ],
-  
+
   summary: "Send emails via Gmail",  // ✅ Correct description
   helpUrl: "https://docs.example.com/gmail-action",
 

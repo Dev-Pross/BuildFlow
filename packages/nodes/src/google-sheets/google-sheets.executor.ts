@@ -2,14 +2,15 @@ import { google } from "googleapis";
 import { GoogleOAuthService } from "../common/google-oauth-service.js";
 import { GoogleSheetsService, GoogleSheetsCredentials } from "./google-sheets.service.js";
 
-interface NodeExecutionContext{
+interface NodeExecutionContext {
     credentialId: string,
     userId: string,
     config?: any,    //sheet id / range...
+    authType: string,
     inputData?: any // previous node data
 }
 
-interface NodeExecutionResult{
+interface NodeExecutionResult {
     success: boolean,
     output?: any,
     error?: string,
@@ -18,15 +19,15 @@ interface NodeExecutionResult{
 
 }
 
-class GoogleSheetsNodeExecutor{
+class GoogleSheetsNodeExecutor {
 
     private oauthService: GoogleOAuthService;
     private sheetService: GoogleSheetsService | null = null;
-    constructor(){
+    constructor() {
         this.oauthService = new GoogleOAuthService();
-        
+
     }
-    async getSheets(context: NodeExecutionContext){
+    async getSheets(context: NodeExecutionContext) {
         const init = await this.ensureSheetService(context);
         if ('success' in init) return init;
         const sheetService = this.sheetService;
@@ -53,12 +54,12 @@ class GoogleSheetsNodeExecutor{
 
     async getAllCredentials(userId: string, type: string) {
         try {
-            
-            const credentials =  await this.oauthService.getAllCredentials(userId, type);
-            console.log("log from executor - ",credentials)
-            if(credentials.length > 0) return credentials
-            else return (this.oauthService.getAuthUrl(userId))
-            
+
+            const credentials = await this.oauthService.getAllCredentials(userId, type);
+            console.log("log from executor - ", credentials)
+            if (credentials.length > 0) return credentials
+            else return []
+
         } catch (e) {
             console.log(`Error in fetching credentials: ${e}`);
             return [];
@@ -88,13 +89,14 @@ class GoogleSheetsNodeExecutor{
 
     private async ensureSheetService(context: NodeExecutionContext): Promise<{ credentialId: string } | NodeExecutionResult> {
         try {
-            const credentials = await this.oauthService.getCredentials(context.userId, context.credentialId);
-            console.log("credentails from sheet.executor: ",credentials)
+            const type = context.authType ? context.authType : 'gsheet_oauth'
+            const credentials = await this.oauthService.getCredentials(context.userId, context.credentialId, type);
+            console.log("credentails from sheet.executor: ", credentials)
             if (!credentials) {
                 return {
                     success: false,
                     error: 'Google Sheets authorization required',
-                    authUrl: this.oauthService.getAuthUrl(context.userId),
+                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType),
                     requiresAuth: true
                 };
             }
@@ -107,7 +109,7 @@ class GoogleSheetsNodeExecutor{
                 return {
                     success: false,
                     error: 'Google account not connected.',
-                    authUrl: this.oauthService.getAuthUrl(context.userId),
+                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType),
                     requiresAuth: true
                 };
             }
@@ -118,7 +120,7 @@ class GoogleSheetsNodeExecutor{
         }
     }
     async execute(context: NodeExecutionContext): Promise<NodeExecutionResult> {
-        try{
+        try {
 
             const init = await this.ensureSheetService(context);
             if ('success' in init) return init;
@@ -133,17 +135,25 @@ class GoogleSheetsNodeExecutor{
                 };
             }
 
-            if(sheetService.isTokenExpired()){
+            if (sheetService.isTokenExpired()) {
                 const newTokens = await sheetService.refreshAccessToken();
                 await this.oauthService.updateCredentials(credentialId, newTokens)
             }
 
             const operation = context.config.operation;
-            console.log("operation from sheet executor: ",operation)
-            switch(operation){
+            console.log("operation from sheet executor: ", operation)
+            switch (operation) {
                 case 'read_rows':
-                    return await this.executeReadRows(sheetService,context);
+                    return await this.executeReadRows(sheetService, context);
 
+                case 'append_rows':
+                    return await this.executeAppendRows(sheetService, context);
+
+                case 'write_rows':
+                    return await this.executeWriteRows(sheetService, context);
+
+                case 'clear_rows':
+                    return await this.executeClearRows(sheetService, context);
                 default:
                     return {
                         success: false,
@@ -152,55 +162,83 @@ class GoogleSheetsNodeExecutor{
             }
         }
 
-        catch (e){
+        catch (e) {
 
             if (e instanceof Error && e.message.includes('No Google credentials found')) {
-            return {
-                success: false,
-                error: 'Google account not connected.',
-                authUrl: this.oauthService.getAuthUrl(context.userId),
-                requiresAuth: true
-            };
+                return {
+                    success: false,
+                    error: 'Google account not connected.',
+                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType),
+                    requiresAuth: true
+                };
             }
             return {
                 success: false,
-                error: e instanceof Error ? e.message : 'unknown error' 
+                error: e instanceof Error ? e.message : 'unknown error'
             }
         }
     }
-    // async getUserSheets(credentialId: string){
-    //     const credential = await prismaClient.credential.findFirst({
-    //         where: {
-    //             id: credentialId,
-    //             type: 'google_oauth'
-    //         },
-    //     });
 
-    //     if (!credential) {
-    //         throw new Error('No Google credentials found for user');
-    //     }
+    async getHeaderRow(context: NodeExecutionContext, sheetId: string, sheetName: string): Promise<NodeExecutionResult> {
+        const init = await this.ensureCredentials(context);
+        if ('success' in init) return init;
 
-    //     const { tokens } = credential
-    //     const oauth2 = new google.auth.OAuth2(
-    //         process.env.GOOGLE_CLIENT_ID,
-    //         process.env.GOOGLE_CLIENT_SECRET,
-    //         process.env.GOOGLE_REDIRECT_URI
-    //     );
+        const sheetService = this.sheetService;
+        if (!sheetService) {
+            return {
+                success: false,
+                error: 'Sheet service not initialized'
+            };
+        }
+        try {
+            const rows = await sheetService.readRows({
+                spreadsheetId: sheetId,
+                range: `${sheetName}!1:1`
+            })
+            const headers = (rows && rows.length > 0 && Array.isArray(rows[0]) ? rows[0] : []);
+            return {
+                success: true,
+                output: headers
+            }
+        } catch (e) {
+            return {
+                success: false,
+                error: e instanceof Error ? e.message : 'Failed to load headers'
+            };
+        }
+    }
 
-    //     oauth2.setCredentials(tokens);
+    private async prepareValuesForSheet(context: NodeExecutionContext): Promise<any[][]> {
+        const mode = context.config.mappingMode || 'visual';
 
-    //     const drive = google.drive({version: 'v3', auth: oauth2})
+        if (mode === 'bulk') {
+            const rawValues = context.config.bulkValues || context.inputData;
+            return this.normalizeValues(rawValues)
+        }
 
-    //     const response = await drive.files.list({
-    //         q: "mimeType='application/vnd.google-apps.spreadsheet'",
-    //         spaces: 'drive',
-    //         pageSize: 10,
-    //         fields: 'files(id, name, createdTime)',
-    //     });
+        const mappedColumns = context.config.mappedColumns || {};
 
-    //     return response.data.files;
-    // }
+        const headerResult = await this.getHeaderRow(
+            context,
+            context.config.spreadsheetId,
+            context.config.sheetName
+        );
+        if (!headerResult.success) {
+            throw new Error(`Could not fetch headers for mapping: ${headerResult.error}`);
+        }
 
+        const headers = headerResult.output as string[];
+        // If the sheet has no headers, fallback to just dumping the object values
+        if (!headers || headers.length === 0) {
+            return [Object.values(mappedColumns)];
+        }
+
+        const finalRow = headers.map(headerName => {
+            return mappedColumns[headerName] !== undefined ? mappedColumns[headerName] : ""
+        })
+
+        return [finalRow]
+    }
     /**
      * Checks if user's range starts from row 1 (includes headers)
      * "A1:Z100" → true, "A7:Z100" → false, "1:100" → true
@@ -226,10 +264,10 @@ class GoogleSheetsNodeExecutor{
     }
 
     async executeReadRows(sheetsService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
-        try{
+        try {
             const spreadsheetId = context.config.spreadsheetId;
             const sheetName = context.config.sheetName;
-            const userRange = context.config.range;
+            const userRange = (!context.config.fetchEntireTable && context.config.range) ? context.config.range : 'A1:Z'
 
             let combinedRows: any[];
             let dataRowCount: number;
@@ -281,15 +319,153 @@ class GoogleSheetsNodeExecutor{
                     hasHeaders: Object.keys(columns).length > 0
                 }
             }
-        }catch(e){
-            return{
+        } catch (e) {
+            return {
                 success: false,
                 error: e instanceof Error ? e.message : "Failed to read rows"
             }
         }
-        
+
+    }
+
+    private normalizeValues(rawValues: any): any[][] {
+        if (!rawValues) return [];
+
+        // If string, attempt JSON.parse first
+        if (typeof rawValues === 'string') {
+            const trimmed = rawValues.trim();
+            // Handle single quotes if user typed [['a', 'b']]
+            const formattedJson = trimmed.replace(/'/g, '"');
+            try {
+                const parsed = JSON.parse(formattedJson);
+                return this.normalizeValues(parsed);
+            } catch {
+                return [[trimmed]];
+            }
+        }
+
+        // If Array
+        if (Array.isArray(rawValues) && rawValues.length > 0) {
+            // Case 1: 2D Array of arrays [ [a, b], [c, d] ]
+            if (Array.isArray(rawValues[0])) {
+                return rawValues;
+            }
+
+            // Case 2: Array of Objects [ { col1: "val1", col2: "val2" }, ... ] (e.g. dragged from previous node)
+            if (typeof rawValues[0] === 'object' && rawValues[0] !== null) {
+                return rawValues.map(item =>
+                    typeof item === 'object' && item !== null ? Object.values(item) : [item]
+                );
+            }
+
+            // Case 3: 1D Array of primitives [a, b, c] -> [[a, b, c]]
+            return [rawValues];
+        }
+
+        // If Single Object { col1: "val1", col2: "val2" } (e.g. single node output)
+        if (typeof rawValues === 'object' && rawValues !== null) {
+            return [Object.values(rawValues)];
+        }
+
+        return [[String(rawValues)]];
+    }
+
+    async executeWriteRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
+        try {
+            const spreadsheetId = context.config.spreadsheetId;
+            const range = context.config.range;
+            const values = await this.prepareValuesForSheet(context);
+
+            if (!range) {
+                return {
+                    success: false,
+                    error: "Target Range / Cell is required for Update Rows operation (e.g. A2 or A1)"
+                };
+            }
+            const response = await sheetService.writeRows({
+                spreadsheetId: spreadsheetId,
+                range: `${context.config.sheetName}!${range}`,
+                values: values
+            })
+            return {
+                success: true,
+                output: {
+                    operation: "Update Rows",
+                    spreadsheetId: spreadsheetId,
+                    sheetName: context.config.sheetName,
+                    writtenRange: response.updatedRange || range,
+                    rowsUpdated: response.updatedRows || 1,
+                    columnsUpdated: response.updatedColumns || 0,
+                    cellsUpdated: response.updatedCells || 0
+                }
+            }
+        } catch (e) {
+            return {
+                success: false,
+                error: e instanceof Error ? e.message : "Failed to update rows"
+            }
+        }
+    }
+
+    async executeAppendRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
+        try {
+            const spreadsheetId = context.config.spreadsheetId;
+            const range = context.config.sheetName;
+
+            const values = await this.prepareValuesForSheet(context);
+
+            const response = await sheetService.appendRows({
+                spreadsheetId: spreadsheetId,
+                range: range,
+                values: values
+            })
+            console.log(`append rows: ${response}`)
+            return {
+                success: true,
+                output: {
+                    operation: "Append Rows",
+                    spreadsheetId: spreadsheetId,
+                    sheetName: context.config.sheetName,
+                    appendedRange: response.updates?.updatedRange || response.tableRange,
+                    rowsAdded: response.updates?.updatedRows || 1,
+                    columnsUpdated: response.updates?.updatedColumns || 0,
+                    cellsUpdated: response.updates?.updatedCells || 0
+                }
+            }
+        }
+        catch (e) {
+            return {
+                success: false,
+                error: e instanceof Error ? e.message : "Failed to append rows"
+            }
+        }
+    }
+
+    async executeClearRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
+        try {
+            const spreadsheetId = context.config.spreadsheetId;
+            const range = (!context.config.clearEntireTable && context.config.range) ? context.config.range : (context.config.includeHeaderRow ? `${context.config.sheetName}!A1:Z` : `${context.config.sheetName}!A2:Z`);
+
+            const response = await sheetService.clearRows({
+                spreadsheetId: spreadsheetId,
+                range: range
+            })
+            return {
+                success: true,
+                output: {
+                    ...response
+                }
+            }
+        }
+        catch (e) {
+            return {
+                success: false,
+                error: e instanceof Error ? e.message : "Failed to clear rows"
+            }
+        }
+
     }
 }
 
-export default  GoogleSheetsNodeExecutor ;
+export default GoogleSheetsNodeExecutor;
 // export  { NodeExecutionContext, NodeExecutionResult };
