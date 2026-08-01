@@ -7,6 +7,7 @@ interface OAuthTokens {
     token_type: string;
     expiry_date: number;
     scope?: string;
+    email?: string
 }
 
 interface RefreshResult {
@@ -35,24 +36,21 @@ class TokenRefreshService {
      */
     private async refreshToken(credentialId: string, tokens: OAuthTokens): Promise<RefreshResult> {
         try {
-            // Use your existing GoogleSheetsService to refresh the token
-            const sheetService = new GoogleSheetsService({
-                access_token: tokens.access_token,
-                refresh_token: tokens.refresh_token,
-                token_type: tokens.token_type,
-                expiry_date: tokens.expiry_date
-            });
 
             // Use your existing refreshAccessToken method
-            const newTokens = await sheetService.refreshAccessToken();
+            const newTokens = await this.oauthService.refreshAccessToken(tokens.refresh_token);
 
-            // Use your existing updateCredentials method from GoogleOAuthService
-            await this.oauthService.updateCredentials(credentialId, {
+            const updatedTokens = {
                 access_token: newTokens.access_token,
                 refresh_token: newTokens.refresh_token || tokens.refresh_token,
                 token_type: newTokens.token_type,
-                expiry_date: newTokens.expiry_date
-            });
+                expiry_date: newTokens.expiry_date,
+                scope: newTokens.scope || tokens.scope,
+                email: newTokens.email || tokens.email
+            };
+
+            // Use your existing updateCredentials method from GoogleOAuthService
+            await this.oauthService.updateCredentials(credentialId, updatedTokens);
 
             console.log(`✅ Token refreshed for credential: ${credentialId}`);
             return { credentialId, success: true };

@@ -100,6 +100,39 @@ class GoogleOAuthService {
     }
   }
 
+  isTokenExpired(expiry_date: number): boolean {
+    if (!expiry_date) return false;
+
+    return Date.now() >= expiry_date - (5 * 60 * 1000);
+  }
+
+  async refreshAccessToken(refresh_token: string): Promise<OAuthTokens> {
+    try {
+      await this.oauth2Client.setCredentials({ refresh_token: refresh_token })
+      const { credentials } = await this.oauth2Client.refreshAccessToken();
+
+      // IMPORTANT: Only include refresh_token if Google returns a new one
+      // Google doesn't always return a new refresh_token on every refresh
+      const result: OAuthTokens = {
+        access_token: credentials.access_token || '',
+        refresh_token: '', // Will be set below if present
+        token_type: credentials.token_type || '',
+        expiry_date: credentials.expiry_date || 0,
+        scope: credentials.scope || ''
+      };
+
+      // Only include refresh_token if Google actually returned one
+      if (credentials.refresh_token) {
+        result.refresh_token = credentials.refresh_token;
+      }
+
+      return result;
+    }
+    catch (error) {
+      throw new Error(`Failed to refresh token: ${error}`)
+    }
+  }
+
   async getCredentials(
     userId: string,
     credentialId: string,
@@ -117,11 +150,23 @@ class GoogleOAuthService {
           id: "desc",
         },
       });
-      console.log("credentails from oauth service: ", credentials);
       if (!credentials) return null;
+      let tokens = credentials?.config as unknown as OAuthTokens
+
+      if (this.isTokenExpired(tokens.expiry_date) && tokens.refresh_token) {
+        const newTokens = await this.refreshAccessToken(tokens.refresh_token)
+        if (!newTokens.scope) newTokens.scope = tokens.scope
+        if (!newTokens.email) newTokens.email = tokens.email
+        if (!newTokens.refresh_token) newTokens.refresh_token = tokens.refresh_token
+
+        await this.updateCredentials(credentialId, newTokens)
+
+        tokens = { ...tokens, ...newTokens }
+      }
+
       return {
         id: credentials.id,
-        tokens: credentials.config as unknown as OAuthTokens,
+        tokens: tokens as OAuthTokens,
       };
     } catch (err) {
       throw new Error(

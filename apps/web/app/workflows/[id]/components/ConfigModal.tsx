@@ -459,7 +459,7 @@ export default function ConfigModal({
                     key={cred.id}
                     className="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 text-xs rounded-full border border-emerald-500/20 font-medium"
                   >
-                    {cred.email || cred.name}
+                    {cred.config?.email || cred.name}
                   </span>
                 ))}
               </div>
@@ -674,28 +674,28 @@ export default function ConfigModal({
         />
       </div>
     );
-    return (
-      <div key={field.name} className="form-group">
-        <label className="block text-sm font-medium text-white mb-1">
-          {field.label}
-          {field.required && <span className="text-red-400">*</span>}
-        </label>
-        <input
-          type={field.type}
-          value={fieldValue}
-          onFocus={() => setActiveField(field.name)}
-          placeholder={field.placeholder}
-          onChange={(e) => {
-            const newConfig = { ...config, [field.name]: e.target.value };
-            setConfig(newConfig)
-            dispatchConfig(newConfig)
-          }
-          }
-          className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm placeholder-gray-600"
-          required={field.required}
-        />
-      </div>
-    );
+    // return (
+    //   <div key={field.name} className="form-group">
+    //     <label className="block text-sm font-medium text-white mb-1">
+    //       {field.label}
+    //       {field.required && <span className="text-red-400">*</span>}
+    //     </label>
+    //     <input
+    //       type={field.type}
+    //       value={fieldValue}
+    //       onFocus={() => setActiveField(field.name)}
+    //       placeholder={field.placeholder}
+    //       onChange={(e) => {
+    //         const newConfig = { ...config, [field.name]: e.target.value };
+    //         setConfig(newConfig)
+    //         dispatchConfig(newConfig)
+    //       }
+    //       }
+    //       className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm placeholder-gray-600"
+    //       required={field.required}
+    //     />
+    //   </div>
+    // );
   };
 
   return (
