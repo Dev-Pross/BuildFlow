@@ -162,37 +162,7 @@ class GoogleSheetsService {
         }
     }
 
-    isTokenExpired(): boolean {
-        const credentials = this.auth.credentials;
-        if (!credentials.expiry_date) return false;
 
-        return Date.now() >= credentials.expiry_date - (5 * 60 * 1000);
-    }
-
-    async refreshAccessToken(): Promise<GoogleSheetsCredentials> {
-        try {
-            const { credentials } = await this.auth.refreshAccessToken();
-
-            // IMPORTANT: Only include refresh_token if Google returns a new one
-            // Google doesn't always return a new refresh_token on every refresh
-            const result: GoogleSheetsCredentials = {
-                access_token: credentials.access_token || '',
-                refresh_token: '', // Will be set below if present
-                token_type: credentials.token_type || '',
-                expiry_date: credentials.expiry_date || 0
-            };
-
-            // Only include refresh_token if Google actually returned one
-            if (credentials.refresh_token) {
-                result.refresh_token = credentials.refresh_token;
-            }
-
-            return result;
-        }
-        catch (error) {
-            throw new Error(`Failed to refresh token: ${error}`)
-        }
-    }
 }
 
 export { GoogleSheetsService }

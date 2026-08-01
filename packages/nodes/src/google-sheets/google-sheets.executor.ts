@@ -135,10 +135,6 @@ class GoogleSheetsNodeExecutor {
                 };
             }
 
-            if (sheetService.isTokenExpired()) {
-                const newTokens = await sheetService.refreshAccessToken();
-                await this.oauthService.updateCredentials(credentialId, newTokens)
-            }
 
             const operation = context.config.operation;
             console.log("operation from sheet executor: ", operation)
@@ -444,7 +440,7 @@ class GoogleSheetsNodeExecutor {
     async executeClearRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
         try {
             const spreadsheetId = context.config.spreadsheetId;
-            const range = (!context.config.clearEntireTable && context.config.range) ? context.config.range : (context.config.includeHeaderRow ? `${context.config.sheetName}!A1:Z` : `${context.config.sheetName}!A2:Z`);
+            const range = (!context.config.clearEntireTable && context.config.range) ? `${context.config.sheetName}!${context.config.range}` : (context.config.includeHeaderRow ? `${context.config.sheetName}!A1:Z` : `${context.config.sheetName}!A2:Z`);
 
             const response = await sheetService.clearRows({
                 spreadsheetId: spreadsheetId,
