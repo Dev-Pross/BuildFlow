@@ -25,13 +25,18 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
                             <div className="flex-[2] px-4 py-2.5 text-xs font-medium text-blue-300 truncate">
                                 {key}
                             </div>
-                            <div className="flex-[3] px-4 py-2.5 text-xs text-gray-300 border-l border-[#1a1f2e]/50 font-mono break-all">
+                            <div className={`flex-[3] min-w-0 text-xs text-gray-300 border-l border-[#1a1f2e]/50 font-mono break-all ${isNested && Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' ? 'p-0' : 'px-4 py-2.5'}`}>
                                 {isNested ? (
                                     Array.isArray(value) ? (
-                                        <span className="text-purple-400">[{value.map(v => typeof v === 'string' ? `"${v}"` : String(v)).join(', ')}]</span>
+                                        value.length > 0 && typeof value[0] === 'object' ? (
+                                            <div className=" w-full">{renderArrayOfObjectsTable(value, true)}</div>
+                                        ) : (
+                                            <span className="text-purple-400">[{value.map(v => typeof v === 'string' ? `"${v}"` : String(v)).join(', ')}]</span>
+                                        )
                                     ) : (
-                                        <span className="text-gray-500 italic">Object</span>
+                                        <div className="mt-2 mb-2 w-full">{renderObjectTable(value)}</div>
                                     )
+
                                 ) : typeof value === 'boolean' ? (
                                     <span className={value ? 'text-green-400' : 'text-red-400'}>{String(value)}</span>
                                 ) : value === null || value === undefined ? (
@@ -84,7 +89,7 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
     };
 
     // Array of objects table
-    const renderArrayOfObjectsTable = (data: any[]) => {
+    const renderArrayOfObjectsTable = (data: any[], isNestedTable = false) => {
         const keysSet = new Set<string>();
         data.slice(0, 100).forEach(item => {
             if (item && typeof item === 'object') Object.keys(item).forEach(k => keysSet.add(k));
@@ -106,31 +111,30 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
         }
 
         return (
-            <div className="w-full border border-[#2a2f3e] rounded-lg overflow-hidden overflow-x-auto">
-                <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
-                    <thead className="bg-[#161b22] sticky top-0">
-                        <tr>
-                            <th className="px-3 py-2.5 w-10 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal text-[10px]">#</th>
-                            {headers.map(h => (
-                                <th key={h} className="px-4 py-2.5 border-r border-b border-[#2a2f3e] font-medium text-blue-300 truncate max-w-[160px]">{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {data.slice(0, 100).map((item, ri) => (
-                            <tr key={ri} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors">
-                                <td className="px-3 py-2 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26] text-[10px]">{ri}</td>
-                                {headers.map(h => {
-                                    const val = item?.[h];
-                                    const display = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '');
-                                    return (
-                                        <td key={h} className="px-4 py-2 border-r border-[#1a1f2e]/50 truncate max-w-[200px] text-gray-300">{display}</td>
-                                    );
-                                })}
-                            </tr>
+            <div className={`w-full overflow-hidden overflow-x-auto ${isNestedTable ? '' : 'border border-[#2a2f3e] rounded-lg'}`}>                <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
+                <thead className="bg-[#161b22] sticky top-0">
+                    <tr>
+                        <th className="px-3 py-2.5 w-10 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal text-[10px]">#</th>
+                        {headers.map(h => (
+                            <th key={h} className="px-4 py-2.5 border-r border-b border-[#2a2f3e] font-medium text-blue-300 truncate max-w-[160px]">{h}</th>
                         ))}
-                    </tbody>
-                </table>
+                    </tr>
+                </thead>
+                <tbody>
+                    {data.slice(0, 100).map((item, ri) => (
+                        <tr key={ri} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors">
+                            <td className="px-3 py-2 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26] text-[10px]">{ri}</td>
+                            {headers.map(h => {
+                                const val = item?.[h];
+                                const display = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '');
+                                return (
+                                    <td key={h} className="px-4 py-2 border-r border-[#1a1f2e]/50 truncate max-w-[200px] text-gray-300">{display}</td>
+                                );
+                            })}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
             </div>
         );
     };

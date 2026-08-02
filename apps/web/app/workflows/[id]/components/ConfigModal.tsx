@@ -19,6 +19,7 @@ import {
 } from "@/store/slices/nodeOutputSlice";
 import { workflowActions } from "@/store/slices/workflowSlice";
 import { TestPanel } from "@/app/components/ui/TestPanel";
+import { RichVariableInput } from "@/app/components/ui/RichVariableInput";
 
 interface ConfigModalProps {
   isOpen: boolean;
@@ -59,6 +60,11 @@ export default function ConfigModal({
 
   // Get all tested outputs from Redux (for variable resolution)
   const allTestedOutputs = useAppSelector(selectAllOutputs);
+  
+  const availableNodes = Object.entries(allTestedOutputs).map(([id, output]) => ({
+    id,
+    name: output.nodeName || 'Node'
+  }));
 
   // Get test output from Redux for this node
   const nodeTestOutput = useAppSelector((state) =>
@@ -423,8 +429,87 @@ export default function ConfigModal({
     return true
   }
 
+  const extractSchemaKeys = (data: any): string[] => {
+    if (!Array.isArray(data)) return ["Invalid Data (Expected an Array)"];
+    if (data.length === 0) return ["(Array is Empty - No Keys Found)"];
+    if (typeof data[0] !== 'object' || data[0] === null) return ["(Value Itself)"];
+    if (Array.isArray(data[0])) {
+      return data[0].map((h: any) => String(h));
+    }
+    
+    const keys: string[] = [];
+    const extractKeysRecursive = (obj: any, prefix = "") => {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const newKey = prefix ? `${prefix}.${key}` : key;
+          const value = obj[key];
+          if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            extractKeysRecursive(value, newKey);
+          } else {
+            keys.push(newKey);
+          }
+        }
+      }
+    };
+    
+    extractKeysRecursive(data[0]);
+    return Array.from(new Set(keys));
+  };
+
   const renderField = (field: ConfigField, nodeConfig: any) => {
     const fieldValue = config[field.name] ?? field.defaultValue ?? "";
+
+    if (field.type === "dynamic_schema_dropdown") {
+      let options: string[] = ["(No Data Mapped)"];
+      
+      const dependentFieldName = field.name === "sourceKey" ? "sourceData" : "referenceData";
+      const dependentFieldValue = config[dependentFieldName];
+      
+      if (dependentFieldValue && typeof dependentFieldValue === 'string') {
+        const interpolationContext = buildTestContext();
+        const resolvedConfig = resolveConfigVariables({ temp: dependentFieldValue }, interpolationContext);
+        const resolvedData = resolvedConfig.temp;
+        
+        if (resolvedData !== dependentFieldValue) {
+           options = extractSchemaKeys(resolvedData);
+        } else {
+           options = ["(Test Node to Load Options)"];
+        }
+      }
+
+      return (
+        <div key={field.name} className="form-group">
+          <label className="block text-sm font-medium text-white mb-1">
+            {field.label}
+            {field.required && <span className="text-red-400">*</span>}
+          </label>
+          <select
+            value={fieldValue}
+            onFocus={() => setActiveField(field.name)}
+            onChange={(e) => {
+              const newConfig = { ...config, [field.name]: e.target.value };
+              setConfig(newConfig);
+              dispatchConfig(newConfig);
+            }}
+            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
+            required={field.required}
+          >
+            <option value="">Select {field.label.toLowerCase()}</option>
+            {options.map((opt) => {
+              let val = opt;
+              if (opt === "(Value Itself)") val = "__value__";
+              else if (opt.startsWith("(")) val = "";
+              
+              return (
+                <option key={opt} value={val} disabled={opt.startsWith("(") && opt !== "(Value Itself)"}>
+                  {opt}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      );
+    }
 
     if (field.type === "dropdown" && field.name === "credentialId") {
       // Use the values from useCredentials: credentials and authUrl
@@ -532,7 +617,7 @@ export default function ConfigModal({
             {field.label}
             {field.required && <span className="text-red-400">*</span>}
           </label>
-          <textarea
+          {/* <textarea
             value={fieldValue}
             placeholder={field.placeholder}
             onFocus={() => setActiveField(field.name)}
@@ -545,7 +630,19 @@ export default function ConfigModal({
             className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm placeholder-gray-600 resize-none"
             required={field.required}
             rows={4}
+          /> */}
+          <RichVariableInput
+            value={fieldValue || ''}
+            placeholder={field.placeholder}
+            onFocus={() => setActiveField(field.name)}
+            onChange={(newValue) => {
+              const newConfig = { ...config, [field.name]: newValue };
+              setConfig(newConfig);
+              dispatchConfig(newConfig);
+            }}
+            availableNodes={availableNodes}
           />
+
         </div>
       );
     }
@@ -659,18 +756,16 @@ export default function ConfigModal({
           {field.label}
           {isRequired && <span className="text-red-400 ml-0.5">*</span>}
         </label>
-        <input
-          type={field.type}
-          value={fieldValue}
-          onFocus={() => setActiveField(field.name)}
+        <RichVariableInput
+          value={fieldValue || ''}
           placeholder={field.placeholder}
-          onChange={(e) => {
-            const newConfig = { ...config, [field.name]: e.target.value };
+          onFocus={() => setActiveField(field.name)}
+          onChange={(newValue) => {
+            const newConfig = { ...config, [field.name]: newValue };
             setConfig(newConfig);
             dispatchConfig(newConfig);
           }}
-          className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm placeholder-gray-600"
-          required={isRequired}
+          availableNodes={availableNodes}
         />
       </div>
     );

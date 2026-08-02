@@ -5,7 +5,7 @@ export class GmailNode {
     static definition = {
         name: "Gmail",
         type: "gmail",
-        description: 'Communicate with Gmail',
+        description: "Sends an outbound email. Requires 'To', 'From', and 'Body' fields. Use this ONLY for sending messages, not reading.",
         config: {
             fields: [
                 {
@@ -26,7 +26,8 @@ export class GmailNode {
             ]
         },
         requireAuth: true,
-        authType: 'gmail_oauth'
+        authType: 'gmail_oauth',
+        icon: "/gmail.svg"
 
     };
 

@@ -1,6 +1,7 @@
 import { ExecutionContext, ExecutionResult, NodeExecutor } from "../registry/Execution.config.types.js";
 import { GmailExecutor } from "@repo/nodes/nodeClient";
-import {GoogleSheetsNodeExecutor} from "@repo/nodes/nodeClient";
+import { GoogleSheetsNodeExecutor } from "@repo/nodes/nodeClient";
+import { FilterExecutor } from "../filter/filter.executor.js";
 class ExecutionRegistry {
   private executors = new Map<string, NodeExecutor>();
 
@@ -40,6 +41,7 @@ class ExecutionRegistry {
     //wehen visits this next time make sure chang gmail executor implements NodeExecutor
     this.register("gmail", new GmailExecutor() as NodeExecutor);
     this.register("google_sheet", new GoogleSheetsNodeExecutor() as NodeExecutor)
+    this.register("filter", new FilterExecutor() as NodeExecutor)
     console.log(`The current Executors are ${this.executors.size}`);
   }
 }
