@@ -10,6 +10,7 @@ import {
 // Track node outputs during workflow execution for variable resolution
 interface NodeExecutionOutput {
   nodeName: string;
+  nodeId?: string;
   outputData: any;
 }
 
@@ -101,6 +102,9 @@ export async function executeWorkflow(
 
     // Build interpolation context from all previously executed nodes
     const interpolationContext = buildInterpolationContext(executedNodeOutputs);
+    for (const out of executedNodeOutputs) {
+      if (out.nodeId) interpolationContext[out.nodeId] = out.outputData;
+    }
     console.log(`[Interpolation] Before: ${JSON.stringify(interpolationContext)}`);
     // Resolve any {{variable}} references in the config
     console.log(`[nodeConfig] Before: ${JSON.stringify(nodeConfig)}`);
@@ -168,6 +172,9 @@ export async function executeWorkflow(
           return o;
         });
         const loopInterpolationCtx = buildInterpolationContext(loopOutputs);
+        for (const out of loopOutputs) {
+          if (out.nodeId) loopInterpolationCtx[out.nodeId] = out.outputData;
+        }
 
         // Re-resolve config with current row
         const originalConfig = { ...(node.config as Record<string, any>) };
@@ -302,7 +309,8 @@ export async function executeWorkflow(
 
     // Store this node's output for variable resolution in subsequent nodes
     executedNodeOutputs.push({
-      nodeName: node.id,
+      nodeName: node.name,
+      nodeId: node.id,
       outputData: execute.output
     });
     console.log(`[Interpolation] Added ${node.name} output to context. Total nodes in context: ${executedNodeOutputs.length}`);

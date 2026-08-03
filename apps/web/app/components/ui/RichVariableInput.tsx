@@ -49,7 +49,7 @@ export function parseValueToHtml(rawValue: string, availableNodes: AvailableNode
     // 2. Parse the sanitized value to inject the visual pills
     return sanitizedValue.replace(/\{\{([^.]+)\.([^}]+)\}\}/g, (match, nodeId, path) => {
         const node = availableNodes.find(n => n.id === nodeId);
-        const displayName = node ? node.name : "Unknown Node";
+        const displayName = node ? escapeHtml(node.name) : "Unknown Node";
         const colorClass = getNodeColorClass(nodeId);
         // 3. IMPORTANT: Added the "pill" class at the start of the class list
         return `<span contenteditable="false" class="pill inline-flex items-center px-1.5 py-0.5 mx-1 rounded text-[10px] border align-middle font-mono select-all cursor-default ${colorClass}" data-id="${nodeId}" data-path="${path}">${displayName} &gt; ${path}</span>`;
