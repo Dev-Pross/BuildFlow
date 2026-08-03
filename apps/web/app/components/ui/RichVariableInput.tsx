@@ -36,12 +36,23 @@ export function getNodeColorClass(nodeId: string): string {
 export function parseValueToHtml(rawValue: string, availableNodes: AvailableNode[]): string {
     if (!rawValue) return "";
 
-    return rawValue.replace(/\{\{([^.]+)\.([^}]+)\}\}/g, (match, nodeId, path) => {
+    // 1. Sanitize the raw input to prevent Cross-Site Scripting (XSS)
+    const escapeHtml = (str: string) => {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    };
+    const sanitizedValue = escapeHtml(rawValue);
+    // 2. Parse the sanitized value to inject the visual pills
+    return sanitizedValue.replace(/\{\{([^.]+)\.([^}]+)\}\}/g, (match, nodeId, path) => {
         const node = availableNodes.find(n => n.id === nodeId);
-        const displayName = node ? node.name : "Unknown Node";
+        const displayName = node ? escapeHtml(node.name) : "Unknown Node";
         const colorClass = getNodeColorClass(nodeId);
-
-        return `<span contenteditable="false" class="inline-flex items-center px-1.5 py-0.5 mx-1 rounded text-[10px] border align-middle font-mono select-all cursor-default ${colorClass}" data-id="${nodeId}" data-path="${path}">${displayName} &gt; ${path}</span>`;
+        // 3. IMPORTANT: Added the "pill" class at the start of the class list
+        return `<span contenteditable="false" class="pill inline-flex items-center px-1.5 py-0.5 mx-1 rounded text-[10px] border align-middle font-mono select-all cursor-default ${colorClass}" data-id="${nodeId}" data-path="${path}">${displayName} &gt; ${path}</span>`;
     });
 }
 
