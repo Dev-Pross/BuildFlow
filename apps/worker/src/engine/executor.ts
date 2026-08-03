@@ -1,10 +1,10 @@
 import { prismaClient } from "@repo/db/client";
 // import { register } from "./registory.js";
 import { ExecutionRegister } from "@repo/nodes";
-import { 
-  resolveConfigVariables, 
-  buildInterpolationContext, 
-  InterpolationContext 
+import {
+  resolveConfigVariables,
+  buildInterpolationContext,
+  InterpolationContext
 } from "@repo/common/zod";
 
 // Track node outputs during workflow execution for variable resolution
@@ -29,8 +29,8 @@ interface LoopExecutionResult {
  */
 function isSpreadsheetInput(data: any): boolean {
   return data?.rows && Array.isArray(data.rows) &&
-         data?.columns && typeof data.columns === 'object' &&
-         data?.dataStartIndex !== undefined;
+    data?.columns && typeof data.columns === 'object' &&
+    data?.dataStartIndex !== undefined;
 }
 
 /**
@@ -61,10 +61,10 @@ export async function executeWorkflow(
     },
   });
   let currentInputData = data?.metadata;
-  
+
   // Collect outputs from all executed nodes for variable interpolation
   const executedNodeOutputs: NodeExecutionOutput[] = [];
-  
+
   if (!data) {
     console.log(`No workflow execution found for id ${workflowExecutionId}`);
     return;
@@ -86,7 +86,7 @@ export async function executeWorkflow(
   for (const node of nodes) {
     console.log(`${node.name}, ${node.stage}, ${node.id}th - started Execution`);
     const nodeExecution = await prismaClient.nodeExecution.create({
-      data:{
+      data: {
         nodeId: node.id,
         workflowExecId: workflowExecutionId,
         status: "Start",
@@ -95,10 +95,10 @@ export async function executeWorkflow(
       }
     })
     const nodeType = node.AvailableNode.type;
-    
+
     // Create mutable copy of config
     let nodeConfig = { ...(node.config as Record<string, any>) };
-    
+
     // Build interpolation context from all previously executed nodes
     const interpolationContext = buildInterpolationContext(executedNodeOutputs);
     console.log(`[Interpolation] Before: ${JSON.stringify(interpolationContext)}`);
@@ -106,10 +106,10 @@ export async function executeWorkflow(
     console.log(`[nodeConfig] Before: ${JSON.stringify(nodeConfig)}`);
     nodeConfig = resolveConfigVariables(nodeConfig, interpolationContext);
     console.log(`[Interpolation] After: ${JSON.stringify(nodeConfig)}`);
-    
+
     // NOTE: Removed legacy body concatenation that appended raw JSON to email body.
     // Variables should be resolved via the {{interpolation}} system instead.
-    if(!node.CredentialsID){
+    if (!node.CredentialsID) {
       await prismaClient.workflowExecution.update({
         where: { id: workflowExecutionId },
         data: {
@@ -120,8 +120,8 @@ export async function executeWorkflow(
       });
 
       await prismaClient.nodeExecution.update({
-        where: {id: nodeExecution.id},
-        data:{
+        where: { id: nodeExecution.id },
+        data: {
           status: "Failed",
           error: "Credential id not found",
           completedAt: new Date()
@@ -131,9 +131,9 @@ export async function executeWorkflow(
     }
 
     // Check if we need to loop (inputData is spreadsheet + config has column variables)
-    const shouldLoop = isSpreadsheetInput(currentInputData) && 
+    const shouldLoop = isSpreadsheetInput(currentInputData) &&
       JSON.stringify(node.config).includes('{{');
-    
+
     let execute: { success: boolean; output?: any; error?: string };
 
     if (shouldLoop) {
@@ -156,10 +156,10 @@ export async function executeWorkflow(
 
       for (let rowIdx = startIdx; rowIdx < spreadsheet.rows.length; rowIdx++) {
         loopResult.totalProcessed++;
-        
+
         // Set _currentRowIndex on the spreadsheet data for column resolution
         const rowContext = { ...spreadsheet, _currentRowIndex: rowIdx };
-        
+
         // Rebuild interpolation context with current row index
         const loopOutputs = executedNodeOutputs.map(o => {
           if (o.outputData === currentInputData) {
@@ -168,11 +168,11 @@ export async function executeWorkflow(
           return o;
         });
         const loopInterpolationCtx = buildInterpolationContext(loopOutputs);
-        
+
         // Re-resolve config with current row
         const originalConfig = { ...(node.config as Record<string, any>) };
         const resolvedRowConfig = resolveConfigVariables(originalConfig, loopInterpolationCtx);
-        
+
         console.log(`[Loop] Row ${rowIdx}: resolved config = ${JSON.stringify(resolvedRowConfig)}`);
 
         // Skip rows with empty/null required fields (e.g. empty email recipient)
@@ -195,7 +195,7 @@ export async function executeWorkflow(
           console.log(`[Loop] Row ${rowIdx} SKIPPED: ${skipReasons.join('; ')}`);
           continue;
         }
-        
+
         const rowCtx = {
           userId: data.workflow.userId,
           credentialId: node.CredentialsID,
@@ -206,7 +206,7 @@ export async function executeWorkflow(
         // Retry logic: up to 3 attempts per row
         let rowSuccess = false;
         let lastError: string | undefined;
-        
+
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const rowResult = await ExecutionRegister.execute(nodeType, rowCtx);
@@ -223,7 +223,7 @@ export async function executeWorkflow(
             lastError = err instanceof Error ? err.message : 'Unknown error';
             console.log(`[Loop] Row ${rowIdx} attempt ${attempt} threw: ${lastError}`);
           }
-          
+
           if (attempt < 3) {
             await delay(200 * attempt); // Backoff: 200ms, 400ms
           }
@@ -249,11 +249,11 @@ export async function executeWorkflow(
       execute = {
         success: !hasFailures,
         output: loopResult,
-        error: hasFailures 
+        error: hasFailures
           ? JSON.stringify({
-              summary: `${loopResult.failed}/${loopResult.totalProcessed} rows failed`,
-              failures: loopResult.failures
-            })
+            summary: `${loopResult.failed}/${loopResult.totalProcessed} rows failed`,
+            failures: loopResult.failures
+          })
           : undefined
       };
     } else {
@@ -281,9 +281,9 @@ export async function executeWorkflow(
       });
 
       await prismaClient.nodeExecution.update({
-        where: {id: nodeExecution.id},
-        data:{
-          status: "Failed" ,
+        where: { id: nodeExecution.id },
+        data: {
+          status: "Failed",
           error: execute.error,
           outputData: isPartialFailure ? execute.output : undefined,
           completedAt: new Date()
@@ -292,23 +292,23 @@ export async function executeWorkflow(
       return;
     }
     await prismaClient.nodeExecution.update({
-      where: {id: nodeExecution.id},
+      where: { id: nodeExecution.id },
       data: {
         completedAt: new Date(),
         outputData: execute.output,
         status: "Completed"
       }
     })
-    
+
     // Store this node's output for variable resolution in subsequent nodes
     executedNodeOutputs.push({
-      nodeName: node.name,
+      nodeName: node.id,
       outputData: execute.output
     });
     console.log(`[Interpolation] Added ${node.name} output to context. Total nodes in context: ${executedNodeOutputs.length}`);
-    
+
     currentInputData = execute.output;
-    
+
     console.log("output: ", JSON.stringify(execute));
   }
   const updatedStatus = await prismaClient.workflowExecution.update({
