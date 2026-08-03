@@ -25,7 +25,7 @@ export const TriggerSchema = z.object({
   Config: z.any().optional(),
   WorkflowId: z.string(),
   TriggerType: z.string().optional(),
-  Position: z.object({x: z.number(), y: z.number()}).optional()
+  Position: z.object({ x: z.number(), y: z.number() }).optional()
 });
 
 export const NodeSchema = z.object({
@@ -34,15 +34,15 @@ export const NodeSchema = z.object({
   Config: z.any().optional(),
   stage: z.number().optional(),
   WorkflowId: z.string(),
-  position : z.object({
-    x : z.number() ,
-    y : z.number()
+  position: z.object({
+    x: z.number(),
+    y: z.number()
   }),
   CredentialId: z.string().optional()
 });
 
 export const ExecuteWorkflow = z.object({
-  workflowId : z.string(),
+  workflowId: z.string(),
 })
 
 export const ExecuteNode = z.object({
@@ -58,7 +58,7 @@ export const NodeUpdateSchema = z.object({
 export const TriggerUpdateSchema = z.object({
   TriggerId: z.string(),
   Config: z.any().optional(),
-  Position: z.object({ x: z.number(), y: z.number()}).optional(),
+  Position: z.object({ x: z.number(), y: z.number() }).optional(),
   CredentialID: z.string().optional()
 });
 
@@ -69,9 +69,9 @@ export const WorkflowSchema = z.object({
 });
 
 export const workflowUpdateSchema = z.object({
-  nodes : z.any().optional(),
-  edges : z.any().optional(),
-  workflowId : z.string()
+  nodes: z.any().optional(),
+  edges: z.any().optional(),
+  workflowId: z.string()
 })
 
 // Execution Logs Schemas - for GET /user/workflow/logs/:workflowId
@@ -193,3 +193,18 @@ export enum statusCodes {
   SERVICE_UNAVAILABLE = 503,
   GATEWAY_TIMEOUT = 504,
 }
+
+
+export const FilterNodeInput = z.object({
+  operation: z.enum([
+    "unique_rows",
+    "new_data_only",
+    "existing_data_only"
+  ]),
+  sourceData: z.array(z.any()),
+  referenceData: z.array(z.any()).optional(),
+  sourceKey: z.string().optional(),
+  referenceKey: z.string().optional()
+})
+
+export type FilterNodeInput = z.infer<typeof FilterNodeInput>;

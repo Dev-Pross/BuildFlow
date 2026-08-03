@@ -46,7 +46,7 @@ export interface NodeConfig {
 export interface ConfigField {
   name: string; // Field's internal key, e.g., "sheetId"
   label: string; // Human-readable label, e.g., "Sheet ID"
-  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password" | "column_mapper" | "bulk_payload";
+  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password" | "column_mapper" | "bulk_payload" | "dynamic_schema_dropdown";
   required?: boolean;
   defaultValue?: string | number | boolean; // Initial value if not set
   placeholder?: string;

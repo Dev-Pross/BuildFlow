@@ -62,7 +62,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
       );
     }
 
-    const formattedNodeName = node.nodeName.toLowerCase().replace(/\s+/g, '_');
+    const formattedNodeName = node.nodeId
 
     const renderRows = (vars: VariableDefinition[], depth: number = 0, currParentPath: string = "") => {
       return vars.map((variable, idx) => {
@@ -141,8 +141,8 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
   };
 
   // Rendering for Spreadsheet (Arrays of arrays)
-  const renderSpreadsheetTable = (nodeName: string, data: any) => {
-    const formattedNodeName = nodeName.toLowerCase().replace(/\s+/g, '_');
+  const renderSpreadsheetTable = (nodeName: string, nodeId: string, data: any) => {
+    const formattedNodeName = nodeId;
     const rows = data.rows || data; // Handle data directly if it's the 2D array
     if (!Array.isArray(rows) || rows.length === 0) return null;
 
@@ -152,7 +152,16 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     return (
       <div className="overflow-x-auto w-full border-t border-gray-800 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
         <div className="text-[10px] p-2 bg-gray-800/50 text-gray-400 flex justify-between items-center border-b border-gray-800">
-          <span>Spreadsheet Data</span>
+          <div className="flex items-center gap-2">
+            <span>Spreadsheet Data</span>
+            <button
+              onClick={() => handleInsert(`{{${formattedNodeName}.rows}}`)}
+              className="px-2 py-0.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 rounded transition-colors"
+              title="Insert the entire array of data"
+            >
+              Select Entire Table
+            </button>
+          </div>
           <span>{dataRows.length} rows</span>
         </div>
         <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
@@ -199,8 +208,8 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
   };
 
   // Rendering for standard array of objects
-  const renderArrayTable = (nodeName: string, dataArray: any[], isTested: boolean) => {
-    const formattedNodeName = nodeName.toLowerCase().replace(/\s+/g, '_');
+  const renderArrayTable = (nodeName: string, nodeId: string, dataArray: any[], isTested: boolean) => {
+    const formattedNodeName = nodeId;
 
     // Find all unique keys across objects to form headers
     const keysSet = new Set<string>();
@@ -451,17 +460,17 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                       {/* Try matching Spreadsheet Pattern */}
                       {testOutput.data.rows && Array.isArray(testOutput.data.rows) && testOutput.data.rows.length > 0 && Array.isArray(testOutput.data.rows[0]) ? (
                         <div className="bg-[#111620]">
-                          {renderSpreadsheetTable(node.nodeName, testOutput.data)}
+                          {renderSpreadsheetTable(node.nodeName, node.nodeId, testOutput.data)}
                         </div>
                       ) : Array.isArray(testOutput.data) && testOutput.data.length > 0 && Array.isArray(testOutput.data[0]) ? (
                         <div className="bg-[#111620]">
-                          {renderSpreadsheetTable(node.nodeName, testOutput.data)}
+                          {renderSpreadsheetTable(node.nodeName, node.nodeId, testOutput.data)}
                         </div>
                       ) :
                         /* Try matching Standard Array pattern */
                         Array.isArray(testOutput.data) ? (
                           <div className="bg-[#111620]">
-                            {renderArrayTable(node.nodeName, testOutput.data, isTested)}
+                            {renderArrayTable(node.nodeName, node.nodeId, testOutput.data, isTested)}
                           </div>
                         ) : (
                           /* Fallback to Tree Table if it's an object or string */

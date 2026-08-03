@@ -1,4 +1,5 @@
 import { NodeConfig } from "../types/node.types";
+import { filterActionConfig } from "./filter.action";
 import { gmailActionConfig } from "./gmail.action";
 import { googleSheetActionConfig } from "./googleSheet.action";
 import { webhookTriggerConfig } from "./webhook.trigger";
@@ -11,11 +12,13 @@ export const NODE_CONFIG_REGISTRY: Record<string, NodeConfig> = {
   [gmailActionConfig.label]: gmailActionConfig,
   [googleSheetActionConfig.label]: googleSheetActionConfig,
   [webhookTriggerConfig.label]: webhookTriggerConfig,
+  [filterActionConfig.label]: filterActionConfig,
 
   // Map by ID (internal safety fallback)
   [gmailActionConfig.id]: gmailActionConfig, // "gmail"
   [googleSheetActionConfig.id]: googleSheetActionConfig, // "google_sheet"
   [webhookTriggerConfig.id]: webhookTriggerConfig, // "webhook"
+  [filterActionConfig.id]: filterActionConfig,
 };
 
 /**

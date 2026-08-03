@@ -5,7 +5,7 @@ export class GoogleSheetNode {
     static definition = {
         name: "Google Sheet",
         type: "google_sheet",
-        description: 'Read and write data to Google Sheets',
+        description: "Google Sheets API. 'read_rows' fetches 2D array data. 'append_rows' inserts rows at the bottom. 'write_rows' overwrites specific cells. 'clear_rows' deletes data.",
         config: {
             fields: [
                 {
@@ -27,7 +27,8 @@ export class GoogleSheetNode {
             ]
         },
         requireAuth: true,
-        authType: 'gsheet_oauth'
+        authType: 'gsheet_oauth',
+        icon: "/google_sheet.svg"
 
     };
 
