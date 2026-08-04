@@ -15,7 +15,8 @@ export const filterActionConfig: NodeConfig = {
             options: [
                 { label: "Remove Duplicates from Provided Data(Single List)", id: "unique_rows" },
                 { label: "Find New Data Only (Compare Two Lists)", id: "new_data_only" },
-                { label: "Find Existing Data Only (Compare Two Lists)", id: "existing_data_only" }
+                { label: "Find Existing Data Only (Compare Two Lists)", id: "existing_data_only" },
+                { label: "Group Data By Key", id: "group_by" },
             ],
             required: true,
             defaultValue: "unique_rows",

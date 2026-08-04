@@ -60,7 +60,7 @@ export default function ConfigModal({
 
   // Get all tested outputs from Redux (for variable resolution)
   const allTestedOutputs = useAppSelector(selectAllOutputs);
-  
+
   const availableNodes = Object.entries(allTestedOutputs).map(([id, output]) => ({
     id,
     name: output.nodeName || 'Node'
@@ -364,6 +364,18 @@ export default function ConfigModal({
     setConfig(loadedConfig)
 
     const nodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
+    let finalConfig = { ...loadedConfig };
+
+    if (nodeConfig?.fields) {
+      for (const field of nodeConfig.fields) {
+        if (field.defaultValue !== undefined && finalConfig[field.name] === undefined) {
+          finalConfig[field.name] = field.defaultValue;
+        }
+      }
+    }
+    setConfig(finalConfig);
+    dispatchConfig(finalConfig);
+
     if (nodeConfig?.fields) {
       for (const field of nodeConfig.fields) {
         if (field.fetchOptions && field.dependsOn && loadedConfig[field.dependsOn]) {
@@ -384,7 +396,7 @@ export default function ConfigModal({
           .finally(() => setIsLoadingHeaders(false));
       }
     }
-  }, [selectedNode]);
+  }, [selectedNode?.id]);
 
   if (!isOpen || !selectedNode) return null;
 
@@ -436,7 +448,7 @@ export default function ConfigModal({
     if (Array.isArray(data[0])) {
       return data[0].map((h: any) => String(h));
     }
-    
+
     const keys: string[] = [];
     const extractKeysRecursive = (obj: any, prefix = "") => {
       for (const key in obj) {
@@ -451,7 +463,7 @@ export default function ConfigModal({
         }
       }
     };
-    
+
     extractKeysRecursive(data[0]);
     return Array.from(new Set(keys));
   };
@@ -461,19 +473,19 @@ export default function ConfigModal({
 
     if (field.type === "dynamic_schema_dropdown") {
       let options: string[] = ["(No Data Mapped)"];
-      
+
       const dependentFieldName = field.name === "sourceKey" ? "sourceData" : "referenceData";
       const dependentFieldValue = config[dependentFieldName];
-      
+
       if (dependentFieldValue && typeof dependentFieldValue === 'string') {
         const interpolationContext = buildTestContext();
         const resolvedConfig = resolveConfigVariables({ temp: dependentFieldValue }, interpolationContext);
         const resolvedData = resolvedConfig.temp;
-        
+
         if (resolvedData !== dependentFieldValue) {
-           options = extractSchemaKeys(resolvedData);
+          options = extractSchemaKeys(resolvedData);
         } else {
-           options = ["(Test Node to Load Options)"];
+          options = ["(Test Node to Load Options)"];
         }
       }
 
@@ -499,7 +511,7 @@ export default function ConfigModal({
               let val = opt;
               if (opt === "(Value Itself)") val = "__value__";
               else if (opt.startsWith("(")) val = "";
-              
+
               return (
                 <option key={opt} value={val} disabled={opt.startsWith("(") && opt !== "(Value Itself)"}>
                   {opt}
