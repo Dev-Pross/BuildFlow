@@ -8,7 +8,7 @@ export class FilterExecutor implements NodeExecutor {
     private getValueByPath(obj: any, path: string): any {
         if (path === "__value__") return obj;
         if (!obj || typeof obj !== 'object') return undefined;
-        
+
         const parts = path.split('.');
         let current = obj;
         for (const part of parts) {
@@ -115,6 +115,33 @@ export class FilterExecutor implements NodeExecutor {
 
         return { uniqueData, existingData, discardedData }
     }
+
+    private handleGroupBy(sourceData: any[], sourceKey: string) {
+        const groupMap: Record<string, any[]> = {};
+        let emptyCount = 0;
+        for (const item of sourceData) {
+            const key = this.normalizeValue(this.getValueByPath(item, sourceKey))
+
+            if (key === "[EMPTY]") emptyCount++;
+
+            if (!groupMap[key]) {
+                groupMap[key] = []
+            }
+            groupMap[key].push(item)
+
+        }
+
+        const groupArray = Object.keys(groupMap).map(key => ({
+            groupName: key,
+            rows: groupMap[key]
+        }))
+
+        return {
+            groupMap, groupArray,
+            total_processed: sourceData.length,
+            emptyCount
+        }
+    }
     async execute(context: ExecutionContext): Promise<ExecutionResult> {
         try {
             const parsed = FilterNodeInput.safeParse(context.config)
@@ -171,6 +198,26 @@ export class FilterExecutor implements NodeExecutor {
                     discardedData = [...existing_data.discardedData, ...existing_data.uniqueData];
                     break;
 
+                case 'group_by':
+                    if (!sourceKey) return {
+                        success: false,
+                        error: "sourceKey is required to group datasets"
+                    }
+                    const groupResult = this.handleGroupBy(normalizedSource, sourceKey);
+
+                    return {
+                        success: true,
+                        output: {
+                            groupsMap: groupResult.groupMap,
+                            groupsArray: groupResult.groupArray,
+                            metadata: {
+                                operation_used: operation,
+                                total_groups: groupResult.groupArray.length,
+                                items_processed: groupResult.total_processed,
+                                items_without_key: groupResult.emptyCount
+                            }
+                        }
+                    }
                 default:
                     return { success: false, error: `Unknown operation: ${operation}` };
             }

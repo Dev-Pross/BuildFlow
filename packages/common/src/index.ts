@@ -199,7 +199,8 @@ export const FilterNodeInput = z.object({
   operation: z.enum([
     "unique_rows",
     "new_data_only",
-    "existing_data_only"
+    "existing_data_only",
+    "group_by"
   ]),
   sourceData: z.array(z.any()),
   referenceData: z.array(z.any()).optional(),
