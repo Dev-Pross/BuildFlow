@@ -81,7 +81,7 @@ export function buildInterpolationContext(
  * @param context - The interpolation context
  * @returns The resolved value or the original {{variable}} if not found
  */
-export function resolveVariable(variable: string, context: InterpolationContext): any {
+export function resolveVariable(variable: string, context: InterpolationContext, sourceRefs?: Record<string, { wireIndex: number; rowIndex: number }>): any {
   const trimmed = variable.trim();
 
   const dotIndex = trimmed.indexOf('.');
@@ -97,17 +97,42 @@ export function resolveVariable(variable: string, context: InterpolationContext)
     return `{{${variable}}}`;
   }
 
-  // Column-based resolution: {{google_sheet.email}} → rows[currentRow][columnIndex]
-  if (nodeData.columns && nodeData.columns[path] !== undefined) {
-    const colIndex = nodeData.columns[path];
-    const rowIndex = nodeData._currentRowIndex ?? nodeData.dataStartIndex ?? 1;
-    const value = nodeData.rows?.[rowIndex]?.[colIndex];
+  if (sourceRefs && sourceRefs[nodeName]) {
+    const { wireIndex, rowIndex } = sourceRefs[nodeName]
+
+    const item = nodeData[wireIndex]?.[rowIndex];
+
+    const value = getNestedValue(item?.json, path)
+
     return value !== undefined ? value : `{{${variable}}}`;
   }
 
-  // Fallback: standard nested path resolution (e.g., rows[1][0])
-  const value = getNestedValue(nodeData, path);
-  return value !== undefined ? value : `{{${variable}}}`;
+  // // Column-based resolution: {{google_sheet.email}} → rows[currentRow][columnIndex]
+  // if (nodeData.columns && nodeData.columns[path] !== undefined) {
+  //   const colIndex = nodeData.columns[path];
+  //   const rowIndex = nodeData._currentRowIndex ?? nodeData.dataStartIndex ?? 1;
+  //   const value = nodeData.rows?.[rowIndex]?.[colIndex];
+  //   return value !== undefined ? value : `{{${variable}}}`;
+  // }
+
+  // // Fallback: standard nested path resolution (e.g., rows[1][0])
+  // const value = getNestedValue(nodeData, path);
+
+  // 1. Fallback for single-item nodes (e.g., Webhook or trigger nodes at wire 0, row 0)
+  const fallbackItem = nodeData?.[0]?.[0];
+  if (fallbackItem && typeof fallbackItem === 'object' && 'json' in fallbackItem) {
+    const value = getNestedValue(fallbackItem.json, path);
+    if (value !== undefined) return value;
+  }
+
+  // 2. Direct property fallback (if raw object was passed in context)
+  const directValue = getNestedValue(nodeData, path);
+  if (directValue !== undefined) return directValue;
+
+  // 3. If nothing matched, preserve the raw {{variable}} placeholder
+  return `{{${variable}}}`;
+
+
 }
 
 /**
@@ -117,7 +142,7 @@ export function resolveVariable(variable: string, context: InterpolationContext)
  * @param context - The interpolation context
  * @returns String with all variables resolved
  */
-export function interpolateString(template: string, context: InterpolationContext): string {
+export function interpolateString(template: string, context: InterpolationContext, sourceRefs?: Record<string, { wireIndex: number; rowIndex: number }>): string {
   if (!template || typeof template !== 'string') return template;
 
   // Create a new regex instance to avoid global flag issues
@@ -129,7 +154,7 @@ export function interpolateString(template: string, context: InterpolationContex
   const result = template.replace(regex, (match, variable) => {
     console.log(`[interpolateString] Found variable: "${variable}"`);
     console.log(`[interpolateString] MATCH variable: "${match}"`);
-    const resolved = resolveVariable(variable, context);
+    const resolved = resolveVariable(variable, context, sourceRefs);
     console.log(`[interpolateString] Resolved to: ${JSON.stringify(resolved)}`);
 
     // Convert non-string values to string for template replacement
@@ -153,7 +178,8 @@ export function interpolateString(template: string, context: InterpolationContex
  */
 export function resolveConfigVariables<T extends Record<string, any>>(
   config: T,
-  context: InterpolationContext
+  context: InterpolationContext,
+  sourceRefs?: Record<string, { wireIndex: number; rowIndex: number }>
 ): T {
   if (!config || typeof config !== 'object') {
     console.log("[---*---] config not an onject type")
@@ -162,7 +188,7 @@ export function resolveConfigVariables<T extends Record<string, any>>(
 
   // Handle arrays
   if (Array.isArray(config)) {
-    return config.map(item => resolveConfigVariables(item, context)) as unknown as T;
+    return config.map(item => resolveConfigVariables(item, context, sourceRefs)) as unknown as T;
   }
 
   // Handle objects
@@ -174,12 +200,12 @@ export function resolveConfigVariables<T extends Record<string, any>>(
       const exactMatch = /^\{\{([^}]+)\}\}$/.exec(trimmed);
 
       if (exactMatch) {
-        resolved[key] = resolveVariable(exactMatch[1]!, context);
+        resolved[key] = resolveVariable(exactMatch[1]!, context, sourceRefs);
       } else {
-        resolved[key] = interpolateString(value, context);
+        resolved[key] = interpolateString(value, context, sourceRefs);
       }
     } else if (typeof value === 'object' && value !== null) {
-      resolved[key] = resolveConfigVariables(value, context);
+      resolved[key] = resolveConfigVariables(value, context, sourceRefs);
     } else {
       resolved[key] = value;
     }

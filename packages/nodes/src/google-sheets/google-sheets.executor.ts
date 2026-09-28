@@ -1,18 +1,23 @@
 import { google } from "googleapis";
 import { GoogleOAuthService } from "../common/google-oauth-service.js";
 import { GoogleSheetsService, GoogleSheetsCredentials } from "./google-sheets.service.js";
+import { ExecuteItem } from "@repo/common/zod";
 
-interface NodeExecutionContext {
-    credentialId: string,
-    userId: string,
-    config?: any,    //sheet id / range...
-    authType: string,
-    inputData?: any // previous node data
+
+interface SheetAuthContext {
+    userId: string;
+    credentialId: string;
+    authType?: string
+}
+interface NodeExecutionContext extends SheetAuthContext {
+    nodeId: string,
+    config: any,    //sheet id / range...
+    items: ExecuteItem[]
 }
 
 interface NodeExecutionResult {
     success: boolean,
-    output?: any,
+    output?: ExecuteItem[][],
     error?: string,
     authUrl?: string,
     requiresAuth?: boolean
@@ -27,7 +32,7 @@ class GoogleSheetsNodeExecutor {
         this.oauthService = new GoogleOAuthService();
 
     }
-    async getSheets(context: NodeExecutionContext) {
+    async getSheets(context: SheetAuthContext) {
         const init = await this.ensureSheetService(context);
         if ('success' in init) return init;
         const sheetService = this.sheetService;
@@ -48,7 +53,7 @@ class GoogleSheetsNodeExecutor {
         }
     }
 
-    async ensureCredentials(context: NodeExecutionContext) {
+    async ensureCredentials(context: SheetAuthContext) {
         return this.ensureSheetService(context);
     }
 
@@ -66,7 +71,7 @@ class GoogleSheetsNodeExecutor {
         }
     }
 
-    async getSheetTabs(context: NodeExecutionContext, spreadsheetId: string) {
+    async getSheetTabs(context: SheetAuthContext, spreadsheetId: string) {
         const init = await this.ensureSheetService(context);
         if ('success' in init) return init;
         const sheetService = this.sheetService;
@@ -87,7 +92,7 @@ class GoogleSheetsNodeExecutor {
         }
     }
 
-    private async ensureSheetService(context: NodeExecutionContext): Promise<{ credentialId: string } | NodeExecutionResult> {
+    private async ensureSheetService(context: SheetAuthContext): Promise<{ credentialId: string } | NodeExecutionResult> {
         try {
             const type = context.authType ? context.authType : 'gsheet_oauth'
             const credentials = await this.oauthService.getCredentials(context.userId, context.credentialId, type);
@@ -96,7 +101,7 @@ class GoogleSheetsNodeExecutor {
                 return {
                     success: false,
                     error: 'Google Sheets authorization required',
-                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType),
+                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType!),
                     requiresAuth: true
                 };
             }
@@ -109,7 +114,7 @@ class GoogleSheetsNodeExecutor {
                 return {
                     success: false,
                     error: 'Google account not connected.',
-                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType),
+                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType!),
                     requiresAuth: true
                 };
             }
@@ -164,7 +169,7 @@ class GoogleSheetsNodeExecutor {
                 return {
                     success: false,
                     error: 'Google account not connected.',
-                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType),
+                    authUrl: this.oauthService.getAuthUrl(context.userId, context.authType!),
                     requiresAuth: true
                 };
             }
@@ -175,9 +180,9 @@ class GoogleSheetsNodeExecutor {
         }
     }
 
-    async getHeaderRow(context: NodeExecutionContext, sheetId: string, sheetName: string): Promise<NodeExecutionResult> {
+    async getHeaderRow(context: SheetAuthContext, sheetId: string, sheetName: string): Promise<{ success: boolean, output?: string[], error?: string }> {
         const init = await this.ensureCredentials(context);
-        if ('success' in init) return init;
+        if ('success' in init) return init as any;
 
         const sheetService = this.sheetService;
         if (!sheetService) {
@@ -208,7 +213,7 @@ class GoogleSheetsNodeExecutor {
         const mode = context.config.mappingMode || 'visual';
 
         if (mode === 'bulk') {
-            const rawValues = context.config.bulkValues || context.inputData;
+            const rawValues = context.config.bulkValues || context.items.map(item => item.json);
             return this.normalizeValues(rawValues)
         }
 
@@ -299,22 +304,50 @@ class GoogleSheetsNodeExecutor {
                 dataRowCount = dataRows.length;
             }
 
-            // Build columns mapping from first row (headers)
-            const columns = combinedRows.length > 0 && combinedRows[0]
-                ? this.buildColumnsMap(combinedRows[0] as any[])
-                : {};
+            // // Build columns mapping from first row (headers)
+            // const columns = combinedRows.length > 0 && combinedRows[0]
+            //     ? this.buildColumnsMap(combinedRows[0] as any[])
+            //     : {};
 
+            // return {
+            //     success: true,
+            //     output: {
+            //         rows: combinedRows,
+            //         columns: columns,
+            //         dataStartIndex: 1,
+            //         rowCount: dataRowCount,
+            //         sheetId: spreadsheetId,
+            //         hasHeaders: Object.keys(columns).length > 0
+            //     }
+            // }
+            const headers = (combinedRows.length > 0 && combinedRows[0]) ? (combinedRows[0] as string[]) : [];
+
+            const outputBoxes: ExecuteItem[] = [];
+
+            for (let i = 1; i < combinedRows.length; i++) {
+                const rowArray = combinedRows[i]
+                const rowObject: Record<string, any> = {};
+
+                headers.forEach((header, index) => {
+                    const cleanHeader = String(header).trim().toLowerCase().replace(/\s+/g, '_');
+
+                    if (cleanHeader) {
+                        rowObject[cleanHeader] = rowArray[index]
+                    }
+                })
+
+                outputBoxes.push({
+                    json: rowObject,
+                    sourceRefs: {
+                        [context.nodeId]: { wireIndex: 0, rowIndex: i - 1 }
+                    }
+                })
+            }
             return {
                 success: true,
-                output: {
-                    rows: combinedRows,
-                    columns: columns,
-                    dataStartIndex: 1,
-                    rowCount: dataRowCount,
-                    sheetId: spreadsheetId,
-                    hasHeaders: Object.keys(columns).length > 0
-                }
-            }
+                output: [outputBoxes]
+            };
+
         } catch (e) {
             return {
                 success: false,
@@ -383,17 +416,22 @@ class GoogleSheetsNodeExecutor {
                 range: `${context.config.sheetName}!${range}`,
                 values: values
             })
+
+            const outputBoxes = context.items.map(item => {
+                return {
+                    json: {
+                        ...item.json,
+                        googleSheetResponse: {
+                            operation: "Update Rows",
+                            rowsUpdated: response.updatedRows || 1,
+                        }
+                    },
+                    sourceRefs: item.sourceRefs
+                }
+            })
             return {
                 success: true,
-                output: {
-                    operation: "Update Rows",
-                    spreadsheetId: spreadsheetId,
-                    sheetName: context.config.sheetName,
-                    writtenRange: response.updatedRange || range,
-                    rowsUpdated: response.updatedRows || 1,
-                    columnsUpdated: response.updatedColumns || 0,
-                    cellsUpdated: response.updatedCells || 0
-                }
+                output: [outputBoxes]
             }
         } catch (e) {
             return {
@@ -416,17 +454,21 @@ class GoogleSheetsNodeExecutor {
                 values: values
             })
             console.log(`append rows: ${response}`)
+            const outputBoxes = context.items.map(item => {
+                return {
+                    json: {
+                        ...item.json,
+                        googleSheetResponse: {
+                            operation: "Append Rows",
+                            rowUpdated: response.updates.updatedRange || response.tableRange
+                        }
+                    },
+                    sourceRefs: item.sourceRefs
+                }
+            })
             return {
                 success: true,
-                output: {
-                    operation: "Append Rows",
-                    spreadsheetId: spreadsheetId,
-                    sheetName: context.config.sheetName,
-                    appendedRange: response.updates?.updatedRange || response.tableRange,
-                    rowsAdded: response.updates?.updatedRows || 1,
-                    columnsUpdated: response.updates?.updatedColumns || 0,
-                    cellsUpdated: response.updates?.updatedCells || 0
-                }
+                output: [outputBoxes]
             }
         }
         catch (e) {
@@ -446,11 +488,22 @@ class GoogleSheetsNodeExecutor {
                 spreadsheetId: spreadsheetId,
                 range: range
             })
+            const outputBoxes = context.items.map(item => {
+                return {
+                    json: {
+                        ...item.json,
+                        googleSheetResponse: {
+                            operation: "Clear Rows",
+                            clearedRange: response.clearedRange
+                        }
+                    },
+                    sourceRefs: item.sourceRefs
+
+                }
+            })
             return {
                 success: true,
-                output: {
-                    ...response
-                }
+                output: [outputBoxes]
             }
         }
         catch (e) {

@@ -1,17 +1,19 @@
+import { ExecuteItem } from "@repo/common/zod";
 import { GoogleOAuthService } from "../common/google-oauth-service.js";
 import { GmailService, GmailCredentials } from "./gmail.service.js";
 
 interface NodeExecutionContext {
+  nodeId: string;
   credentialId: string;
   userId: string;
   config?: any;
   authType?: string;
-  inputData?: any;
+  items: ExecuteItem[]
 }
 
 interface NodeExecutionResult {
   success: boolean;
-  output?: any;
+  output?: ExecuteItem[][];
   error?: string;
 }
 
@@ -57,19 +59,33 @@ class GmailExecutor {
 
       // Send email
       const { to, subject, body } = context.config;
-      const result = await this.gmailService.sendEmail(to, subject, body);
+
+      const outputBoxes: ExecuteItem[] = [];
+
+      for (const item of context.items) {
+
+        const result = await this.gmailService.sendEmail(to, subject, body);
+
+        if (!result.success) {
+          throw new Error(result.error)
+        }
+
+        outputBoxes.push({
+          json: {
+            ...item.json,
+            gmailResponse: {
+              status: "sent",
+              messageId: result.data?.id,
+              threadId: result.data?.threadId
+            }
+          },
+          sourceRefs: item.sourceRefs
+        })
+      }
 
       return {
-        success: result.success,
-        output: {
-          status: "sent",
-          messageId: result.data?.id,
-          threadId: result.data?.threadId,
-          to: to,
-          subject: subject,
-          summary: `Email sent to ${to} with subject "${subject}"`,
-        },
-        error: result.error,
+        success: true,
+        output: [outputBoxes],
       };
     } catch (error) {
       return {
