@@ -1,13 +1,15 @@
+import { ExecuteItem } from "@repo/common/zod";
+
 export interface ExecutionContext {
-  nodeId?: string;
+  nodeId: string;
   userId: string;
   credentialId?: string;
   config: Record<string, any>;
-  inputData?: any;
+  items: ExecuteItem[]
 }
 export interface ExecutionResult {
   success: boolean;
-  output?: any;
+  output?: ExecuteItem[][];
   error?: string;
   metadata?: Record<any, any>;
 }

@@ -208,4 +208,15 @@ export const FilterNodeInput = z.object({
   referenceKey: z.string().optional()
 })
 
+export const ExecuteItemSchema = z.object({
+  json: z.record(z.string(), z.any()),
+  sourceRefs: z.record(z.string(),
+    z.object({
+      wireIndex: z.number().default(0),
+      rowIndex: z.number()
+    })).optional()
+});
+
+export type ExecuteItem = z.infer<typeof ExecuteItemSchema>
+
 export type FilterNodeInput = z.infer<typeof FilterNodeInput>;

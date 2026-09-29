@@ -35,7 +35,9 @@ execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response)
                 userId: req.user.sub,
                 config: config,
                 credentialId: nodeData.CredentialsID || config?.credentialId || "",
-                authType: nodeData.AvailableNode.authType
+                authType: nodeData.AvailableNode.authType,
+                nodeId: nodeData.id,
+                items: []
             }
             const result = await prismaClient.$transaction(async (tx) => {
                 // // console.log(`Execution context: ${JSON.stringify(context)}`)
@@ -93,7 +95,7 @@ execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response)
                     data: {
                         status: "Failed",
                         completedAt: new Date(),
-                        error: executionResult.output
+                        error: executionResult.error
                     }
                 })
                 return { success: false, executionResult }

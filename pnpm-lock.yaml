@@ -323,6 +323,9 @@ importers:
 
   packages/nodes:
     dependencies:
+      '@repo/common':
+        specifier: workspace:*
+        version: link:../common
       '@types/dotenv':
         specifier: ^8.2.3
         version: 8.2.3

@@ -204,34 +204,32 @@ export class FilterExecutor implements NodeExecutor {
                         error: "sourceKey is required to group datasets"
                     }
                     const groupResult = this.handleGroupBy(normalizedSource, sourceKey);
-
+                    const wire0 = groupResult.groupArray.map(item => ({ json: item }))
                     return {
                         success: true,
-                        output: {
-                            groupsMap: groupResult.groupMap,
-                            groupsArray: groupResult.groupArray,
-                            metadata: {
-                                operation_used: operation,
-                                total_groups: groupResult.groupArray.length,
-                                items_processed: groupResult.total_processed,
-                                items_without_key: groupResult.emptyCount
-                            }
+                        output: [wire0],
+                        metadata: {
+                            operation_used: operation,
+                            total_groups: groupResult.groupArray.length,
+                            items_processed: groupResult.total_processed,
+                            items_without_key: groupResult.emptyCount
                         }
                     }
                 default:
                     return { success: false, error: `Unknown operation: ${operation}` };
             }
 
+            const wire0 = filteredData.map(item => ({ json: item }))
+            const wire1 = discardedData.map(item => ({ json: item }))
+
             return {
                 success: true,
-                output: {
-                    filteredData: filteredData,
-                    discardedData: discardedData,
-                    metadata: {
-                        operation_used: operation,
-                        items_kept: filteredData.length,
-                        items_discard: discardedData.length
-                    }
+                output: [wire0, wire1],
+
+                metadata: {
+                    operation_used: operation,
+                    items_kept: filteredData.length,
+                    items_discard: discardedData.length
                 }
             }
         }
