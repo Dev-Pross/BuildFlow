@@ -171,7 +171,7 @@ export const api = {
 
       // Check if execution was successful
       if (res.data?.data?.success) {
-        return res.data.data.output;
+        return res.data.data; // Return full executionResult ({ success, output, metadata })
       }
 
       // If not successful, throw error with message

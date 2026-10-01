@@ -11,6 +11,7 @@ export interface NodeTestOutput {
   testedAt: number;                 // Timestamp
   success: boolean;
   error?: string;
+  metadata?: Record<string, any>;   // Optional metadata from execution result
 }
 
 export interface NodeOutputState {

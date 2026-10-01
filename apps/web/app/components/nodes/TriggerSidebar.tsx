@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { useTriggers } from "@/app/hooks/useTriggers";
+import { NodeIcon } from "@/app/components/ui/NodeIcon";
 
 interface SideBarProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export const TriggerSideBar = ({ isOpen, onClose, onSelectTrigger }:  SideBarPro
                 id: selected.id,
                 name: selected.name,
                 type: selected.type,
-                icon: (selected as any).icon ?? "⚡", // fallback or undefined
+                icon: (selected as any).icon ?? undefined,
               });
               onClose();
             }
@@ -53,10 +54,15 @@ export const TriggerSideBar = ({ isOpen, onClose, onSelectTrigger }:  SideBarPro
             <SelectContent>
               {triggers.map((trigger) => (
                 <SelectItem key={trigger.id} value={trigger.type}>
-                  {/* Display a placeholder icon if 'icon' is missing */}
-                  <div className="flex items-center gap-2">
-                      {'icon' in trigger && trigger.icon ? <img src={trigger.icon as string} className="w-8 h-4" /> : '⚡'} {trigger.name}
-                    </div>
+                  <div className="flex items-center gap-3 py-1">
+                    <NodeIcon
+                      icon={'icon' in trigger && trigger.icon ? (trigger.icon as string) : undefined}
+                      name={trigger.name}
+                      size="sm"
+                      nodeType="trigger"
+                    />
+                    <span className="font-medium text-sm text-gray-200">{trigger.name}</span>
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>

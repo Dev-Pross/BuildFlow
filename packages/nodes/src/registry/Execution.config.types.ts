@@ -4,7 +4,7 @@ export interface ExecutionContext {
   nodeId: string;
   userId: string;
   credentialId?: string;
-  config: Record<string, any>;
+  config: any[];
   items: ExecuteItem[]
 }
 export interface ExecutionResult {

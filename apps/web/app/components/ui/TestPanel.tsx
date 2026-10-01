@@ -1,12 +1,19 @@
 "use client";
+import { useState, Fragment } from "react";
 
 interface TestPanelProps {
     testResult: any;
+    metadata?: Record<string, any>;
     nodeName?: string;
     nodeIcon?: string;
 }
 
-export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
+export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPanelProps) {
+    const [expandedCells, setExpandedCells] = useState<Record<string, boolean>>({});
+
+    const toggleExpand = (cellKey: string) => {
+        setExpandedCells(prev => ({ ...prev, [cellKey]: !prev[cellKey] }));
+    };
 
     const renderObjectTable = (data: Record<string, any>) => {
         const entries = Object.entries(data);
@@ -90,8 +97,11 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
 
     // Array of objects table
     const renderArrayOfObjectsTable = (data: any[], isNestedTable = false) => {
+        const normalizedData = (Array.isArray(data) ? data : []).map(item => {
+            return (item && typeof item === 'object' && 'json' in item) ? item.json : item;
+        });
         const keysSet = new Set<string>();
-        data.slice(0, 100).forEach(item => {
+        normalizedData.slice(0, 100).forEach(item => {
             if (item && typeof item === 'object') Object.keys(item).forEach(k => keysSet.add(k));
         });
         const headers = Array.from(keysSet);
@@ -100,7 +110,7 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
             // Array of primitives
             return (
                 <div className="w-full border border-[#2a2f3e] rounded-lg overflow-hidden">
-                    {data.slice(0, 100).map((item, i) => (
+                    {normalizedData.slice(0, 100).map((item, i) => (
                         <div key={i} className="flex border-b border-[#1a1f2e]/50 last:border-b-0 hover:bg-[#1f2536] transition-colors">
                             <div className="w-10 px-3 py-2 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26] text-[10px]">{i}</div>
                             <div className="flex-1 px-4 py-2 text-xs text-gray-300 font-mono">{String(item)}</div>
@@ -111,30 +121,100 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
         }
 
         return (
-            <div className={`w-full overflow-hidden overflow-x-auto ${isNestedTable ? '' : 'border border-[#2a2f3e] rounded-lg'}`}>                <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
-                <thead className="bg-[#161b22] sticky top-0">
-                    <tr>
-                        <th className="px-3 py-2.5 w-10 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal text-[10px]">#</th>
-                        {headers.map(h => (
-                            <th key={h} className="px-4 py-2.5 border-r border-b border-[#2a2f3e] font-medium text-blue-300 truncate max-w-[160px]">{h}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.slice(0, 100).map((item, ri) => (
-                        <tr key={ri} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors">
-                            <td className="px-3 py-2 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26] text-[10px]">{ri}</td>
-                            {headers.map(h => {
-                                const val = item?.[h];
-                                const display = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '');
-                                return (
-                                    <td key={h} className="px-4 py-2 border-r border-[#1a1f2e]/50 truncate max-w-[200px] text-gray-300">{display}</td>
-                                );
-                            })}
+            <div className={`w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent ${isNestedTable ? '' : 'border border-[#2a2f3e] rounded-lg'}`}>
+                <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
+                    <thead className="bg-[#161b22] sticky top-0">
+                        <tr>
+                            <th className="px-3 py-2.5 w-10 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal text-[10px]">#</th>
+                            {headers.map(h => (
+                                <th key={h} className="px-4 py-2.5 border-r border-b border-[#2a2f3e] font-medium text-blue-300 whitespace-nowrap font-mono text-xs">{h}</th>
+                            ))}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {normalizedData.slice(0, 100).map((item, ri) => (
+                            <Fragment key={ri}>
+                                <tr className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors">
+                                    <td className="px-3 py-2 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26] text-[10px]">{ri}</td>
+                                    {headers.map(h => {
+                                        const val = item?.[h];
+                                        const cellKey = `${isNestedTable ? 'n_' : 'r_'}${ri}_${h}`;
+                                        const isArrayOfObjects = Array.isArray(val) && val.length > 0 && typeof val[0] === 'object';
+
+                                        if (isArrayOfObjects) {
+                                            const isExpanded = !!expandedCells[cellKey];
+                                            return (
+                                                <td key={h} className="px-4 py-2 border-r border-[#1a1f2e]/50 text-gray-300">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleExpand(cellKey)}
+                                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
+                                                            isExpanded
+                                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                                                                : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30'
+                                                        }`}
+                                                    >
+                                                        <span>{isExpanded ? '▼' : '▶'}</span>
+                                                        <span>{val.length} {val.length === 1 ? 'item' : 'items'}</span>
+                                                    </button>
+                                                </td>
+                                            );
+                                        }
+
+                                        let displayVal = val;
+                                        if (val && typeof val === 'object' && 'json' in val) {
+                                            displayVal = val.json;
+                                        }
+                                        const display = typeof displayVal === 'object' && displayVal !== null 
+                                            ? JSON.stringify(displayVal) 
+                                            : String(displayVal ?? '');
+                                        return (
+                                            <td 
+                                                key={h} 
+                                                className="px-4 py-2 border-r border-[#1a1f2e]/50 whitespace-nowrap max-w-[400px] truncate text-gray-300 font-mono text-xs"
+                                                title={display}
+                                            >
+                                                {display}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+
+                                {/* Expandable Sub-table Row */}
+                                {headers.map(h => {
+                                    const val = item?.[h];
+                                    const cellKey = `${isNestedTable ? 'n_' : 'r_'}${ri}_${h}`;
+                                    const isArrayOfObjects = Array.isArray(val) && val.length > 0 && typeof val[0] === 'object';
+                                    if (!isArrayOfObjects || !expandedCells[cellKey]) return null;
+
+                                    return (
+                                        <tr key={`${cellKey}_expanded`} className="bg-[#0b0e14]">
+                                            <td colSpan={headers.length + 1} className="p-3 border-b border-[#1e293b]/80">
+                                                <div className="rounded-lg border border-indigo-500/30 bg-[#080b11] p-3 shadow-inner">
+                                                    <div className="text-[11px] font-semibold text-indigo-400 mb-2.5 flex items-center justify-between">
+                                                        <span className="flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                                                            <span className="font-mono text-gray-200">{h}</span>
+                                                            <span className="text-gray-500 font-normal">({val.length} {val.length === 1 ? 'record' : 'records'})</span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleExpand(cellKey)}
+                                                            className="text-gray-400 hover:text-gray-200 text-[11px] font-mono px-2 py-0.5 rounded hover:bg-white/5 transition-colors border border-gray-700/50"
+                                                        >
+                                                            ✕ Close
+                                                        </button>
+                                                    </div>
+                                                    {renderArrayOfObjectsTable(val, true)}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </Fragment>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         );
     };
@@ -167,13 +247,66 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
 
         // Direct 2D array
         if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0])) {
+            // Handle multiple wires / groups (e.g., from Data Filter)
+            if (data.length > 1) {
+                return (
+                    <div className="flex flex-col gap-4">
+                        {data.map((wire: any[], wireIndex: number) => {
+                            const records = wire.map((item: any) => (item && typeof item === 'object' && 'json' in item) ? item.json : item);
+                            const groupName = metadata?.group_names?.[wireIndex] || `Group ${wireIndex + 1}`;
+                            return (
+                                <div key={wireIndex} className="border border-[#2a2f3e] rounded-lg overflow-hidden bg-[#111620]">
+                                    <div className="bg-[#1a202c] px-3 py-2 text-xs font-semibold text-gray-200 border-b border-[#2a2f3e] flex justify-between items-center">
+                                        <span>{groupName}</span>
+                                        <span className="text-[10px] text-gray-500 font-normal">{records.length} items</span>
+                                    </div>
+                                    {renderArrayOfObjectsTable(records)}
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            }
+
+            // Single wire fallback
+            const records = data[0].map((item: any) => (item && typeof item === 'object' && 'json' in item) ? item.json : item);
+            if (records.length === 1) {
+                const singleRecord = records[0];
+                const keys = singleRecord && typeof singleRecord === 'object' ? Object.keys(singleRecord) : [];
+                const firstKey = keys[0];
+                const isActionWrapper = Boolean(keys.length === 1 && firstKey && typeof singleRecord[firstKey] === 'object' && singleRecord[firstKey] !== null && !Array.isArray(singleRecord[firstKey]));
+
+                const displayData = (isActionWrapper && firstKey) ? singleRecord[firstKey] : singleRecord;
+
+                if (isActionWrapper) {
+                    return (
+                        <>
+                            <div className="text-[10px] text-gray-500 mb-2 flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-blue-900/30 text-blue-400 rounded-full border border-blue-800/30">Result</span>
+                                <span>1 item</span>
+                            </div>
+                            {renderObjectTable(displayData)}
+                        </>
+                    );
+                } else {
+                    return (
+                        <>
+                            <div className="text-[10px] text-gray-500 mb-2 flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-blue-900/30 text-blue-400 rounded-full border border-blue-800/30">Table</span>
+                                <span>1 row</span>
+                            </div>
+                            {renderArrayOfObjectsTable(records)}
+                        </>
+                    );
+                }
+            }
             return (
                 <>
                     <div className="text-[10px] text-gray-500 mb-2 flex items-center gap-2">
                         <span className="px-2 py-0.5 bg-green-900/30 text-green-400 rounded-full border border-green-800/30">Table</span>
-                        <span>{data.length - 1} rows</span>
+                        <span>{records.length} rows</span>
                     </div>
-                    {renderSpreadsheetTable(data)}
+                    {renderArrayOfObjectsTable(records)}
                 </>
             );
         }
@@ -217,7 +350,7 @@ export function TestPanel({ testResult, nodeName, nodeIcon }: TestPanelProps) {
     };
 
     return (
-        <div className="w-[35%] h-[90%] pt-5 bg-[#0d1117] border-l border-gray-800 flex flex-col overflow-hidden shadow-2xl z-10">
+        <div className="w-full h-full bg-[#0d1117] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="p-4 border-b border-gray-800 bg-[#161b22] sticky top-0 z-20 flex-shrink-0">
                 <div className="flex items-center gap-2">

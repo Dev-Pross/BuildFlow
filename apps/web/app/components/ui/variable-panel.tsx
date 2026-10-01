@@ -4,6 +4,7 @@ import { PreviousNodeOutput, VariableDefinition } from "@/app/lib/types/node.typ
 import { useAppSelector } from "@/app/hooks/redux";
 import { selectAllOutputs, NodeTestOutput } from "@/store/slices/nodeOutputSlice";
 import { useState } from "react";
+import { NodeIcon } from "@/app/components/ui/NodeIcon";
 
 interface VariablePanelProps {
   previousNodes: PreviousNodeOutput[];
@@ -150,8 +151,8 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     const dataRows = rows.slice(1);
 
     return (
-      <div className="overflow-x-auto w-full border-t border-gray-800 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-        <div className="text-[10px] p-2 bg-gray-800/50 text-gray-400 flex justify-between items-center border-b border-gray-800">
+      <div className="w-full border-t border-gray-800">
+        <div className="text-[10px] p-2 bg-gray-800/50 text-gray-400 flex justify-between items-center border-b border-gray-800 w-full">
           <div className="flex items-center gap-2">
             <span>Spreadsheet Data</span>
             <button
@@ -164,51 +165,53 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
           </div>
           <span>{dataRows.length} rows</span>
         </div>
-        <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
-          <thead className="bg-[#1a1f2e] sticky top-0">
-            <tr>
-              <th className="px-2 py-2 w-8 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal">#</th>
-              {headers.map((header, colIndex) => {
-                const colPath = String(header).trim().toLowerCase().replace(/\s+/g, '_') || `column_${colIndex + 1}`;
-                return (
-                  <th
-                    key={colIndex}
-                    className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium truncate max-w-[150px] transition-colors
-                      ${activeField ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer" : "cursor-not-allowed opacity-50"}`}
-                    onClick={() => handleInsert(`{{${formattedNodeName}.${colPath}}}`)}
-                    title={`Insert entire column array: {{${formattedNodeName}.${colPath}}}`}
-                  >
-                    {header || `Column ${colIndex + 1}`}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {dataRows.slice(0, 50).map((row: any[], rowIndex: number) => (
-              <tr key={rowIndex} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors group">
-                <td className="px-2 py-1.5 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26]">{rowIndex + 1}</td>
-                {headers.map((_, colIndex) => (
-                  <td
-                    key={colIndex}
-                    className={`px-3 py-1.5 border-r border-[#1a1f2e]/50 truncate max-w-[200px] transition-colors
-                      ${activeField ? "group-hover:text-white hover:bg-blue-500/30 cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                    onClick={() => handleInsert(`{{${formattedNodeName}.rows[${rowIndex + 1}][${colIndex}]}}`)}
-                    title={`Insert cell {{${formattedNodeName}.rows[${rowIndex + 1}][${colIndex}]}}`}
-                  >
-                    {String(row[colIndex] ?? '')}
-                  </td>
-                ))}
+        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+          <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
+            <thead className="bg-[#1a1f2e] sticky top-0">
+              <tr>
+                <th className="px-2 py-2 w-8 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal">#</th>
+                {headers.map((header, colIndex) => {
+                  const colPath = String(header).trim().toLowerCase().replace(/\s+/g, '_') || `column_${colIndex + 1}`;
+                  return (
+                    <th
+                      key={colIndex}
+                      className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium truncate max-w-[150px] transition-colors
+                        ${activeField ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                      onClick={() => handleInsert(`{{${formattedNodeName}.${colPath}}}`)}
+                      title={`Insert entire column array: {{${formattedNodeName}.${colPath}}}`}
+                    >
+                      {header || `Column ${colIndex + 1}`}
+                    </th>
+                  );
+                })}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {dataRows.slice(0, 50).map((row: any[], rowIndex: number) => (
+                <tr key={rowIndex} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors group">
+                  <td className="px-2 py-1.5 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26]">{rowIndex + 1}</td>
+                  {headers.map((_, colIndex) => (
+                    <td
+                      key={colIndex}
+                      className={`px-3 py-1.5 border-r border-[#1a1f2e]/50 truncate max-w-[200px] transition-colors
+                        ${activeField ? "group-hover:text-white hover:bg-blue-500/30 cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                      onClick={() => handleInsert(`{{${formattedNodeName}.rows[${rowIndex + 1}][${colIndex}]}}`)}
+                      title={`Insert cell {{${formattedNodeName}.rows[${rowIndex + 1}][${colIndex}]}}`}
+                    >
+                      {String(row[colIndex] ?? '')}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };
 
   // Rendering for standard array of objects
-  const renderArrayTable = (nodeName: string, nodeId: string, dataArray: any[], isTested: boolean) => {
+  const renderArrayTable = (nodeName: string, nodeId: string, dataArray: any[], isTested: boolean, wireIndex?: number) => {
     const formattedNodeName = nodeId;
 
     // Find all unique keys across objects to form headers
@@ -231,7 +234,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                   <td className="px-2 py-1.5 w-8 text-center border-r border-gray-800/50 text-gray-600 font-mono text-[10px]">{index}</td>
                   <td className={`px-3 py-1.5 truncate max-w-[300px] transition-colors
                      ${activeField ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer" : "cursor-not-allowed"}`}
-                    onClick={() => handleInsert(`{{${formattedNodeName}[${index}]}}`)}
+                    onClick={() => handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : ''}[${index}]}}`)}
                   >
                     {String(item)}
                   </td>
@@ -244,87 +247,125 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     }
 
     return (
-      <div className="overflow-x-auto w-full border-t border-gray-800 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-        <div className="text-[10px] p-2 bg-gray-800/50 text-gray-400 flex justify-between items-center border-b border-gray-800">
-          <span>JSON Array</span>
-          <span>{dataArray.length} items</span>
+      <div className="w-full border-t border-gray-800">
+        <div className="text-[10px] p-2 bg-gray-800/50 text-gray-400 flex justify-between items-center border-b border-gray-800 w-full">
+          <div className="flex w-full justify-around items-center gap-3">
+            <span className="font-medium text-gray-400">JSON Array</span>
+            <button
+              type="button"
+              draggable={isTested}
+              onDragStart={(e) => {
+                const syntax = `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'}}}`;
+                e.dataTransfer.setData('text/plain', syntax);
+                e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
+                  nodeName: formattedNodeName,
+                  path: wireIndex !== undefined ? `[${wireIndex}]` : 'rows',
+                  display: syntax
+                }));
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              onClick={() => {
+                if (activeField && isTested) {
+                  handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'}}}`);
+                }
+              }}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border ${activeField && isTested
+                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/40 cursor-grab active:cursor-grabbing'
+                : 'bg-gray-800/40 text-gray-500 border-gray-700/50 cursor-not-allowed opacity-60'
+                }`}
+              title={
+                !isTested
+                  ? 'Test node first'
+                  : activeField
+                    ? `Insert all rows: {{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'}}}`
+                    : 'Select a field first'
+              }
+            >
+              {`+ All Rows (${nodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'})`}
+            </button>
+            <span className="px-1.5 py-0.5 rounded bg-blue-900/30 border border-blue-800/40 text-blue-400 font-medium">
+              {dataArray.length} items
+            </span>
+          </div>
         </div>
-        <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
-          <thead className="bg-[#1a1f2e] sticky top-0">
-            <tr>
-              <th className="px-2 py-2 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal w-8">#</th>
-              {headers.map((header) => (
-                <th
-                  draggable={true}
-                  onDragStart={(e) => {
-                    const variableText = `{{${formattedNodeName}.map(item => item.${header})}}`;
+        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+          <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
+            <thead className="bg-[#1a1f2e] sticky top-0">
+              <tr>
+                <th className="px-2 py-2 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal w-8">#</th>
+                {headers.map((header) => (
+                  <th
+                    draggable={true}
+                    onDragStart={(e) => {
+                      const variableText = `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].${header}` : `.${header}`}}}`;
 
-                    e.dataTransfer.setData('text/plain', variableText);
+                      e.dataTransfer.setData('text/plain', variableText);
 
-                    e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
-                      nodeName: formattedNodeName,
-                      path: header,
-                      display: `${formattedNodeName}.${header}`
-                    }))
+                      e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
+                        nodeName: formattedNodeName,
+                        path: wireIndex !== undefined ? `[${wireIndex}].${header}` : header,
+                        display: variableText.replace('{{', '').replace('}}', '')
+                      }))
 
-                    e.dataTransfer.effectAllowed = 'copy';
+                      e.dataTransfer.effectAllowed = 'copy';
 
-                  }}
-                  key={header}
-                  className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium text-gray-400 truncate max-w-[150px] transition-colors
+                    }}
+                    key={header}
+                    className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium text-gray-400 truncate max-w-[150px] transition-colors
                       ${activeField && isTested ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-grab active:cursor-grabbing" : "cursor-not-allowed opacity-50"}
                     `}
-                  onClick={() => {
-                    if (activeField && isTested) {
-                      handleInsert(`{{${formattedNodeName}.map(item => item.${header})}}`);
-                    }
-                  }}
-                  title={
-                    !isTested
-                      ? "Test node first to map data"
-                      : activeField
-                        ? `Insert entire column as array: {{${formattedNodeName}.map(item => item.${header})}}`
-                        : "Select a field first"
-                  }
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dataArray.slice(0, 50).map((item, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors group">
-                <td className="px-2 py-1.5 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26]">{rowIndex}</td>
-                {headers.map(header => {
-                  const val = item?.[header];
-                  const displayStr = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '');
-                  return (
-                    <td
-                      key={header}
-                      className={`px-3 py-1.5 border-r border-[#1a1f2e]/50 truncate max-w-[200px] transition-colors
-                        ${activeField && isTested ? "group-hover:text-white hover:bg-blue-500/30 cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                      onClick={() => {
-                        if (activeField && isTested) {
-                          handleInsert(`{{${formattedNodeName}[${rowIndex}].${header}}}`);
-                        }
-                      }}
-                      title={
-                        !isTested
-                          ? "Test node first to map data"
-                          : activeField
-                            ? `Insert {{${formattedNodeName}[${rowIndex}].${header}}}`
-                            : "Select a field first"
+                    onClick={() => {
+                      if (activeField && isTested) {
+                        handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].${header}` : `.${header}`}}}`);
                       }
-                    >
-                      {displayStr}
-                    </td>
-                  );
-                })}
+                    }}
+                    title={
+                      !isTested
+                        ? "Test node first to map data"
+                        : activeField
+                          ? `Insert entire column as array: {{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].${header}` : `.${header}`}}}`
+                          : "Select a field first"
+                    }
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {dataArray.slice(0, 50).map((item, rowIndex) => (
+                <tr key={rowIndex} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors group">
+                  <td className="px-2 py-1.5 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26]">{rowIndex}</td>
+                  {headers.map(header => {
+                    const val = item?.[header];
+                    const displayStr = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '');
+                    return (
+                      <td
+                        key={header}
+                        className={`px-3 py-1.5 border-r border-[#1a1f2e]/50 truncate max-w-[200px] transition-colors
+                        ${activeField && isTested ? "group-hover:text-white hover:bg-blue-500/30 cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                        onClick={() => {
+                          if (activeField && isTested) {
+                            handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].[${rowIndex}].json.${header}` : `.[${rowIndex}].json.${header}`}}}`);
+                          }
+                        }}
+                        title={
+                          !isTested
+                            ? "Test node first to map data"
+                            : activeField
+                              ? `Insert {{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].[${rowIndex}].json.${header}` : `.[${rowIndex}].json.${header}`}}}`
+                              : "Select a field first"
+                        }
+                      >
+                        {displayStr}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };
@@ -344,7 +385,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
   }
 
   return (
-    <div className="w-[35%] h-full bg-[#0d1117] border-r border-gray-800 flex flex-col overflow-hidden shadow-2xl z-10">
+    <div className="w-full h-full bg-[#0d1117] flex flex-col overflow-hidden">
 
       {/* Panel Header */}
       <div className="p-4 border-b border-gray-800 bg-[#161b22] sticky top-0 z-20 flex-shrink-0">
@@ -392,30 +433,29 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                 `}
                 onClick={() => setExpandedNodeId(isExpanded ? null : node.nodeId)}
               >
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    {node.icon ? (
-                      <img src={node.icon} className="w-8 h-8 rounded bg-white p-1" alt={node.nodeName} />
-                    ) : (
-                      <div className="w-8 h-8 rounded bg-gray-800 p-1 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                      </div>
-                    )}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="relative flex-shrink-0">
+                    <NodeIcon
+                      icon={node.icon}
+                      name={node.nodeName}
+                      size="lg"
+                      nodeType={node.nodeType === "trigger" ? "trigger" : "action"}
+                    />
                     {isTested && (
-                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-[#161b22] rounded-full" title="Successfully Executed"></span>
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[#161b22] rounded-full" title="Successfully Executed"></span>
                     )}
                   </div>
-                  <div>
-                    <h3 className={`font-medium text-sm ${isExpanded ? 'text-white' : 'text-gray-300'}`}>
+                  <div className="min-w-0 flex-1">
+                    <h3 className={`font-medium text-sm truncate ${isExpanded ? 'text-white' : 'text-gray-300'}`}>
                       {node.nodeName}
                     </h3>
-                    <p className="text-[10px] text-gray-500 mt-0.5 max-w-[150px] truncate">
+                    <p className="text-[10px] text-gray-400 mt-0.5 truncate">
                       {isTested ? 'Data available' : 'Using sample schema'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                   {onTestNode && !node.nodeName.toLowerCase().includes('webhook') && (
                     <button
                       onClick={(e) => {
@@ -424,7 +464,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                       }}
                       disabled={isNodeLoading}
                       className={`
-                          px-2 py-1 flex items-center gap-1.5 rounded text-[10px] font-medium transition-colors border
+                          px-2 py-1 flex items-center gap-1.5 rounded text-[10px] font-medium transition-colors border whitespace-nowrap flex-shrink-0
                           ${isNodeLoading ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-wait' :
                           isTested
                             ? 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 border-blue-800/50'
@@ -462,9 +502,22 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                         <div className="bg-[#111620]">
                           {renderSpreadsheetTable(node.nodeName, node.nodeId, testOutput.data)}
                         </div>
-                      ) : Array.isArray(testOutput.data) && testOutput.data.length > 0 && Array.isArray(testOutput.data[0]) ? (
-                        <div className="bg-[#111620]">
-                          {renderSpreadsheetTable(node.nodeName, node.nodeId, testOutput.data)}
+                      ) : Array.isArray(testOutput.data) && testOutput.data.some(wire => Array.isArray(wire)) ? (
+                        <div className="bg-[#111620] flex flex-col p-2 gap-3">
+                          {testOutput.data.length > 1 ? testOutput.data.map((wire: any[], wIndex: number) => {
+                            const groupName = testOutput.metadata?.group_names?.[wIndex] || `Output ${wIndex + 1}`;
+                            return (
+                              <div key={wIndex} className="border border-gray-700 rounded-md overflow-hidden shadow-sm">
+                                <div className="bg-[#1a202c] px-3 py-2 text-xs font-semibold text-gray-200 border-b border-gray-700 flex justify-between items-center">
+                                  <span>{groupName}</span>
+                                  <span className="text-[10px] text-gray-500 font-normal">{wire.length} items</span>
+                                </div>
+                                {renderArrayTable(node.nodeName, node.nodeId, wire.map((item: any) => (item && typeof item === 'object' && 'json' in item) ? item.json : item), isTested, wIndex)}
+                              </div>
+                            );
+                          }) : (
+                            renderArrayTable(node.nodeName, node.nodeId, testOutput.data[0].map((item: any) => (item && typeof item === 'object' && 'json' in item) ? item.json : item), isTested)
+                          )}
                         </div>
                       ) :
                         /* Try matching Standard Array pattern */

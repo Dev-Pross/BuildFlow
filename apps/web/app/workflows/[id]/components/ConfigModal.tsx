@@ -20,6 +20,8 @@ import {
 import { workflowActions } from "@/store/slices/workflowSlice";
 import { TestPanel } from "@/app/components/ui/TestPanel";
 import { RichVariableInput } from "@/app/components/ui/RichVariableInput";
+import { Group, Panel, Separator } from "react-resizable-panels";
+import { NodeIcon } from "@/app/components/ui/NodeIcon";
 
 interface ConfigModalProps {
   isOpen: boolean;
@@ -157,8 +159,9 @@ export default function ConfigModal({
       const response = await api.execute.node(selectedNode.id, resolvedConfig);
       console.log('[ConfigModal] API response (already extracted output):', response);
 
-      // api.execute.node already returns res.data.data.output directly
-      const outputData = response;
+      // api.execute.node now returns full executionResult
+      const outputData = response.output;
+      const metadata = response.metadata;
       console.log('[ConfigModal] Output data for extraction:', outputData);
 
       // Extract variables from the output for the variable panel
@@ -179,6 +182,7 @@ export default function ConfigModal({
         nodeName: selectedNode.name || selectedNode.data?.label || 'Node',
         nodeType: selectedNode.type || '',
         data: outputData,
+        metadata: metadata,
         variables,
         testedAt: Date.now(),
         success: true
@@ -241,7 +245,8 @@ export default function ConfigModal({
       const resolvedConfig = resolveConfigVariables(targetNodeConfig, interpolationContext);
 
       const response = await api.execute.node(nodeId, resolvedConfig);
-      const outputData = response;
+      const outputData = response.output;
+      const metadata = response.metadata;
 
       // Extract variables from the output for the variable panel
       const extractedVariables = extractVariablesFromOutput(outputData);
@@ -260,6 +265,7 @@ export default function ConfigModal({
         nodeName: targetNodeName,
         nodeType: targetNodeType,
         data: outputData,
+        metadata: metadata,
         variables,
         testedAt: Date.now(),
         success: true
@@ -308,6 +314,17 @@ export default function ConfigModal({
   const handleFieldChange = async (fieldName: string, value: string, nodeConfig: any) => {
     // Update config with new value
     const updatedConfig = ({ ...config, [fieldName]: value })
+
+    if (fieldName === "operation") {
+      const fieldDef = nodeConfig.fields?.find((f: any) => f.name === fieldName);
+      if (fieldDef && fieldDef.options) {
+        const selectedOption = fieldDef.options.find((opt: any) => (opt.id || opt.value) === value);
+        if (selectedOption && selectedOption.outputs) {
+          updatedConfig.outputs = selectedOption.outputs; // Inject the outputs!
+        }
+      }
+    }
+
     console.log(fieldName, " ", value, " ", nodeConfig)
     console.log(config, "from handle field function - 1")
     setConfig((prev) => ({ ...prev, [fieldName]: value }));
@@ -464,7 +481,7 @@ export default function ConfigModal({
       }
     };
 
-    extractKeysRecursive(data[0]);
+    extractKeysRecursive(data[0].json);
     return Array.from(new Set(keys));
   };
 
@@ -703,22 +720,23 @@ export default function ConfigModal({
                     <div className="w-1/3 text-sm text-gray-400 truncate" title={header}>
                       {header}
                     </div>
-                    <input
-                      type="text"
-                      value={mappedValues[header] || ""}
-                      onFocus={() => {
-                        setActiveField(field.name);     // "mappedColumns"
-                        setActiveSubField(header);      // e.g. "Email"
-                      }}
-                      onChange={(e) => {
-                        const newMapped = { ...mappedValues, [header]: e.target.value };
-                        const newConfig = { ...config, [field.name]: newMapped };
-                        setConfig(newConfig);
-                        dispatchConfig(newConfig);
-                      }}
-                      placeholder="Enter value..."
-                      className="flex-1 p-2 bg-[#1e293b] border border-gray-700 rounded-md text-sm text-gray-200 outline-none focus:border-indigo-500"
-                    />
+                    <div className="flex-1">
+                      <RichVariableInput
+                        value={mappedValues[header] || ""}
+                        onChange={(val) => {
+                          const newMapped = { ...mappedValues, [header]: val };
+                          const newConfig = { ...config, [field.name]: newMapped };
+                          setConfig(newConfig);
+                          dispatchConfig(newConfig);
+                        }}
+                        availableNodes={previousNodes.map(n => ({ id: n.nodeId, name: n.nodeName }))}
+                        onFocus={() => {
+                          setActiveField(field.name);
+                          setActiveSubField(header);
+                        }}
+                        placeholder="Enter value..."
+                      />
+                    </div>
                     <button
                       onClick={() => {
                         const newMapped = { ...mappedValues };
@@ -811,136 +829,150 @@ export default function ConfigModal({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Main container */}
-      <div className="fixed inset-0 flex gap-0 items-center m-3 p-1.5 rounded-2xl justify-between z-50 bg-gradient-to-br from-[#0a0e17] via-[#0d1219] to-[#0a0e17] border border-[#1e293b]/60 shadow-2xl shadow-black/50">
-        <VariablePanel
-          previousNodes={previousNodes}
-          onInsert={handleVariableInsert}
-          activeField={activeField}
-          onTestNode={handleTestPreviousNode}
-        />
-        <div className="rounded-xl max-w-md w-full h-[92%] overflow-y-auto py-1 flex flex-col bg-[#0f1420]/90 border border-[#1e293b]/40 shadow-inner">
-          {/* Header */}
-          <div className="p-5 border-b border-[#1e293b]/60 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#0f1420] to-[#141c2b]">
-            <h2 className="text-lg font-semibold flex items-center gap-3 text-gray-100">
-              {selectedNode.icon && <img src={selectedNode.icon} className="w-10 h-8 rounded-lg bg-white/10 p-1 border border-white/5" />}
-              {selectedNode.name}
-            </h2>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-white/5 transition-colors"
-              type="button"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-5 space-y-5">
-            {/* Node info */}
-            <div className="p-3.5 rounded-xl bg-[#141c2b]/80 border border-[#1e293b]/40">
-              <div className="flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">ID</span>
-                  <span className="text-gray-400 font-mono bg-[#0a0e17] px-2 py-0.5 rounded">{selectedNode.id}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">Type</span>
-                  <span className="text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{selectedNode.type ?? "Trigger"}</span>
-                </div>
-              </div>
+      <div className="fixed inset-0 m-3 p-2 rounded-2xl z-50 bg-gradient-to-br from-[#0a0e17] via-[#0d1219] to-[#0a0e17] border border-[#1e293b]/60 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+        <Group orientation="horizontal" id="buildflow-node-config-panels" className="w-full h-full flex items-stretch gap-0">
+          {/* Left Panel: Variable / Data Mapping */}
+          <Panel id="variable-panel" defaultSize="30%" minSize="20%" maxSize="45%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
+            <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#1e293b]/60 shadow-xl bg-[#0d1117] flex flex-col">
+              <VariablePanel
+                previousNodes={previousNodes}
+                onInsert={handleVariableInsert}
+                activeField={activeField}
+                onTestNode={handleTestPreviousNode}
+              />
             </div>
-            {/* Dynamic Form Block */}
-            {(() => {
-              const nodeConfig = getNodeConfig(
-                selectedNode.name || selectedNode.actionType
-              );
-              if (!nodeConfig) {
-                return (
-                  <p className="text-red-400">
-                    No config found for {selectedNode.name}
-                  </p>
-                );
-              }
-              if ((nodeConfig.fields || []).length === 0) {
-                return (
-                  <div className="text-center py-8 text-gray-200">
-                    <div className="text-4xl mb-4">✅</div>
-                    <p className="text-lg font-medium text-white">
-                      {nodeConfig.label}
-                    </p>
-                    <p className="mt-2 text-gray-300">{nodeConfig.description}</p>
-                    {nodeConfig.id === "webhook" && (
-                      <div
-                        className="mt-6 p-4 rounded-lg"
-                        style={{ background: "#111827" }}
-                      >
-                        <p className="font-medium mb-2 text-white">
-                          Webhook URL:
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <code className="block bg-black p-2 rounded border font-mono text-sm break-all text-green-300 border-gray-700">
-                            {`${HOOKS_URL}/${userId}/${selectedNode.id}`}
-                          </code>
-                          <button
-                            type="button"
-                            aria-label="Copy webhook url"
-                            className="p-1 rounded hover:bg-gray-800"
-                            onClick={() => {
-                              navigator.clipboard.writeText(
-                                `${HOOKS_URL}/${userId}/${selectedNode.id}`
-                              );
-                              toast.success("Webhook url copied");
-                            }}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="w-4 h-4 text-gray-300"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <rect
-                                x="9"
-                                y="9"
-                                width="13"
-                                height="13"
-                                rx="2"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                fill="none"
-                              />
-                              <rect
-                                x="3"
-                                y="3"
-                                width="13"
-                                height="13"
-                                rx="2"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                fill="none"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Copy this URL to trigger the workflow
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <div className="space-y-4">
-                  {nodeConfig.fields
-                    .filter((field) => isFieldVisible(field, config))
-                    .map((field) => renderField(field, nodeConfig))}
-                </div>
-              );
-            })()}
+          </Panel>
 
-            {/* Test Result Display */}
-            {/* {testResult && (
+          {/* Drag Handle 1 */}
+          <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
+            <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
+          </Separator>
+
+          {/* Center Panel: Node Configuration Form */}
+          <Panel id="form-panel" defaultSize="35%" minSize="25%" maxSize="50%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
+            <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#0f1420]/95 border border-[#1e293b]/60 shadow-xl">
+              {/* Header */}
+              <div className="p-4 border-b border-[#1e293b]/60 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#0f1420] to-[#141c2b]">
+                <h2 className="text-base font-semibold flex items-center gap-3 text-gray-100">
+                  <NodeIcon icon={selectedNode.icon} name={selectedNode.name} size="md" />
+                  <span>{selectedNode.name}</span>
+                </h2>
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-white/5 transition-colors"
+                  type="button"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                {/* Node info */}
+                <div className="p-3.5 rounded-xl bg-[#141c2b]/80 border border-[#1e293b]/40">
+                  <div className="flex items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">ID</span>
+                      <span className="text-gray-400 font-mono bg-[#0a0e17] px-2 py-0.5 rounded">{selectedNode.id}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">Type</span>
+                      <span className="text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{selectedNode.type ?? "Trigger"}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Dynamic Form Block */}
+                {(() => {
+                  const nodeConfig = getNodeConfig(
+                    selectedNode.name || selectedNode.actionType
+                  );
+                  if (!nodeConfig) {
+                    return (
+                      <p className="text-red-400">
+                        No config found for {selectedNode.name}
+                      </p>
+                    );
+                  }
+                  if ((nodeConfig.fields || []).length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-200">
+                        <div className="text-4xl mb-4">✅</div>
+                        <p className="text-lg font-medium text-white">
+                          {nodeConfig.label}
+                        </p>
+                        <p className="mt-2 text-gray-300">{nodeConfig.description}</p>
+                        {nodeConfig.id === "webhook" && (
+                          <div
+                            className="mt-6 p-4 rounded-lg"
+                            style={{ background: "#111827" }}
+                          >
+                            <p className="font-medium mb-2 text-white">
+                              Webhook URL:
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <code className="block bg-black p-2 rounded border font-mono text-sm break-all text-green-300 border-gray-700">
+                                {`${HOOKS_URL}/${userId}/${selectedNode.id}`}
+                              </code>
+                              <button
+                                type="button"
+                                aria-label="Copy webhook url"
+                                className="p-1 rounded hover:bg-gray-800"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    `${HOOKS_URL}/${userId}/${selectedNode.id}`
+                                  );
+                                  toast.success("Webhook url copied");
+                                }}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="w-4 h-4 text-gray-300"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <rect
+                                    x="9"
+                                    y="9"
+                                    width="13"
+                                    height="13"
+                                    rx="2"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    fill="none"
+                                  />
+                                  <rect
+                                    x="3"
+                                    y="3"
+                                    width="13"
+                                    height="13"
+                                    rx="2"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    fill="none"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Copy this URL to trigger the workflow
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-4">
+                      {nodeConfig.fields
+                        .filter((field) => isFieldVisible(field, config))
+                        .map((field) => renderField(field, nodeConfig))}
+                    </div>
+                  );
+                })()}
+
+                {/* Test Result Display */}
+                {/* {testResult && (
               <div className="mt-4 p-3 rounded-lg bg-green-900/30 border border-green-700">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-green-400">✅ Test Output</span>
@@ -957,50 +989,63 @@ export default function ConfigModal({
               </div>
             )} */}
 
-            {/* Test Error Display */}
-            {/* {nodeTestOutput?.error && (
+                {/* Test Error Display */}
+                {/* {nodeTestOutput?.error && (
               <div className="mt-4 p-3 rounded-lg bg-red-900/30 border border-red-700">
                 <span className="text-sm font-medium text-red-400">❌ Test Failed</span>
                 <p className="text-xs text-gray-300 mt-1">{nodeTestOutput.error}</p>
               </div>
             )} */}
-          </div>
+              </div>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-[#1e293b]/60 flex justify-between items-center gap-3 bg-gradient-to-r from-[#0f1420] to-[#141c2b] flex-shrink-0">
-            {!selectedNode.name.includes("webhook") &&
-              <button
-                onClick={handleTestNode}
-                disabled={isTestingNode || loading}
-                className="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-purple-500/20 disabled:shadow-none"
-                type="button"
-              >
-                {isTestingNode ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                    Test Node
-                  </>
-                )}
-              </button>
-            }
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={() => onClose()}
-                disabled={loading}
-                className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-gray-200 rounded-xl disabled:opacity-50 text-sm font-medium transition-all border border-white/10 hover:border-white/20"
-                type="button"
-              >
-                Done
-              </button>
+              {/* Footer */}
+              <div className="p-4 border-t border-[#1e293b]/60 flex justify-between items-center gap-3 bg-gradient-to-r from-[#0f1420] to-[#141c2b] flex-shrink-0">
+                {!selectedNode.name.includes("webhook") &&
+                  <button
+                    onClick={handleTestNode}
+                    disabled={isTestingNode || loading}
+                    className="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-purple-500/20 disabled:shadow-none"
+                    type="button"
+                  >
+                    {isTestingNode ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                        Test Node
+                      </>
+                    )}
+                  </button>
+                }
+                <div className="flex gap-2 ml-auto">
+                  <button
+                    onClick={() => onClose()}
+                    disabled={loading}
+                    className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-gray-200 rounded-xl disabled:opacity-50 text-sm font-medium transition-all border border-white/10 hover:border-white/20"
+                    type="button"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <TestPanel testResult={testResult} nodeName={selectedNode?.name} nodeIcon={selectedNode?.icon} />
+          </Panel>
+
+          {/* Drag Handle 2 */}
+          <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
+            <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
+          </Separator>
+
+          {/* Right Panel: Test Output */}
+          <Panel id="test-panel" defaultSize="35%" minSize="20%" maxSize="65%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
+            <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#1e293b]/60 shadow-xl bg-[#0d1117] flex flex-col">
+              <TestPanel testResult={testResult} metadata={nodeTestOutput?.metadata} nodeName={selectedNode?.name} nodeIcon={selectedNode?.icon} />
+            </div>
+          </Panel>
+        </Group>
       </div>
     </div>
   );
