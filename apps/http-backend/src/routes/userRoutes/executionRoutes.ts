@@ -33,7 +33,7 @@ execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response)
 
             const context = {
                 userId: req.user.sub,
-                config: config,
+                config: [config],
                 credentialId: nodeData.CredentialsID || config?.credentialId || "",
                 authType: nodeData.AvailableNode.authType,
                 nodeId: nodeData.id,

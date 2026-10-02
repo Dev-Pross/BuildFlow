@@ -202,8 +202,8 @@ export const FilterNodeInput = z.object({
     "existing_data_only",
     "group_by"
   ]),
-  sourceData: z.array(z.any()),
-  referenceData: z.array(z.any()).optional(),
+  sourceData: z.array(z.any()).or(z.string()),
+  referenceData: z.array(z.any()).or(z.string()).optional(),
   sourceKey: z.string().optional(),
   referenceKey: z.string().optional()
 })

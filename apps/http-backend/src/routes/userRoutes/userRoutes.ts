@@ -152,7 +152,11 @@ router.get("/getAvailableTriggers",
           .status(statusCodes.UNAUTHORIZED)
           .json({ message: "User isnot logged in /not authorized" });
 
-      const Data = await prismaClient.availableTrigger.findMany();
+      const Data = await prismaClient.availableTrigger.findMany({
+        where: {
+          type: 'webhook'
+        }
+      });
       return res.status(statusCodes.OK).json({
         message: "Availabe Triggers Fetched Succesfuuly",
         Data: Data,

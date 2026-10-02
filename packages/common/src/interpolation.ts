@@ -97,15 +97,68 @@ export function resolveVariable(variable: string, context: InterpolationContext,
     return `{{${variable}}}`;
   }
 
+  if (path === 'rows' || path === 'allRows') {
+    if (Array.isArray(nodeData) && Array.isArray(nodeData[0])) {
+      if (sourceRefs && sourceRefs[nodeName]) {
+        return nodeData[sourceRefs[nodeName].wireIndex];
+      }
+      return nodeData[0]
+    } else if (Array.isArray(nodeData)) {
+      return nodeData
+    } else {
+      return nodeData.rows
+    }
+  }
+
+  // 1. Relative execution mapping (Highest Priority during row-by-row workflow execution)
   if (sourceRefs && sourceRefs[nodeName]) {
     const { wireIndex, rowIndex } = sourceRefs[nodeName]
 
     const item = nodeData[wireIndex]?.[rowIndex];
 
-    const value = getNestedValue(item?.json, path)
+    // Strip the wire index prefix if it exists (e.g. "[0].company_name" -> "company_name")
+    let relativePath = path;
+    const bracketPrefix = `[${wireIndex}].`;
+    const dotPrefix = `${wireIndex}.`;
+    
+    if (relativePath.startsWith(bracketPrefix)) {
+      relativePath = relativePath.slice(bracketPrefix.length);
+    } else if (relativePath.startsWith(dotPrefix)) {
+      relativePath = relativePath.slice(dotPrefix.length);
+    }
 
-    return value !== undefined ? value : `{{${variable}}}`;
+    const value = getNestedValue(item?.json, relativePath)
+
+    if (value !== undefined) return value;
   }
+
+  // 2. Detect Explicit Absolute Coordinates (Fallback if relative mapping fails or is absent)
+  const isAbsoluteCoordinate = /^\d+/.test(path) || /^\[\d+\]/.test(path);
+  if (isAbsoluteCoordinate) {
+    // If the path looks like "[1].email" where we want a column from an array
+    const keys = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+
+    // First, try direct nested value fallback
+    const absoluteValue = getNestedValue(nodeData, path);
+    if (absoluteValue !== undefined) return absoluteValue;
+
+    // Second, if they asked for a column from a specific wire (e.g. "[1].email"), 
+    // extract it across the array!
+    if (keys.length === 2 && !isNaN(Number(keys[0]))) {
+      const wireIndex = Number(keys[0]);
+      const columnName = keys[1];
+      const wireArray = nodeData[wireIndex];
+
+      if (Array.isArray(wireArray)) {
+        const mappedValues = wireArray.map(item => getNestedValue(item?.json, columnName!));
+        // If it actually found values, return the array
+        if (mappedValues.some(v => v !== undefined)) {
+          return mappedValues;
+        }
+      }
+    }
+  }
+
 
   // // Column-based resolution: {{google_sheet.email}} → rows[currentRow][columnIndex]
   // if (nodeData.columns && nodeData.columns[path] !== undefined) {
@@ -118,18 +171,18 @@ export function resolveVariable(variable: string, context: InterpolationContext,
   // // Fallback: standard nested path resolution (e.g., rows[1][0])
   // const value = getNestedValue(nodeData, path);
 
-  // 1. Fallback for single-item nodes (e.g., Webhook or trigger nodes at wire 0, row 0)
+  // 3. Fallback for single-item nodes (e.g., Webhook or trigger nodes at wire 0, row 0)
   const fallbackItem = nodeData?.[0]?.[0];
   if (fallbackItem && typeof fallbackItem === 'object' && 'json' in fallbackItem) {
     const value = getNestedValue(fallbackItem.json, path);
     if (value !== undefined) return value;
   }
 
-  // 2. Direct property fallback (if raw object was passed in context)
+  // 4. Direct property fallback (if raw object was passed in context)
   const directValue = getNestedValue(nodeData, path);
   if (directValue !== undefined) return directValue;
 
-  // 3. If nothing matched, preserve the raw {{variable}} placeholder
+  // 5. If nothing matched, preserve the raw {{variable}} placeholder
   return `{{${variable}}}`;
 
 
@@ -293,6 +346,38 @@ export function extractVariablesFromOutput(
 
   if (output === null || output === undefined) {
     return variables;
+  }
+
+  if (Array.isArray(output) && Array.isArray(output[0])) {
+
+    const sampleItem = output[0]?.[0] || output[1]?.[0];
+    variables.push({
+      name: "All Rows",
+      path: "rows",
+      type: "array",
+      sampleValue: output[0].length > 0 ? [`${output[0].length} items`] : "[]"
+    })
+    if (sampleItem && typeof sampleItem === 'object' && 'json' in sampleItem && typeof sampleItem.json === 'object' && sampleItem.json !== null) {
+      const sampleData = sampleItem.json;
+
+      for (const [key, value] of Object.entries(sampleData)) {
+        const name = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')
+        const path = key
+
+        const type = Array.isArray(value) ? 'array' : value === null || value === undefined ? "any" : typeof value
+
+        let sampleValue = value
+
+        variables.push({
+          name,
+          path,
+          type,
+          sampleValue
+        })
+      }
+
+    }
+    return variables
   }
 
   // Special handling for spreadsheet-like data (rows with headers in first row)

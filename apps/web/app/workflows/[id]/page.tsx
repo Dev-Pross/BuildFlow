@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import {
   ReactFlow,
@@ -11,6 +11,9 @@ import {
   useNodesState,
   useEdgesState,
   NodeChange,
+  addEdge,
+  Connection,
+  EdgeChange
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { PreviousNodeOutput } from "../../lib/types/node.types";
@@ -40,10 +43,10 @@ export default function WorkflowCanvas() {
 
   // context rebuilding for test function
 
-  const buildTestContext =  ()=>{
+  const buildTestContext = () => {
     const context: Record<string, any> = {};
-    for (const [nodeId, testOutput] of Object.entries(allTestedOutputs)){
-      if(testOutput.success && testOutput.data){
+    for (const [nodeId, testOutput] of Object.entries(allTestedOutputs)) {
+      if (testOutput.success && testOutput.data) {
         const normalizedName = testOutput.nodeName.toLowerCase().replace(/\s+/g, '_')
         context[normalizedName] = testOutput.data
       }
@@ -51,46 +54,47 @@ export default function WorkflowCanvas() {
     return context;
   }
 
-  const testNodeFromCanvas = async(nodeId: string, nodeName: string, nodeType: string)=>{
-    dispatch(setNodeLoading({nodeId: nodeId, loading: true}));
-    try{
+  const testNodeFromCanvas = async (nodeId: string, nodeName: string, nodeType: string) => {
+    dispatch(setNodeLoading({ nodeId: nodeId, loading: true }));
+    try {
       const isTrigger = reduxWorkflow.data.trigger?.TriggerId === nodeId;
-      const savedConfig = isTrigger ? reduxWorkflow.data.trigger?.Config : 
-                           reduxWorkflow.data.nodes.find(n=> n.NodeId === nodeId)?.Config ;
+      const savedConfig = isTrigger ? reduxWorkflow.data.trigger?.Config :
+        reduxWorkflow.data.nodes.find(n => n.NodeId === nodeId)?.Config;
       console.log(savedConfig, "-- from 57852")
       const interpolationContext = buildTestContext();
       const resolvedConfig = resolveConfigVariables(savedConfig, interpolationContext);
       console.log(resolvedConfig, "--from 60")
-      const response = await api.execute.node(nodeId,resolvedConfig);
+      const response = await api.execute.node(nodeId, resolvedConfig);
       dispatch(setNodeOutput({
         nodeId: nodeId,
         nodeName: nodeName,
         nodeType: nodeType,
-        data: response,
+        data: response.output,
+        metadata: response.metadata,
         testedAt: Date.now(),
         success: true,
         variables: []
       }))
       toast.success(`Tested ${nodeName} successfully!`);
-    }catch(err: any){
+    } catch (err: any) {
       console.log(err, "from 73")
       toast.error(`Test failed: ${err.message}`);
-        dispatch(setNodeOutput({
-            nodeId,
-            nodeName,
-            nodeType,
-            data: null,
-            variables: [],
-            testedAt: Date.now(),
-            success: false,
-            error: err.message
-        }));
+      dispatch(setNodeOutput({
+        nodeId,
+        nodeName,
+        nodeType,
+        data: null,
+        variables: [],
+        testedAt: Date.now(),
+        success: false,
+        error: err.message
+      }));
     }
   }
   const getPreviousNodes = (
-  selectedNodeId: string,
-  allNodes: Node[],
-  allEdges: Edge[]
+    selectedNodeId: string,
+    allNodes: Node[],
+    allEdges: Edge[]
   ): PreviousNodeOutput[] => {
     // BFS backward through the graph to find ALL ancestor nodes
     const visited = new Set<string>();
@@ -132,17 +136,17 @@ export default function WorkflowCanvas() {
   const handleExecute = async () => {
 
     const unConfigured = nodes.filter(
-      n=> !n.data.isPlaceholder && !n.data.isConfigured
+      n => !n.data.isPlaceholder && !n.data.isConfigured
     );
 
-    if(unConfigured.length > 0){
+    if (unConfigured.length > 0) {
       setError(`Configure these nodes first: ${unConfigured.map(n => n.data.label).join(', ')}`);
       return
     }
     setLoading(true);
 
     try {
-      const data = await api.workflows.execute({workflowId})
+      const data = await api.workflows.execute({ workflowId })
       console.log("This is from the Execute Button", data)
       toast.success("Execution Started")
     }
@@ -175,7 +179,9 @@ export default function WorkflowCanvas() {
   const [configOpen, setConfigOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(false);
+  const [branchSourceNodeId, setBranchSourceNodeId] = useState<string | null>(null);
+  const [branchSourceHandleId, setBranchSourceHandleId] = useState<string | null>(null);
   const nodeTypes = {
     customNode: BaseNode,
   };
@@ -194,27 +200,27 @@ export default function WorkflowCanvas() {
   }
   console.log("The Detaisl of Selected Node is ", selectedNode)
 
-  function checkIsConfigure(nodeName: string, config: any): boolean{
+  function checkIsConfigure(nodeName: string, config: any): boolean {
     const nodeConfig = getNodeConfig(nodeName);
-    if(!nodeConfig ||  !nodeConfig.fields) return true;
-    const requiredFields = nodeConfig.fields.filter((f: any)=> f.required);
-    if(requiredFields.length === 0) return true;
-    return requiredFields.every((f:any)=> config?.[f.name] !== undefined && config?.[f.name] !== '' );
+    if (!nodeConfig || !nodeConfig.fields) return true;
+    const requiredFields = nodeConfig.fields.filter((f: any) => f.required);
+    if (requiredFields.length === 0) return true;
+    return requiredFields.every((f: any) => config?.[f.name] !== undefined && config?.[f.name] !== '');
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     setNodes(prev => prev.map(node => {
-      if(node.data?.isPlaceholder) return node;
-      if(node.data?.nodeType === 'trigger'){
+      if (node.data?.isPlaceholder) return node;
+      if (node.data?.nodeType === 'trigger') {
         const reduxConfig = reduxWorkflow.data.trigger?.Config;
         const name = reduxWorkflow.data.trigger?.name || "";
-        return { ...node, data: { ...node.data, isConfigured: checkIsConfigure(name, reduxConfig)}}
+        return { ...node, data: { ...node.data, isConfigured: checkIsConfigure(name, reduxConfig) } }
       }
 
-      if(node.data.nodeType === 'action'){
-        const reduxNode = reduxWorkflow.data.nodes.find(n=> n.NodeId === node.id);
-        if(!reduxNode) return node;
-        return { ...node, data: { ...node.data, isConfigured: checkIsConfigure(reduxNode.name, reduxNode.Config)}};
+      if (node.data.nodeType === 'action') {
+        const reduxNode = reduxWorkflow.data.nodes.find(n => n.NodeId === node.id);
+        if (!reduxNode) return node;
+        return { ...node, data: { ...node.data, isConfigured: checkIsConfigure(reduxNode.name, reduxNode.Config) } };
       }
       return node;
     }));
@@ -223,14 +229,27 @@ export default function WorkflowCanvas() {
   useEffect(() => {
     const loadWorkflows = async () => {
       try {
-        if(reduxWorkflow.data.workflowId === workflowId){
+        if (reduxWorkflow.data.workflowId === workflowId) {
           const { trigger, nodes: reduxNodes, edges: reduxEdges } = reduxWorkflow.data
 
           if (!trigger) {
-            setError("No trigger found in workflow data, so start with selecting the trigger for the workflow");
+            setNodes([{
+              id: "trigger-placeholder",
+              type: "customNode",
+              position: { x: 250, y: 50 },
+              data: {
+                label: "Add Trigger",
+                icon: "➕",
+                isPlaceholder: true,
+                nodeType: "trigger",
+                onConfigure: () => setTriggerOpen(true),
+              },
+            }]);
+            setEdges([]);
+            setError(null);
             return;
           }
-          const triggerPosition = ensurePosition(trigger.position, DEFAULT_TRIGGER_POSITION )
+          const triggerPosition = ensurePosition(trigger.position, DEFAULT_TRIGGER_POSITION)
           const triggerNode = {
             id: trigger.TriggerId,
             type: "customNode",
@@ -246,12 +265,17 @@ export default function WorkflowCanvas() {
                   name: trigger.name,
                   icon: trigger.icon
                 }),
-              onTest: ( trigger.name.toLowerCase().includes('webhook') ? undefined : ()=> testNodeFromCanvas(trigger.TriggerId, trigger.name, "trigger") ),
+              onTest: (trigger.name.toLowerCase().includes('webhook') ? undefined : () => testNodeFromCanvas(trigger.TriggerId, trigger.name, "trigger")),
+              onAddChild: (sourceHandleId?: string) => {
+                setBranchSourceNodeId(trigger.TriggerId);
+                setBranchSourceHandleId(sourceHandleId || null);
+                setActionOpen(true);
+              }
             },
           };
 
           console.log(JSON.stringify(reduxNodes), "from 236")
-          const transformedNodes = reduxNodes.map((node) =>({
+          const transformedNodes = reduxNodes.map((node) => ({
             id: node.NodeId,
             type: "customNode",
             position: ensurePosition(node.position, {
@@ -260,7 +284,7 @@ export default function WorkflowCanvas() {
             }),
             data: {
               label: node.name || "Unknown",
-              icon:  node.icon || "⚙️", 
+              icon: node.icon || "⚙️",
               nodeType: "action",
               isConfigured: checkIsConfigure(node.name, node.Config),
               onConfigure: () =>
@@ -271,8 +295,13 @@ export default function WorkflowCanvas() {
                   actionType: node.AvailableNodeID,
                   icon: node.icon
                 }),
-                onTest: ()=> testNodeFromCanvas(node.NodeId, node.name, "action")
+              onTest: () => testNodeFromCanvas(node.NodeId, node.name, "action"),
+              onAddChild: (sourceHandleId?: string) => {
+                setBranchSourceNodeId(node.NodeId);
+                setBranchSourceHandleId(sourceHandleId || null);
+                setActionOpen(true);
               }
+            }
           }))
 
           const lastNode =
@@ -310,7 +339,7 @@ export default function WorkflowCanvas() {
 
           const lastActionNode = reduxNodes.length > 0 ? reduxNodes[reduxNodes.length - 1] : null;
           const sourceNodeId = lastActionNode ? lastActionNode.NodeId : trigger.TriggerId
-            
+
           const cleanReduxEdges = reduxEdges.filter(e => !e.target.startsWith('action-placeholder-'))
 
           const newEdges = [
@@ -325,10 +354,10 @@ export default function WorkflowCanvas() {
         }
 
 
-        else{
-         const workflows = await api.workflows.get(workflowId);
-        
-        // Defensive: Default to empty arrays if not present
+        else {
+          const workflows = await api.workflows.get(workflowId);
+
+          // Defensive: Default to empty arrays if not present
           const dbNodes = Array.isArray(workflows?.data?.Data?.nodes)
             ? workflows.data.Data.nodes
             : [];
@@ -338,12 +367,25 @@ export default function WorkflowCanvas() {
             : [];
           const Trigger = workflows?.data?.Data?.Trigger;
 
-          
+
           if (!Trigger) {
-            setError("No trigger found in workflow data, so start with selecting the trigger for the workflow");
+            setNodes([{
+              id: "trigger-placeholder",
+              type: "customNode",
+              position: { x: 250, y: 50 },
+              data: {
+                label: "Add Trigger",
+                icon: "➕",
+                isPlaceholder: true,
+                nodeType: "trigger",
+                onConfigure: () => setTriggerOpen(true),
+              },
+            }]);
+            setEdges([]);
+            setError(null);
             return;
           }
-          
+
           // store updating
           dispatch(
             workflowActions.setWorkflowFromBackend({
@@ -372,8 +414,11 @@ export default function WorkflowCanvas() {
                   name: Trigger.name,
                   icon: Trigger.icon
                 }),
-              onTest: ( Trigger.name.toLowerCase() === 'webhook' ? undefined : ()=> testNodeFromCanvas(Trigger.TriggerId, Trigger.name, "trigger") )
-
+              onTest: (Trigger.name.toLowerCase() === 'webhook' ? undefined : () => testNodeFromCanvas(Trigger.TriggerId, Trigger.name, "trigger")),
+              onAddChild: () => {
+                setBranchSourceNodeId(Trigger.id);
+                setActionOpen(true);
+              }
             },
           };
 
@@ -398,54 +443,20 @@ export default function WorkflowCanvas() {
                   icon: node.icon,
                   actionType: node.AvailableNodeId,
                 }),
-              onTest: ()=> testNodeFromCanvas(node.NodeId, node.name, "action")
+              onTest: () => testNodeFromCanvas(node.NodeId, node.name, "action"),
+              onAddChild: (sourceHandleId?: string) => {
+                setBranchSourceNodeId(node.id);
+                setBranchSourceHandleId(sourceHandleId || null);
+                setActionOpen(true);
+              }
             },
           }));
 
-          // 4. Calculate placeholder position: use last action node, fallback to trigger
-          const lastNode =
-            transformedNodes.length > 0
-              ? transformedNodes[transformedNodes.length - 1]
-              : triggerNode;
+          // 4. Combine nodes
+          const finalNodes = [triggerNode, ...transformedNodes];
 
-          const lastPosition = ensurePosition(
-            lastNode?.position,
-            transformedNodes.length > 0
-              ? { x: triggerPosition.x + 350, y: triggerPosition.y + 150 }
-              : triggerPosition
-          );
-
-          const placeholderPosition = {
-            x: lastPosition.x + 550,
-            y: lastPosition.y,
-          };
-
-          const actionPlaceholder = {
-            id: `action-placeholder-${Date.now()}`,
-            type: "customNode",
-            position: placeholderPosition,
-            data: {
-              label: "Add Action",
-              icon: "➕",
-              isPlaceholder: true,
-              nodeType: "action",
-              onConfigure: () => setActionOpen(true),
-            },
-          };
-
-          // 5. Combine nodes
-          const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
-
-          // 6. Manage edges
+          // 5. Manage edges
           let finalEdges = Array.isArray(dbEdges) ? [...dbEdges] : [];
-
-          const placeholderEdge = {
-            id: `e-${lastNode.id}-${actionPlaceholder.id}`,
-            source: lastNode.id,
-            target: actionPlaceholder.id,
-            type: "default",
-            animated: true,
-          };
 
           if (dbEdges.length === 0 && transformedNodes.length > 0) {
             const triggerEdge = {
@@ -456,8 +467,6 @@ export default function WorkflowCanvas() {
             };
             finalEdges.push(triggerEdge);
           }
-
-          finalEdges.push(placeholderEdge);
 
           setNodes(finalNodes);
           setEdges(finalEdges);
@@ -485,30 +494,66 @@ export default function WorkflowCanvas() {
     onNodesChange(changes);
   };
 
-  const nodeChangeDb = async (event: React.MouseEvent, node: Node)=>{
+  const onConnect = (connection: Connection) => {
+    if (connection.source === connection.target) {
+      toast.error("A node cannot connect to itself.")
+      return
+    }
+    const targetNode = nodes.find((n) => n.id === connection.target)
+    if (targetNode?.data.nodeType === 'trigger') {
+      toast.error("Triggers cannot receive inputs.")
+      return
+    }
+    if (targetNode?.data.isPlaceholder) {
+      toast.error("Please configure the node before connecting.")
+      return
+    }
+    if (edges.some(e =>
+      e.target === connection.target && !e.target.startsWith("action-placeholder-")
+    )) {
+      toast.error("Each node can only accept 1 incoming connection (1 -> M).")
+      return
+    }
+
+    const newEdge: Edge = {
+      ...connection,
+      id: `e-${connection.source}-${connection.target}-${Date.now()}`,
+      animated: true,
+    };
+    const updated = addEdge(newEdge, edges);
+    setEdges(updated);
+
+    const cleanEdges = updated
+      .filter((e) => !e.target.startsWith("action-placeholder-") && e.target !== "action-holder")
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null, targetHandle: e.targetHandle ?? null }));
+    dispatch(workflowActions.setEdge(cleanEdges));
+    toast.success("Branch connected successfully!");
+  };
+
+  const nodeChangeDb = async (event: React.MouseEvent, node: Node) => {
     try {
       if (node.data?.nodeType === "trigger") {
-      // await api.triggers.update({
-      //   TriggerId: node.id,
-      //   Config: {
-      //     ...(typeof node.data.config === "object" && node.data.config !== null
-      //       ? node.data.config
-      //       : {}),
-      //     position: node.position,
-      //   },
-      // });
+        // await api.triggers.update({
+        //   TriggerId: node.id,
+        //   Config: {
+        //     ...(typeof node.data.config === "object" && node.data.config !== null
+        //       ? node.data.config
+        //       : {}),
+        //     position: node.position,
+        //   },
+        // });
         dispatch(workflowActions.updateTriggerPosition(node.position))
-    }
-     else {
-      // await api.nodes.update({
-      //   NodeId: node.id,
-      //   position: node.position,
-      // });
-      dispatch(workflowActions.updateNodePosition({
-        nodeId:node.id,
-        position: node.position
-      }))
-    }
+      }
+      else {
+        // await api.nodes.update({
+        //   NodeId: node.id,
+        //   position: node.position,
+        // });
+        dispatch(workflowActions.updateNodePosition({
+          nodeId: node.id,
+          position: node.position
+        }))
+      }
     } catch (err: any) {
       setError(
         err?.message ??
@@ -533,14 +578,17 @@ export default function WorkflowCanvas() {
     );
     const nextIndex = currentActionNodes.length;
 
-    // Place new action node after last action (or at default offset if none)
-    const ACTION_NODE_DEFAULT_X = 350;
-    const ACTION_NODE_DEFAULT_Y = 400;
-    const ACTION_NODE_OFFSET_X = 320;
-    const newNodePosition = {
-      x: ACTION_NODE_DEFAULT_X + ACTION_NODE_OFFSET_X * nextIndex,
-      y: ACTION_NODE_DEFAULT_Y,
-    };
+    // Use branchSourceNodeId if branching, otherwise fall back to linear
+    const actualSourceNodeId = branchSourceNodeId || (currentActionNodes.length > 0 ? currentActionNodes[currentActionNodes.length - 1]!.id : triggerNode.id);
+    const actualSourceNode = nodes.find(n => n.id === actualSourceNodeId);
+    
+    // Check how many children this source node has to vertically stack them
+    const childCount = edges.filter(e => e.source === actualSourceNodeId && !e.target.startsWith('action-placeholder-')).length;
+
+    const newNodePosition = actualSourceNode ? {
+      x: actualSourceNode.position.x + 350,
+      y: actualSourceNode.position.y + (childCount * 170),
+    } : { x: 350, y: 400 };
 
     try {
       const result = await api.nodes.create({
@@ -560,11 +608,11 @@ export default function WorkflowCanvas() {
       //     : triggerNode.id
       // const filterEdges = reduxState.edges.filter(e => !e.target.startsWith('action-placeholder-'))
 
-      const sourceNodeId = currentActionNodes.length > 0 ? currentActionNodes[currentActionNodes.length - 1]!.id : triggerNode.id
-      
+      const sourceNodeId = actualSourceNodeId;
+
       const cleanReduxEdges = edges.filter(
-        e => !e.target.startsWith('action-placeholder-') && 
-        e.target !== 'action-holder'
+        e => !e.target.startsWith('action-placeholder-') &&
+          e.target !== 'action-holder'
       )
       // store updating
 
@@ -598,38 +646,21 @@ export default function WorkflowCanvas() {
               actionType: action.id,
               icon: action.icon
             }),
-          onTest: ()=> testNodeFromCanvas(actionId, action.name, "action")
+          onTest: () => testNodeFromCanvas(actionId, action.name, "action"),
+          onAddChild: (sourceHandleId?: string) => {
+            setBranchSourceNodeId(actionId);
+            setBranchSourceHandleId(sourceHandleId || null);
+            setActionOpen(true);
+          }
         },
       };
-
-      // Place the action placeholder after the new node, prevent overlap
-      const actionPlaceholderPosition = {
-        x: ACTION_NODE_DEFAULT_X + ACTION_NODE_OFFSET_X * (nextIndex + 1) + 400,
-        y: ACTION_NODE_DEFAULT_Y,
-      };
-
-      const actionPlaceholder = {
-        id: `action-placeholder-${Date.now()}`,
-        type: "customNode",
-        position: actionPlaceholderPosition,
-        data: {
-          label: "Add Action",
-          icon: "➕",
-          isPlaceholder: true,
-          nodeType: "action",
-          config: {},
-          onConfigure: () => setActionOpen(true),
-        },
-      };
-
-      // const triggerId = triggerNode.id;
 
       setNodes((prevNodes) => {
-        // Remove any existing action placeholder nodes
+        // Remove any existing action placeholder nodes (cleanup)
         const filtered = prevNodes.filter(
           (n) => !(n.data.isPlaceholder && n.data.nodeType === "action")
         );
-        return [...filtered, newNode, actionPlaceholder];
+        return [...filtered, newNode];
       });
 
       // const reduxState = store.getState().workflow.data
@@ -642,13 +673,20 @@ export default function WorkflowCanvas() {
 
       const newEdges = [
         ...cleanReduxEdges,
-        {id: `e-action-${sourceNodeId}-${actionId}`, source: sourceNodeId, target: actionId },
-        { id: `e-action-${actionId}-placeholder`, source: actionId, target: actionPlaceholder.id },
+        { 
+          id: `e-action-${sourceNodeId}-${actionId}`, 
+          source: sourceNodeId, 
+          target: actionId,
+          sourceHandle: actualSourceNode?.data.nodeType === "trigger" ? "t-out" : (branchSourceHandleId || "out-0"),
+          targetHandle: "a-in"
+        }
       ]
 
       setEdges(newEdges);
       const reduxEdges = newEdges.filter(e => !e.target.startsWith('action-placeholder-') && e.target !== 'action-holder')
       dispatch(workflowActions.setEdge(reduxEdges))
+      setBranchSourceNodeId(null);
+      setBranchSourceHandleId(null);
       setActionOpen(false);
       setError(null);
     } catch (err: any) {
@@ -670,7 +708,7 @@ export default function WorkflowCanvas() {
       });
       const triggerId = result.data.data.id as string;
 
-      
+
 
       const newNode = {
         id: triggerId,
@@ -690,35 +728,17 @@ export default function WorkflowCanvas() {
               type: "trigger",
               icon: trigger.icon
             }),
-          onTest: ( trigger.name.toLowerCase() === 'webhook' ? undefined : ()=> testNodeFromCanvas(trigger.TriggerId, trigger.name, "trigger") )
-
+          onTest: (trigger.name.toLowerCase() === 'webhook' ? undefined : () => testNodeFromCanvas(trigger.TriggerId, trigger.name, "trigger")),
+          onAddChild: (sourceHandleId?: string) => {
+            setBranchSourceNodeId(triggerId);
+            setBranchSourceHandleId(sourceHandleId || null);
+            setActionOpen(true);
+          }
         },
       };
 
-      const actionPlaceholder = {
-        id: "action-holder",
-        type: "customNode",
-        position: DEFAULT_ACTION_POSITION,
-        data: {
-          label: "Add Action",
-          icon: "➕",
-          isPlaceholder: true,
-          nodeType: "action",
-          config: {},
-          onConfigure: () => setActionOpen(true),
-        },
-      };
-
-      setNodes([newNode, actionPlaceholder]);
-      const newEdge = [
-        {
-          id: "e1",
-          source: triggerId,
-          target: "action-holder",
-        },
-      ]
-      setEdges(newEdge);
-      const reduxEdge = newEdge.filter(e => e.target !== 'action-holder')
+      setNodes([newNode]);
+      setEdges([]);
 
       dispatch(workflowActions.setWorkflowTrigger({
         TriggerId: triggerId,
@@ -729,7 +749,7 @@ export default function WorkflowCanvas() {
         position: DEFAULT_TRIGGER_POSITION,
         AvailableTriggerID: trigger.id
       }))
-      dispatch(workflowActions.setEdge(reduxEdge))
+      dispatch(workflowActions.setEdge([]))
       setTriggerOpen(false);
       setError(null);
     } catch (err: any) {
@@ -800,17 +820,31 @@ export default function WorkflowCanvas() {
         </div>
       )}
       <div className=" w-auto h-full text-black">
-      <SidebarProvider>
-      <AppSidebar />
-      
-        {/* {children} */}
-      </SidebarProvider>
-    </div>
-       <ReactFlow
+        <SidebarProvider>
+          <AppSidebar />
+
+          {/* {children} */}
+        </SidebarProvider>
+      </div>
+      <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={(changes) => {
+          onEdgesChange(changes);
+          if (changes.some(c => c.type === 'remove')) {
+            // Give ReactFlow a tick to update edges state, then dispatch
+            setTimeout(() => {
+              setEdges(currentEdges => {
+                const clean = currentEdges.filter(e => !e.target.startsWith('action-placeholder-') && e.target !== 'action-holder')
+                  .map(e => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null, targetHandle: e.targetHandle ?? null }));
+                dispatch(workflowActions.setEdge(clean));
+                return currentEdges;
+              });
+            }, 0);
+          }
+        }}
+        onConnect={onConnect}
         nodeTypes={nodeTypes}
         onNodeDragStop={nodeChangeDb}
         fitView
@@ -824,7 +858,7 @@ export default function WorkflowCanvas() {
             onClick={batchSave}
             className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"
           >
-            { displayStatus }
+            {displayStatus}
           </button>
           <button
             onClick={async () => {
@@ -838,7 +872,7 @@ export default function WorkflowCanvas() {
             {loading ? "Executing..." : "Execute"}
           </button>
         </div>
-      </ReactFlow> 
+      </ReactFlow>
 
       <ConfigModal
         isOpen={configOpen}
@@ -849,50 +883,50 @@ export default function WorkflowCanvas() {
           setConfigOpen(false);
           setSelectedNode(null);
         }}
-        // onNodeConfigured={(nodeId, isConfigured)=>{
-        //   setNodes(prev=> prev.map(n=>
-        //     n.id === nodeId ? { ...n, data: {...n.data, isConfigured}} : n
-        //   ))
-        // }}
-        // onSave={async (nodeId: string, config: any, userId: string) => {
-        //   try {
-        //     const triggerNode = nodes.find(
-        //       (n) => n.data.nodeType === "trigger"
-        //     );
-        //     const isTrigger = triggerNode?.id === nodeId;
+      // onNodeConfigured={(nodeId, isConfigured)=>{
+      //   setNodes(prev=> prev.map(n=>
+      //     n.id === nodeId ? { ...n, data: {...n.data, isConfigured}} : n
+      //   ))
+      // }}
+      // onSave={async (nodeId: string, config: any, userId: string) => {
+      //   try {
+      //     const triggerNode = nodes.find(
+      //       (n) => n.data.nodeType === "trigger"
+      //     );
+      //     const isTrigger = triggerNode?.id === nodeId;
 
-        //     if (isTrigger) {
-        //       // await api.triggers.update({
-        //       //   TriggerId: nodeId,
-        //       //   Config: config,
-        //       // });
-        //       dispatch(workflowActions.updateTriggerConfig({config}))
-        //     } else {
-        //       // await api.nodes.update({
-        //       //   NodeId: nodeId,
-        //       //   Config: config,
-        //       // });
-        //       dispatch(workflowActions.updateNodeConfig({nodeId, config}))
-        //     }
+      //     if (isTrigger) {
+      //       // await api.triggers.update({
+      //       //   TriggerId: nodeId,
+      //       //   Config: config,
+      //       // });
+      //       dispatch(workflowActions.updateTriggerConfig({config}))
+      //     } else {
+      //       // await api.nodes.update({
+      //       //   NodeId: nodeId,
+      //       //   Config: config,
+      //       // });
+      //       dispatch(workflowActions.updateNodeConfig({nodeId, config}))
+      //     }
 
-        //     setNodes((prevNodes) =>
-        //       prevNodes.map((node) =>
-        //         node.id === nodeId
-        //           ? {
-        //             ...node,
-        //             data: { ...node.data, config, isConfigured: true },
-        //           }
-        //           : node
-        //       )
-        //     );
-        //     setError(null);
-        //   } catch (err: any) {
-        //     setError(
-        //       err?.message ??
-        //       "Failed to save configuration. Please try again."
-        //     );
-        //   }
-        // }}
+      //     setNodes((prevNodes) =>
+      //       prevNodes.map((node) =>
+      //         node.id === nodeId
+      //           ? {
+      //             ...node,
+      //             data: { ...node.data, config, isConfigured: true },
+      //           }
+      //           : node
+      //       )
+      //     );
+      //     setError(null);
+      //   } catch (err: any) {
+      //     setError(
+      //       err?.message ??
+      //       "Failed to save configuration. Please try again."
+      //     );
+      //   }
+      // }}
       />
 
       <TriggerSideBar
@@ -909,7 +943,7 @@ export default function WorkflowCanvas() {
 
       <ExecutionHistoryFooter
         workflowId={workflowId}
-        onExecutionFetch={() => {}}
+        onExecutionFetch={() => { }}
       />
     </div>
   );

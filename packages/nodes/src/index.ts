@@ -13,5 +13,5 @@ export { GoogleOAuthService } from './common/google-oauth-service.js';
 export { default as NodeRegistry } from './registry/node-registry.js';
 export { ExecutionRegister } from './registry/execution.registory.js';
 export { GoogleSheetsService } from './google-sheets/google-sheets.service.js';
-
+export { FilterNode } from './filter/filter.node.js';
 console.log("Hello World From node / index.ts");

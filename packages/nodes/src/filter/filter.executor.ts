@@ -6,11 +6,14 @@ import { FilterNodeInput } from "@repo/common/zod"
 export class FilterExecutor implements NodeExecutor {
 
     private getValueByPath(obj: any, path: string): any {
-        if (path === "__value__") return obj;
+
         if (!obj || typeof obj !== 'object') return undefined;
+        const target = ('json' in obj && typeof obj.json === 'object' && obj.json !== null) ? obj.json : obj;
+
+        if (path === "__value__") return obj;
 
         const parts = path.split('.');
-        let current = obj;
+        let current = target;
         for (const part of parts) {
             if (current === null || current === undefined) return undefined;
             current = current[part];
@@ -25,8 +28,9 @@ export class FilterExecutor implements NodeExecutor {
 
         for (const item of sourceData) {
             let uniqueIdentifier = "";
+            const rowData = (item && typeof item === 'object' && 'json' in item) ? item.json : item;
             if (sourceKey) {
-                uniqueIdentifier = this.normalizeValue(this.getValueByPath(item, sourceKey))
+                uniqueIdentifier = this.normalizeValue(this.getValueByPath(rowData, sourceKey))
 
                 if (uniqueIdentifier === "[EMPTY]") {
                     discardedData.push(item);
@@ -34,7 +38,7 @@ export class FilterExecutor implements NodeExecutor {
                 }
             }
             else {
-                uniqueIdentifier = this.deterministicStringify(item);
+                uniqueIdentifier = this.deterministicStringify(rowData);
             }
 
             if (seenValues.has(uniqueIdentifier)) {
@@ -56,9 +60,12 @@ export class FilterExecutor implements NodeExecutor {
 
     private deterministicStringify(obj: any): string {
         if (typeof obj !== 'object' || obj === null) return String(obj);
-        const sortedKeys = Object.keys(obj).sort();
-        const sortedArray = sortedKeys.map(key => [key, obj[key]]);
+
+        const target = ('json' in obj && typeof obj.json === 'object' && obj.json !== null) ? obj.json : obj;
+        const sortedKeys = Object.keys(target).sort();
+        const sortedArray = sortedKeys.map(key => [key, target[key]]);
         return JSON.stringify(sortedArray);
+
     }
 
     private normalizeToObjects(data: any[]): any[] {
@@ -144,7 +151,7 @@ export class FilterExecutor implements NodeExecutor {
     }
     async execute(context: ExecutionContext): Promise<ExecutionResult> {
         try {
-            const parsed = FilterNodeInput.safeParse(context.config)
+            const parsed = FilterNodeInput.safeParse(context.config[0] || context.config)
             if (!parsed.success) {
                 return {
                     success: false,
@@ -153,6 +160,27 @@ export class FilterExecutor implements NodeExecutor {
             }
 
             const { sourceData, referenceData, sourceKey, referenceKey, operation } = parsed.data;
+            if (typeof sourceData === 'string' && sourceData.trim().startsWith('{{')) {
+                return {
+                    success: false, error: `Source data contains an unresolved variable (${sourceData}). Please test or run the upstream node first.`
+                }
+            }
+            if (!Array.isArray(sourceData)) {
+                return {
+                    success: false, error: `Source data is not an array (received ${typeof sourceData}). Please verify upstream output.`
+                }
+            }
+
+            if (typeof referenceData === 'string' && referenceData.trim().startsWith('{{')) {
+                return {
+                    success: false, error: `Reference data contains an unresolved variable (${referenceData}). Please test or run the upstream node first.`
+                }
+            }
+            if (referenceData !== undefined && !Array.isArray(referenceData)) {
+                return {
+                    success: false, error: `Reference data is not an array (received ${typeof referenceData}). Please verify upstream output.`
+                }
+            }
 
             const normalizedSource = this.normalizeToObjects(sourceData);
             const normalizedRef = referenceData ? this.normalizeToObjects(referenceData) : undefined
@@ -203,24 +231,59 @@ export class FilterExecutor implements NodeExecutor {
                         success: false,
                         error: "sourceKey is required to group datasets"
                     }
-                    const groupResult = this.handleGroupBy(normalizedSource, sourceKey);
-                    const wire0 = groupResult.groupArray.map(item => ({ json: item }))
+                    const groupResult = this.handleGroupBy(normalizedSource, sourceKey)
+                    const outputWires = groupResult.groupArray.map((group, wireIndex) => {
+                        return (group.rows || []).map((row: any, rowIndex: number) => {
+                            const json = row && row.json ? row.json : row;
+                            const existingRefs = row && row.sourceRefs ? row.sourceRefs : {};
+                            return {
+                                json: json,
+                                sourceRefs: {
+                                    ...existingRefs,
+                                    [context.nodeId]: { wireIndex: wireIndex, rowIndex: rowIndex }
+                                }
+                            };
+                        });
+                    });
+
                     return {
                         success: true,
-                        output: [wire0],
+                        output: outputWires,
                         metadata: {
                             operation_used: operation,
                             total_groups: groupResult.groupArray.length,
                             items_processed: groupResult.total_processed,
-                            items_without_key: groupResult.emptyCount
+                            items_without_key: groupResult.emptyCount,
+                            group_names: groupResult.groupArray.map(g => g.groupName)
                         }
                     }
                 default:
                     return { success: false, error: `Unknown operation: ${operation}` };
             }
 
-            const wire0 = filteredData.map(item => ({ json: item }))
-            const wire1 = discardedData.map(item => ({ json: item }))
+            const wire0 = filteredData.map((item, index) => {
+                const json = (item && typeof item === 'object' && 'json' in item) ? item.json : item;
+                const sourceRefs = (item && typeof item === 'object' && 'sourceRefs' in item) ? item.sourceRefs : {};
+                return {
+                    json,
+                    sourceRefs: {
+                        ...sourceRefs,
+                        [context.nodeId]: { wireIndex: 0, rowIndex: index }
+                    }
+                };
+            });
+
+            const wire1 = discardedData.map((item, index) => {
+                const json = (item && typeof item === 'object' && 'json' in item) ? item.json : item;
+                const sourceRefs = (item && typeof item === 'object' && 'sourceRefs' in item) ? item.sourceRefs : {};
+                return {
+                    json,
+                    sourceRefs: {
+                        ...sourceRefs,
+                        [context.nodeId]: { wireIndex: 1, rowIndex: index }
+                    }
+                };
+            });
 
             return {
                 success: true,
@@ -229,7 +292,8 @@ export class FilterExecutor implements NodeExecutor {
                 metadata: {
                     operation_used: operation,
                     items_kept: filteredData.length,
-                    items_discard: discardedData.length
+                    items_discard: discardedData.length,
+                    group_names: ['Kept Data', 'Discarded Data']
                 }
             }
         }

@@ -6,7 +6,7 @@ interface NodeExecutionContext {
   nodeId: string;
   credentialId: string;
   userId: string;
-  config?: any;
+  config: any[];
   authType?: string;
   items: ExecuteItem[]
 }
@@ -58,12 +58,15 @@ class GmailExecutor {
       }
 
       // Send email
-      const { to, subject, body } = context.config;
 
       const outputBoxes: ExecuteItem[] = [];
 
-      for (const item of context.items) {
-
+      const itemsToProcess: ExecuteItem[] = context.items && context.items.length > 0 ? context.items : [{ json: {} }]
+      for (let index = 0; index < itemsToProcess.length; index++) {
+        const configForThisRow = context.config?.[index] || {};
+        const { to, subject, body } = configForThisRow;
+        const item = itemsToProcess[index]
+        if (!item) continue
         const result = await this.gmailService.sendEmail(to, subject, body);
 
         if (!result.success) {
@@ -72,14 +75,17 @@ class GmailExecutor {
 
         outputBoxes.push({
           json: {
-            ...item.json,
+            ...(item.json || {}),
             gmailResponse: {
               status: "sent",
               messageId: result.data?.id,
               threadId: result.data?.threadId
             }
           },
-          sourceRefs: item.sourceRefs
+          sourceRefs: {
+            ...(item.sourceRefs || {}),
+            [context.nodeId]: { wireIndex: 0, rowIndex: index }
+          }
         })
       }
 

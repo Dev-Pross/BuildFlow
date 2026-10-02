@@ -45,7 +45,8 @@ export function parseValueToHtml(rawValue: string, availableNodes: AvailableNode
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     };
-    const sanitizedValue = escapeHtml(rawValue);
+    const sanitizedValue = escapeHtml(rawValue).replace(/\n/g, "<br>");
+    
     // 2. Parse the sanitized value to inject the visual pills
     return sanitizedValue.replace(/\{\{([^.]+)\.([^}]+)\}\}/g, (match, nodeId, path) => {
         const node = availableNodes.find(n => n.id === nodeId);
@@ -60,43 +61,56 @@ export function RichVariableInput({ value, onChange, availableNodes, placeholder
     const editorRef = useRef<HTMLDivElement>(null);
     const isInternalUpdate = useRef(false);
 
-    // Initial injection of HTML when the external value changes
-    useEffect(() => {
-        if (editorRef.current && !isInternalUpdate.current) {
-            const newHtml = parseValueToHtml(value, availableNodes);
-            if (editorRef.current.innerHTML !== newHtml) {
-                editorRef.current.innerHTML = newHtml;
-            }
-        }
-        isInternalUpdate.current = false;
-    }, [value, availableNodes]);
-
-    // Handle user input and serialize back to raw string
-    const handleInput = () => {
-        if (!editorRef.current) return;
-
+    const getEditorRawString = () => {
+        if (!editorRef.current) return "";
         let rawString = "";
 
-        // Iterate through the DOM children to reconstruct the string
-        editorRef.current.childNodes.forEach((node) => {
+        const traverse = (node: Node) => {
             if (node.nodeType === Node.TEXT_NODE) {
-                rawString += node.textContent || "";
+                // Remove non-breaking spaces inserted by browsers and normalise to normal space
+                rawString += (node.textContent || "").replace(/\u00A0/g, " ");
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
-                if (el.classList.contains("pill")) {
+                if (el.nodeName === "BR") {
+                    rawString += "\n";
+                } else if (el.classList?.contains("pill")) {
                     const nodeId = el.getAttribute("data-id");
                     const path = el.getAttribute("data-path");
                     if (nodeId && path) {
                         rawString += `{{${nodeId}.${path}}}`;
                     }
                 } else {
-                    // For any pasted elements (br, divs), just extract text
-                    rawString += el.textContent || "";
+                    if (el.nodeName === "DIV" && rawString.length > 0 && !rawString.endsWith("\n")) {
+                        rawString += "\n";
+                    }
+                    el.childNodes.forEach(traverse);
                 }
             }
-        });
+        };
 
-        isInternalUpdate.current = true;
+        editorRef.current.childNodes.forEach(traverse);
+        return rawString;
+    };
+
+    // Initial injection of HTML when the external value changes
+    useEffect(() => {
+        if (editorRef.current) {
+            const currentRaw = getEditorRawString();
+            
+            // Only update DOM if the incoming value actually differs from what the user typed.
+            // This stops cursor jumping on re-renders triggered by state updates.
+            if (currentRaw !== value) {
+                const newHtml = parseValueToHtml(value, availableNodes);
+                if (editorRef.current.innerHTML !== newHtml) {
+                    editorRef.current.innerHTML = newHtml;
+                }
+            }
+        }
+    }, [value, availableNodes]);
+
+    // Handle user input and serialize back to raw string
+    const handleInput = () => {
+        const rawString = getEditorRawString();
         onChange(rawString);
     };
 
@@ -107,7 +121,7 @@ export function RichVariableInput({ value, onChange, availableNodes, placeholder
             onInput={handleInput}
             onFocus={onFocus}
             data-placeholder={placeholder}
-            className="w-full min-h-[40px] px-3 py-2 rounded-md border border-[#2a3525] bg-[#141a14] text-sm text-[#e8e8d8] focus:outline-none focus:border-[#baf266]/50 empty:before:content-[attr(data-placeholder)] empty:before:text-[#4a5440]"
+            className="w-full min-h-[40px] px-3 py-2 rounded-md border border-[#2a3525] bg-[#141a14] text-sm text-[#e8e8d8] focus:outline-none focus:border-[#baf266]/50 empty:before:content-[attr(data-placeholder)] empty:before:text-[#4a5440] whitespace-pre-wrap"
         />
     );
 }

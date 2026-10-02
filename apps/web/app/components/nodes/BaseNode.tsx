@@ -1,4 +1,6 @@
 import { Handle, Position } from "@xyflow/react";
+import { NodeIcon } from "@/app/components/ui/NodeIcon";
+import { getNodeConfig } from "@/app/lib/nodeConfigs";
 interface BaseNodeProps {
   id: string;
   type: string;
@@ -13,7 +15,7 @@ interface BaseNodeProps {
     status?: "idle" | "running" | "success" | "error";
     onConfigure?: () => void;
     onTest?: () => void;
-    onAddChild?: () => void;
+    onAddChild?: (sourceHandleId?: string) => void;
   };
 }
 
@@ -93,12 +95,13 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
       <div className="px-4 py-3">
         {/* Icon + Label */}
         <div className="flex flex-col items-center gap-2 mb-1">
-          <span className="text-xl  p-2 rounded-full object-center">
-            {icon ?
-              <img src={icon ? icon : "⚡"} className="w-16 h-16 object-obtain"
-              /> : ("⚡")}
-
-          </span>
+          <NodeIcon
+            icon={icon}
+            name={label}
+            size="xl"
+            nodeType={nodeType}
+            className="w-14 h-14 bg-white border-gray-200 shadow-sm"
+          />
           <span className="font-semibold text-sm">{label}</span>
         </div>
         <div className="flex justify-center w-full">
@@ -134,28 +137,104 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
         </div>
       </div>
 
-      {/* Add child button */}
-      {onAddChild && (
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-          <button
-            onClick={onAddChild}
-            className="bg-white border-2 border-gray-300 rounded-full w-6 h-6 flex items-center justify-center text-xs hover:border-blue-400"
-          >
-            +
-          </button>
-        </div>
-      )}
-
       {/* Handles */}
       {nodeType === "action" ? (
         <>
-          {/* Action nodes get both handles */}
-          <Handle type="target" position={Position.Left} id="a-in" />
-          <Handle type="source" position={Position.Right} id="a-out" />
+          {/* Action nodes get input handle on left */}
+          <Handle
+            type="target"
+            position={Position.Left}
+            id="a-in"
+            className="!w-3 !h-3 !bg-indigo-500 !border-2 !border-white hover:!scale-125 transition-transform cursor-crosshair shadow-sm"
+          />
+
+          {(() => {
+            const nodeConfigDef = getNodeConfig(label);
+            let resolvedOutputs = config?.outputs;
+
+            if (!resolvedOutputs && nodeConfigDef) {
+              const operationField = nodeConfigDef.fields?.find((f: any) => f.name === "operation");
+              if (operationField && operationField.options) {
+                const selectedOpId = config?.operation || operationField.defaultValue;
+                const selectedOp = operationField.options.find((o: any) => o.id === selectedOpId);
+                if (selectedOp && selectedOp.outputs) {
+                  resolvedOutputs = selectedOp.outputs;
+                }
+              }
+            }
+
+            const outputs = resolvedOutputs || [{ id: "out-0", label: "Output" }];
+
+            return outputs.map((output: any, index: number) => {
+              const topPosition = `${((index + 1) * 100) / (outputs.length + 1)}%`;
+              const bgClass = output.id === "out-1" ? "!bg-rose-500" : "!bg-indigo-500";
+              const textClass = output.id === "out-1" ? "text-rose-600 bg-rose-50 border-rose-200" : "text-indigo-600 bg-indigo-50 border-indigo-200";
+
+              return (
+                <div key={output.id} className="group">
+                  <Handle
+                    type="source"
+                    position={Position.Right}
+                    id={output.id}
+                    style={{ top: topPosition }}
+                    className={`!w-4 !h-4 flex items-center justify-center ${bgClass} !border-2 !border-white hover:!scale-125 transition-all cursor-crosshair shadow-sm z-20`}
+                    title={`${output.label} (${output.id})`}
+                  >
+                    {/* The + Button inside the Handle! Always visible */}
+                    {onAddChild && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddChild(output.id);
+                        }}
+                        className="w-full h-full flex items-center justify-center text-white font-bold z-30 leading-none pb-[1px]"
+                        style={{ fontSize: '11px' }}
+                        title={`Add node from ${output.label}`}
+                      >
+                        +
+                      </button>
+                    )}
+                  </Handle>
+
+                  {/* Floating Label (Shows on hover or is very subtle next to it) */}
+                  <div
+                    className="absolute pointer-events-none flex items-center gap-1"
+                    style={{ top: topPosition, right: '-20px', transform: 'translate(100%, -150%)' }}
+                  >
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border shadow-xs ${textClass} whitespace-nowrap opacity-60 group-hover:opacity-100 transition-opacity`}>
+                      {output.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </>
       ) : (
         // Trigger node gets only source handle (output)
-        <Handle type="source" position={Position.Right} id="t-out" />
+        <div className="group">
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="t-out"
+            className="!w-4 !h-4 flex items-center justify-center !bg-amber-500 !border-2 !border-white hover:!scale-125 transition-all cursor-crosshair shadow-sm z-20"
+          >
+            {/* The + Button inside the Handle! Always visible */}
+            {onAddChild && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddChild("t-out");
+                }}
+                className="w-full h-full flex items-center justify-center text-white font-bold z-30 leading-none pb-[1px]"
+                style={{ fontSize: '11px' }}
+                title={`Add action`}
+              >
+                +
+              </button>
+            )}
+          </Handle>
+        </div>
       )}
     </div>
   );

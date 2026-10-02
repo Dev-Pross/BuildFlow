@@ -31,6 +31,8 @@ interface EdgeItem {
     id: string;
     source: string;
     target: string;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
 }
 
 type Nodes = NodeItem[];
@@ -102,16 +104,16 @@ const workflowSlice = createSlice({
                 description: backendData?.description ?? null,
                 trigger: backendTrigger
                     ? {
-                          TriggerId: backendTrigger?.id ?? "",
-                          name: backendTrigger?.name ?? "",
-                          type: backendTrigger?.type ?? "",
-                          icon: backendTrigger?.icon ?? null,
-                          Config: backendTrigger?.config || {},
-                          position:
-                              backendTrigger?.Position || DEFAULT_TRIGGER_POSITION,
-                          AvailableTriggerID:
-                              backendTrigger?.AvailableTriggerID ?? "",
-                      }
+                        TriggerId: backendTrigger?.id ?? "",
+                        name: backendTrigger?.name ?? "",
+                        type: backendTrigger?.type ?? "",
+                        icon: backendTrigger?.icon ?? null,
+                        Config: backendTrigger?.config || {},
+                        position:
+                            backendTrigger?.Position || DEFAULT_TRIGGER_POSITION,
+                        AvailableTriggerID:
+                            backendTrigger?.AvailableTriggerID ?? "",
+                    }
                     : null,
                 nodes: backendNodes.map((n: any) => ({
                     NodeId: n?.id ?? "",
@@ -133,7 +135,7 @@ const workflowSlice = createSlice({
             state.changedNodeIds = [];
         },
 
-        setWorkflow(state, action: PayloadAction<Workflow>){
+        setWorkflow(state, action: PayloadAction<Workflow>) {
             state.data = action.payload;
             state.isChanged = { trigger: false, nodes: false, edges: false };
             state.changedNodeIds = []
@@ -147,49 +149,49 @@ const workflowSlice = createSlice({
         addWorkflowNode(state, action: PayloadAction<NodeItem>) {
             state.data.nodes.push(action.payload)
             state.isChanged.nodes = true
-            if(!state.changedNodeIds?.includes(action.payload.NodeId))
+            if (!state.changedNodeIds?.includes(action.payload.NodeId))
                 state.changedNodeIds?.push(action.payload.NodeId)
         },
 
-        updateNodePosition(state, action: PayloadAction<{nodeId: string, position: Position}>){
-            const node = state.data.nodes.find((n)=> n.NodeId === action.payload.nodeId)
+        updateNodePosition(state, action: PayloadAction<{ nodeId: string, position: Position }>) {
+            const node = state.data.nodes.find((n) => n.NodeId === action.payload.nodeId)
 
-            if(node){
+            if (node) {
                 node.position = action.payload.position
                 state.isChanged.nodes = true
 
-                if(!state.changedNodeIds?.includes(action.payload.nodeId))
+                if (!state.changedNodeIds?.includes(action.payload.nodeId))
                     state.changedNodeIds?.push(action.payload.nodeId)
             }
-        
+
         },
-        updateNodeConfig(state, action: PayloadAction<{nodeId: string,config: any}>){
-            const node = state.data.nodes.find((n)=> n.NodeId === action.payload.nodeId);
-            if(node){
+        updateNodeConfig(state, action: PayloadAction<{ nodeId: string, config: any }>) {
+            const node = state.data.nodes.find((n) => n.NodeId === action.payload.nodeId);
+            if (node) {
                 node.Config = action.payload.config
                 state.isChanged.nodes = true
 
-                if(!state.changedNodeIds?.includes(action.payload.nodeId))
+                if (!state.changedNodeIds?.includes(action.payload.nodeId))
                     state.changedNodeIds?.push(action.payload.nodeId)
             }
         },
-        updateTriggerPosition(state, action: PayloadAction<Position>){
-            if(state.data.trigger){
+        updateTriggerPosition(state, action: PayloadAction<Position>) {
+            if (state.data.trigger) {
                 state.data.trigger.position = action.payload
                 state.isChanged.trigger = true
             }
         },
-        updateTriggerConfig(state, action: PayloadAction<{config: any}>){
-            if(state.data.trigger){
+        updateTriggerConfig(state, action: PayloadAction<{ config: any }>) {
+            if (state.data.trigger) {
                 state.data.trigger.Config = action.payload.config
                 state.isChanged.trigger = true
             }
         },
-        setEdge(state, action: PayloadAction<EdgeItem[]>){
+        setEdge(state, action: PayloadAction<EdgeItem[]>) {
             state.data.edges = action.payload
             state.isChanged.edges = true
         },
-        markSynced(state){
+        markSynced(state) {
             state.isChanged = {
                 trigger: false,
                 nodes: false,

@@ -206,6 +206,34 @@ export default function ExecutionHistoryFooter({
   // Detect sidebar state via CSS custom property / DOM attribute
   const [sidebarWidth, setSidebarWidth] = useState(256); // 16rem default
 
+  // Drawer height state for vertical resizing
+  const [drawerHeight, setDrawerHeight] = useState<number>(450);
+  const isDraggingRef = useRef(false);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    const startY = e.clientY;
+    const startH = drawerHeight;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const deltaY = startY - moveEvent.clientY; // moving cursor up increases drawer height
+      const maxHeight = typeof window !== 'undefined' ? window.innerHeight - 80 : 800;
+      const newH = Math.min(Math.max(startH + deltaY, 200), maxHeight);
+      setDrawerHeight(newH);
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   useEffect(() => {
     const observeSidebar = () => {
       const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]');
@@ -399,7 +427,7 @@ export default function ExecutionHistoryFooter({
             bottom: '48px',
             left: sidebarWidth,
             right: 0,
-            height: '55vh',
+            height: `${drawerHeight}px`,
             background: 'linear-gradient(180deg, #0a0d0a 0%, #0c100c 100%)',
             borderTop: '1px solid #2a3525',
             zIndex: 8,
@@ -409,6 +437,34 @@ export default function ExecutionHistoryFooter({
             backdropFilter: 'blur(16px)',
           }}
         >
+          {/* Top Resizable Drag Handle */}
+          <div
+            onMouseDown={handleResizeMouseDown}
+            style={{
+              height: '8px',
+              cursor: 'row-resize',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              userSelect: 'none',
+              width: '100%',
+              background: 'transparent',
+              position: 'relative',
+              zIndex: 10,
+            }}
+            className="group hover:bg-emerald-500/15 transition-colors"
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '3px',
+                borderRadius: '9999px',
+                backgroundColor: '#3b5330',
+                transition: 'all 0.2s ease',
+              }}
+              className="group-hover:bg-emerald-400 group-hover:w-20"
+            />
+          </div>
           {/* Panel Header */}
           <div style={{
             padding: '12px 20px',

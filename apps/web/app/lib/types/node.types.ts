@@ -23,6 +23,7 @@ export interface NodeConfig {
   type: "trigger" | "action"; // Node category
   label: string; // Display name, e.g., "Google Sheets"
   icon: string; // Node icon, e.g., "📊"
+  outputs?: any[];
   description?: string; // Node description, e.g., "Add or update rows"
   credentials?: string; // Reference to required credential set
   fields: ConfigField[]; // All user-configurable fields
@@ -52,7 +53,7 @@ export interface ConfigField {
   placeholder?: string;
   fetchOptions?: string,
   value?: string,
-  options?: Array<{ label: string; id: string | number }>; // For dropdowns
+  options?: Array<{ label: string; id: string | number; outputs?: any[] }>; // For dropdowns
   dependsOn?: string; // Name of another field this depends on
   showForOperation?: Array<string>;
   description?: string; // Help text for this field

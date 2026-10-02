@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { useActions } from "@/app/hooks/useActions";
+import { NodeIcon } from "@/app/components/ui/NodeIcon";
 
 interface SideBarProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ export const ActionSideBar = ({ isOpen, onClose, onSelectAction }: SideBarProps)
                 id: selected.id,
                 name: selected.name,
                 type: selected.type,
-                icon: 'icon' in selected && selected.icon ? selected.icon : '⚡',
+                icon: 'icon' in selected && selected.icon ? selected.icon : undefined,
               });
               onClose();
             }
@@ -60,8 +61,14 @@ export const ActionSideBar = ({ isOpen, onClose, onSelectAction }: SideBarProps)
               {availableActions.length ? (
                 availableActions.map((action: any) => (
                   <SelectItem key={action.id} value={String(action.id)}>
-                    <div className="flex items-center gap-2">
-                      {'icon' in action && action.icon ? <img src={action.icon} className="w-8 h-4" /> : '⚡'} {action.name}
+                    <div className="flex items-center gap-3 py-1">
+                      <NodeIcon
+                        icon={'icon' in action && action.icon ? action.icon : undefined}
+                        name={action.name}
+                        size="sm"
+                        nodeType="action"
+                      />
+                      <span className="font-medium text-sm text-gray-200">{action.name}</span>
                     </div>
                   </SelectItem>
                 ))

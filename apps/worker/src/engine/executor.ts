@@ -55,6 +55,7 @@ export async function executeWorkflow(
                 credentials: true,
               },
             },
+            Trigger: true,
           },
         },
         nodeExecutions: true
@@ -183,30 +184,65 @@ export async function executeWorkflow(
 
     //   console.log("output: ", JSON.stringify(execute));
     // }
-    const firstActionNode = data.workflow.nodes.find(n => n.stage === 0)
-    if (!firstActionNode) {
-      console.log("No Trigger node found!")
-      await prismaClient.workflowExecution.update({
-        where: { id: workflowExecutionId },
-        data: {
-          status: "Failed",
-          completedAt: new Date(),
-          error: "No Trigger node found!"
-        }
-      })
-      return
+    const allEdges = (data.workflow.Edges as any[]) || [];
+    const triggerId = data.workflow.Trigger?.id;
+    const triggerOutgoingEdges = triggerId ? allEdges.filter(e => e.source === triggerId) : [];
+
+    // Inject Trigger metadata into execution context so downstream nodes can access {{webhook.body}}
+    if (data.workflow.Trigger) {
+      executedNodeOutputs.push({
+        nodeName: data.workflow.Trigger.name,
+        nodeId: data.workflow.Trigger.id,
+        outputData: data.metadata,
+      });
+      console.log(`[Interpolation] Injected Trigger payload into context: ${JSON.stringify(data.metadata)}`);
     }
 
-    const queue: QueueItem[] = [{
-      nodeId: firstActionNode.id,
-      inputData: data?.metadata
-    }]
+    const queue: QueueItem[] = [];
+    const executedNodeIds = new Set<string>();
+
+    if (triggerOutgoingEdges.length > 0) {
+      for (const edge of triggerOutgoingEdges) {
+        queue.push({
+          nodeId: edge.target,
+          inputData: data?.metadata
+        });
+      }
+    } else {
+      // Legacy fallback
+      const firstActionNode = data.workflow.nodes.find(n => n.stage === 0);
+      if (!firstActionNode) {
+        console.log("No Trigger node found!");
+        await prismaClient.workflowExecution.update({
+          where: { id: workflowExecutionId },
+          data: {
+            status: "Failed",
+            completedAt: new Date(),
+            error: "No Trigger node found!"
+          }
+        });
+        return;
+      }
+      queue.push({
+        nodeId: firstActionNode.id,
+        inputData: data?.metadata
+      });
+    }
 
     while (queue.length > 0) {
       const currentTask = queue.shift()
-      let currentInputData = currentTask?.inputData;
+      if (!currentTask || !currentTask.nodeId) continue;
+      
+      // Prevent infinite loops or multiple executions of the same node
+      if (executedNodeIds.has(currentTask.nodeId)) {
+        console.log(`Node ${currentTask.nodeId} already executed, skipping...`);
+        continue;
+      }
+      executedNodeIds.add(currentTask.nodeId);
 
-      const node = data.workflow.nodes.find(n => n.id === currentTask?.nodeId)
+      let currentInputData = currentTask.inputData;
+
+      const node = data.workflow.nodes.find(n => n.id === currentTask.nodeId)
       if (!node) {
         console.log(`Failed to find node with ID ${currentTask?.nodeId}`);
         await prismaClient.workflowExecution.update({
@@ -257,6 +293,11 @@ export async function executeWorkflow(
       console.log(`[Interpolation] Before: ${JSON.stringify(interpolationContext)}`);
       // Resolve any {{variable}} references in the config
       console.log(`[nodeConfig] Before: ${JSON.stringify(nodeConfig)}`);
+      const itemsConfig = itemsToProcess.map(e =>
+        resolveConfigVariables({ ...node.config as Record<string, any> },
+          interpolationContext, e?.sourceRefs
+        )
+      )
       nodeConfig = resolveConfigVariables(nodeConfig, interpolationContext, itemsToProcess[0]?.sourceRefs);
       console.log(`[Interpolation] After: ${JSON.stringify(nodeConfig)}`);
 
@@ -288,8 +329,8 @@ export async function executeWorkflow(
         nodeId: node.id,
         userId: data.workflow.userId,
         credentialId: node.CredentialsID!,
-        config: nodeConfig,
-        items: itemsToProcess
+        config: itemsConfig.length > 0 ? itemsConfig : [nodeConfig],
+        items: itemsToProcess.length > 0 ? itemsToProcess : [{ json: {} }]
       }
       let execute: { success: boolean; output?: any; error?: string };
 
@@ -348,16 +389,22 @@ export async function executeWorkflow(
       )
 
       for (const edge of outgoingEdges) {
-        const outputPinIndex = 0 //need to changes this after phase 5 (enables UI with 2 pins output per node)
+        // Resolve pin index from sourceHandle (e.g. "out-0", "out-1", "a-out" -> 0)
+        const match = edge.sourceHandle ? String(edge.sourceHandle).match(/\d+$/) : null;
+        const outputPinIndex = match ? parseInt(match[0], 10) : 0;
 
-        const branchData = execute.output?.[outputPinIndex] || [];
+        // Safe extraction from 2D Output Matrix ([wireIndex][rowIndex])
+        const is2DMatrix = Array.isArray(execute.output) && Array.isArray(execute.output[0]);
+        const branchData = is2DMatrix
+          ? (execute.output[outputPinIndex] ?? execute.output[0] ?? [])
+          : (execute.output ?? []);
 
         queue.push({
           nodeId: edge.target,
           inputData: branchData
-        })
+        });
 
-        console.log(`Pushed Node ${edge.target} into the queue!`);
+        console.log(`Pushed Node ${edge.target} with pin index ${outputPinIndex} into the queue!`);
       }
     }
 

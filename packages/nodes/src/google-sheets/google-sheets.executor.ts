@@ -11,7 +11,7 @@ interface SheetAuthContext {
 }
 interface NodeExecutionContext extends SheetAuthContext {
     nodeId: string,
-    config: any,    //sheet id / range...
+    config: any[],    //sheet id / range...
     items: ExecuteItem[]
 }
 
@@ -141,7 +141,7 @@ class GoogleSheetsNodeExecutor {
             }
 
 
-            const operation = context.config.operation;
+            const operation = context.config[0]?.operation;
             console.log("operation from sheet executor: ", operation)
             switch (operation) {
                 case 'read_rows':
@@ -210,35 +210,62 @@ class GoogleSheetsNodeExecutor {
     }
 
     private async prepareValuesForSheet(context: NodeExecutionContext): Promise<any[][]> {
-        const mode = context.config.mappingMode || 'visual';
+        const mode = context.config[0]?.mappingMode || 'visual';
 
         if (mode === 'bulk') {
-            const rawValues = context.config.bulkValues || context.items.map(item => item.json);
+            const rawValues = context.config[0]?.bulkValues || context.items.map(item => item.json);
             return this.normalizeValues(rawValues)
         }
 
-        const mappedColumns = context.config.mappedColumns || {};
-
         const headerResult = await this.getHeaderRow(
             context,
-            context.config.spreadsheetId,
-            context.config.sheetName
+            context.config[0]?.spreadsheetId,
+            context.config[0]?.sheetName
         );
         if (!headerResult.success) {
             throw new Error(`Could not fetch headers for mapping: ${headerResult.error}`);
         }
 
         const headers = headerResult.output as string[];
-        // If the sheet has no headers, fallback to just dumping the object values
         if (!headers || headers.length === 0) {
-            return [Object.values(mappedColumns)];
+            return [Object.values(context.config[0]?.mappedColumns || {})];
         }
 
-        const finalRow = headers.map(headerName => {
-            return mappedColumns[headerName] !== undefined ? mappedColumns[headerName] : ""
-        })
+        const allRows: any[][] = [];
+        const itemsConfig = context.config;
 
-        return [finalRow]
+        for (const config of itemsConfig) {
+            const mappedColumns = config.mappedColumns || {};
+            
+            // Detect if any mapped column is an Array
+            const isBulkArrayMapping = Object.values(mappedColumns).some(val => Array.isArray(val));
+            
+            if (isBulkArrayMapping) {
+                // Find max array length to determine how many rows to build
+                let maxRows = 1;
+                for (const val of Object.values(mappedColumns)) {
+                    if (Array.isArray(val) && val.length > maxRows) maxRows = val.length;
+                }
+                
+                // Pivot the arrays into multiple rows
+                for (let i = 0; i < maxRows; i++) {
+                    const row = headers.map(headerName => {
+                        const val = mappedColumns[headerName];
+                        if (Array.isArray(val)) return val[i] !== undefined ? val[i] : "";
+                        return val !== undefined ? val : ""; // Duplicate standard strings
+                    });
+                    allRows.push(row);
+                }
+            } else {
+                // Standard single row mapping
+                const row = headers.map(headerName => {
+                    return mappedColumns[headerName] !== undefined ? mappedColumns[headerName] : ""
+                });
+                allRows.push(row);
+            }
+        }
+
+        return allRows;
     }
     /**
      * Checks if user's range starts from row 1 (includes headers)
@@ -266,9 +293,9 @@ class GoogleSheetsNodeExecutor {
 
     async executeReadRows(sheetsService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
         try {
-            const spreadsheetId = context.config.spreadsheetId;
-            const sheetName = context.config.sheetName;
-            const userRange = (!context.config.fetchEntireTable && context.config.range) ? context.config.range : 'A1:Z'
+            const spreadsheetId = context.config[0]?.spreadsheetId;
+            const sheetName = context.config[0]?.sheetName;
+            const userRange = (!context.config[0]?.fetchEntireTable && context.config[0]?.range) ? context.config[0]?.range : 'A1:Z'
 
             let combinedRows: any[];
             let dataRowCount: number;
@@ -401,8 +428,8 @@ class GoogleSheetsNodeExecutor {
 
     async executeWriteRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
         try {
-            const spreadsheetId = context.config.spreadsheetId;
-            const range = context.config.range;
+            const spreadsheetId = context.config[0]?.spreadsheetId;
+            const range = context.config[0]?.range;
             const values = await this.prepareValuesForSheet(context);
 
             if (!range) {
@@ -413,11 +440,12 @@ class GoogleSheetsNodeExecutor {
             }
             const response = await sheetService.writeRows({
                 spreadsheetId: spreadsheetId,
-                range: `${context.config.sheetName}!${range}`,
+                range: `${context.config[0]?.sheetName}!${range}`,
                 values: values
             })
+            const itemsToMap: ExecuteItem[] = context.items.length > 0 ? context.items : [{ json: context.config[0]?.mappedColumns || {} }];
 
-            const outputBoxes = context.items.map(item => {
+            const outputBoxes = itemsToMap.map((item, index) => {
                 return {
                     json: {
                         ...item.json,
@@ -426,7 +454,10 @@ class GoogleSheetsNodeExecutor {
                             rowsUpdated: response.updatedRows || 1,
                         }
                     },
-                    sourceRefs: item.sourceRefs
+                    sourceRefs: {
+                        ...(item.sourceRefs),
+                        [context.nodeId]: { wireIndex: 0, rowIndex: index }
+                    }
                 }
             })
             return {
@@ -443,8 +474,8 @@ class GoogleSheetsNodeExecutor {
 
     async executeAppendRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
         try {
-            const spreadsheetId = context.config.spreadsheetId;
-            const range = context.config.sheetName;
+            const spreadsheetId = context.config[0]?.spreadsheetId;
+            const range = context.config[0]?.sheetName;
 
             const values = await this.prepareValuesForSheet(context);
 
@@ -454,7 +485,8 @@ class GoogleSheetsNodeExecutor {
                 values: values
             })
             console.log(`append rows: ${response}`)
-            const outputBoxes = context.items.map(item => {
+            const itemsToMap: ExecuteItem[] = context.items.length > 0 ? context.items : [{ json: context.config[0]?.mappedColumns || {} }];
+            const outputBoxes = itemsToMap.map((item, index) => {
                 return {
                     json: {
                         ...item.json,
@@ -463,7 +495,10 @@ class GoogleSheetsNodeExecutor {
                             rowUpdated: response.updates.updatedRange || response.tableRange
                         }
                     },
-                    sourceRefs: item.sourceRefs
+                    sourceRefs: {
+                        ...(item.sourceRefs || {}),
+                        [context.nodeId]: { wireIndex: 0, rowIndex: index }
+                    }
                 }
             })
             return {
@@ -481,14 +516,16 @@ class GoogleSheetsNodeExecutor {
 
     async executeClearRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
         try {
-            const spreadsheetId = context.config.spreadsheetId;
-            const range = (!context.config.clearEntireTable && context.config.range) ? `${context.config.sheetName}!${context.config.range}` : (context.config.includeHeaderRow ? `${context.config.sheetName}!A1:Z` : `${context.config.sheetName}!A2:Z`);
+            const spreadsheetId = context.config[0]?.spreadsheetId;
+            const range = (!context.config[0]?.clearEntireTable && context.config[0]?.range) ? `${context.config[0]?.sheetName}!${context.config[0]?.range}` : (context.config[0]?.includeHeaderRow ? `${context.config[0]?.sheetName}!A1:Z` : `${context.config[0]?.sheetName}!A2:Z`);
 
             const response = await sheetService.clearRows({
                 spreadsheetId: spreadsheetId,
                 range: range
             })
-            const outputBoxes = context.items.map(item => {
+            const itemsToMap: ExecuteItem[] = context.items.length > 0 ? context.items : [{ json: context.config[0]?.mappedColumns || {} }];
+
+            const outputBoxes = itemsToMap.map((item, index) => {
                 return {
                     json: {
                         ...item.json,
@@ -497,7 +534,10 @@ class GoogleSheetsNodeExecutor {
                             clearedRange: response.clearedRange
                         }
                     },
-                    sourceRefs: item.sourceRefs
+                    sourceRefs: {
+                        ...(item.sourceRefs),
+                        [context.nodeId]: { wireIndex: 0, rowIndex: index }
+                    }
 
                 }
             })
