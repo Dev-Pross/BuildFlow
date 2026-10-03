@@ -16,6 +16,7 @@ import {
   ExecuteWorkflow,
   HOOKS_URL,
   DashboardRangeSchema,
+  WorkflowSyncSchema,
 } from "@repo/common/zod";
 import { GoogleOAuthService, GoogleSheetsNodeExecutor } from "@repo/nodes";
 import axios from "axios";
@@ -675,6 +676,8 @@ router.get("/workflow/:workflowId",
   }
 );
 
+//---------------- DEPRECATED-ROUTE
+
 router.put("/workflow/update", userMiddleware, async (req: AuthRequest, res: Response) => {
 
   const data = req.body;
@@ -742,21 +745,29 @@ router.post("/create/trigger",
         return res.status(statusCodes.BAD_REQUEST).json({
           message: "Invalid input",
         });
-      const createdTrigger = await prismaClient.trigger.create({
-        data: {
-          name: dataSafe.data.Name,
-          AvailableTriggerID: dataSafe.data.AvailableTriggerID,
-          config: dataSafe.data.Config,
-          workflowId: dataSafe.data.WorkflowId,
-          Position: dataSafe.data.Position || {}
-          // trigger type pettla db lo ledu aa column
-        },
-      });
-      await prismaClient.workflow.update({
-        where: { id: dataSafe.data.WorkflowId },
-        data: {
-          isEmpty: false,
-        },
+      const createdTrigger = await prismaClient.$transaction(async (tx) => {
+        await tx.trigger.deleteMany({
+          where: { workflowId: dataSafe.data.WorkflowId }
+        });
+
+        const newTrigger = await tx.trigger.create({
+          data: {
+            name: dataSafe.data.Name,
+            AvailableTriggerID: dataSafe.data.AvailableTriggerID,
+            config: dataSafe.data.Config,
+            workflowId: dataSafe.data.WorkflowId,
+            Position: dataSafe.data.Position || {}
+          },
+        });
+
+        await tx.workflow.update({
+          where: { id: dataSafe.data.WorkflowId },
+          data: {
+            isEmpty: false,
+          },
+        });
+
+        return newTrigger;
       });
 
       if (createdTrigger) {
@@ -784,6 +795,8 @@ router.post("/create/trigger",
 );
 
 //NODE CREATION
+//---------------- DEPRECATED-ROUTE (DUE TO ID CREATION IS MIGRATED TO FRONTEND)
+
 router.post("/create/node",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
@@ -839,6 +852,7 @@ router.post("/create/node",
 
 // ------------------------- UPDATE NODES AND TRIGGES ---------------------------
 
+//---------------- DEPRECATED-ROUTE
 router.put("/update/node",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
@@ -880,7 +894,7 @@ router.put("/update/node",
     }
   }
 );
-
+//---------------- DEPRECATED-ROUTE
 router.put("/update/trigger",
   userMiddleware,
   async (req: AuthRequest, res: Response) => {
@@ -1039,4 +1053,125 @@ router.get("/protected", userMiddleware, (req: AuthRequest, res) => {
     email: req.user?.email,
   });
 });
+
+//  ---------------------------  BATCH SYNC FROM UI TO DB  --------------------------------------------
+router.put("/workflow/sync", userMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "User is not logged in ",
+      });
+    }
+    const dataSafe = WorkflowSyncSchema.safeParse(req.body)
+    if (!dataSafe.success) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Invalid input",
+      });
+    }
+
+    const workflowId = dataSafe.data.workflowId;
+    const userId = req.user.sub;
+
+    const workflow = await prismaClient.workflow.findFirst({
+      where: {
+        userId: userId,
+        id: workflowId
+      }
+    })
+
+    if (!workflow)
+      return res.status(statusCodes.NOT_FOUND).json({
+        message: "Workflow not found or not authorized"
+      });
+
+    const operations: any[] = [];
+
+    const { deletedNodeIds, deletedTriggerId, newNodes, changedNodes, trigger, edges } = dataSafe.data;
+    // ---------------- DELETE OPERATION DATA ------------------------
+    if (deletedTriggerId)
+      operations.push(prismaClient.trigger.deleteMany({
+        where: {
+          id: deletedTriggerId
+        }
+      }))
+    if (deletedNodeIds && deletedNodeIds.length > 0) {
+      // Clean up execution history FIRST
+      operations.push(prismaClient.nodeExecution.deleteMany({
+        where: { nodeId: { in: deletedNodeIds } }
+      }));
+      // THEN delete the nodes
+      operations.push(prismaClient.node.deleteMany({
+        where: { id: { in: deletedNodeIds } }
+      }));
+    }
+
+
+    // --------------- CREATION OPERATION DATA -----------------------
+    if (newNodes && newNodes.length > 0) {
+      const nodesTOCreate = newNodes.map((node) => ({
+        id: node.NodeId,
+        name: node.name,
+        config: node.Config || {},
+        stage: node.stage ?? 0,
+        AvailableNodeID: node.AvailableNodeID,
+        workflowId: node.workflowId,
+        position: node.position || {},
+        CredentialsID: node.Config ? node.Config.credentialId : null
+      }))
+
+      operations.push(prismaClient.node.createMany({
+        data: nodesTOCreate
+      }))
+    }
+
+    // ----------------------- NODE UPDATION --------------------
+    if (changedNodes && changedNodes.length > 0) {
+      changedNodes.forEach((node) => {
+        operations.push(prismaClient.node.update({
+          where: { id: node.NodeId },
+          data: {
+            config: node.Config || {},
+            position: node.position || {},
+            CredentialsID: node.Config ? node.Config.credentialId : null
+          }
+        }))
+      })
+    }
+
+    // ----------------------- TRIGGER UPDATE ---------------------------
+
+    if (trigger) {
+      operations.push(prismaClient.trigger.update({
+        where: { id: trigger.TriggerId },
+        data: {
+          config: trigger.Config,
+          Position: trigger.position,
+          CredentialsID: trigger.Config ? trigger.Config.credentialId : null
+        }
+      }))
+    }
+
+    if (edges) {
+      operations.push(prismaClient.workflow.update({
+        where: { id: workflowId },
+        data: {
+          Edges: edges
+        }
+      }))
+    }
+
+    await prismaClient.$transaction(operations)
+
+    return res.status(statusCodes.OK).json({
+      message: "Workflow synced successfully!"
+    })
+  }
+  catch (e) {
+    console.log("Error workflow logs:", e);
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Internal Server Error from workflow logs",
+      error: e instanceof Error ? e.message : "Unknown error"
+    })
+  }
+})
 export const userRouter = router;
