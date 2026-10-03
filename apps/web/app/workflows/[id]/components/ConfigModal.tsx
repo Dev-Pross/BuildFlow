@@ -391,7 +391,6 @@ export default function ConfigModal({
       }
     }
     setConfig(finalConfig);
-    dispatchConfig(finalConfig);
 
     if (nodeConfig?.fields) {
       for (const field of nodeConfig.fields) {

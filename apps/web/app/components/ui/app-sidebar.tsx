@@ -39,11 +39,9 @@ import { CardDemo } from './Design/WorkflowCard'
 export function AppSidebar() {
 
   const user = useAppSelector((s)=> s.user)
-  const flow = useAppSelector(s=>s.workflow) // workflow
-  console.log('redux workflow from sidebar: ',flow)
+  const reduxWorkflowId = useAppSelector(s => s.workflow.data.workflowId)
   const dispatch = useAppDispatch()
   const router = useRouter()
-  const reduxWorkflowId = flow.data.workflowId
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null >(reduxWorkflowId)
   type WorkflowSummary = { id: string; name: string; description?: string | null }
   const [workflows, setWorkflows] = useState<WorkflowSummary[] | undefined>()
@@ -63,28 +61,11 @@ export function AppSidebar() {
         if(credentials.data) setCreds(credentials.data.data)
     }
 
-    async function getWorkflowData(){
-      if(!selectedWorkflow) return
-      const workflow = await api.workflows.get(selectedWorkflow);
-      if(workflow.data){
-        console.log("workflow data fetchedsuceesully: ", workflow.data.Data)
-        // dispatch(workflowActions.addWorkflowNode(workflow.data.nodes))
-        dispatch(
-          workflowActions.setWorkflowFromBackend({
-            workflowId: selectedWorkflow,
-            data: workflow.data.Data,
-          })
-        )
-        // dispatch(workflowActions.setWorkflowTrigger(workflow.data.Trigger))
-        // console.log(`workfklow from redux: ${workflow.data}`)
-      }
-    }
     if(!creds) getCreds()
     if(!workflows) {
       getWorkflows()
     }
-    getWorkflowData()
-  },[selectedWorkflow, dispatch])
+  },[dispatch])
   
   const workflowHandler = (workflow: WorkflowSummary) => {
     setSelectedWorkflow(workflow.id)
