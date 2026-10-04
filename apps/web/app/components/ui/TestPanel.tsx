@@ -1,5 +1,6 @@
 "use client";
 import { useState, Fragment } from "react";
+import { toast } from "sonner";
 
 interface TestPanelProps {
     testResult: any;
@@ -10,6 +11,12 @@ interface TestPanelProps {
 
 export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPanelProps) {
     const [expandedCells, setExpandedCells] = useState<Record<string, boolean>>({});
+    const isHttpOrWebhook = Boolean(
+        nodeName?.toLowerCase().includes("http") || 
+        nodeName?.toLowerCase().includes("webhook")
+    );
+    const [viewMode, setViewMode] = useState<"table" | "json">(isHttpOrWebhook ? "json" : "table");
+    const [httpSubView, setHttpSubView] = useState<"body" | "headers" | "full">("body");
 
     const toggleExpand = (cellKey: string) => {
         setExpandedCells(prev => ({ ...prev, [cellKey]: !prev[cellKey] }));
@@ -25,7 +32,11 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                     <div className="flex-[2] px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500">Field</div>
                     <div className="flex-[3] px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 border-l border-[#2a2f3e]">Value</div>
                 </div>
-                {entries.map(([key, value]) => {
+                {entries.map(([key, rawValue]) => {
+                    let value = rawValue;
+                    if (typeof rawValue === 'string' && (rawValue.trim().startsWith('{') || rawValue.trim().startsWith('['))) {
+                        try { value = JSON.parse(rawValue); } catch (_) {}
+                    }
                     const isNested = typeof value === 'object' && value !== null;
                     return (
                         <div key={key} className="flex border-b border-[#1a1f2e]/50 last:border-b-0 hover:bg-[#1f2536] transition-colors">
@@ -137,11 +148,21 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                                 <tr className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors">
                                     <td className="px-3 py-2 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26] text-[10px]">{ri}</td>
                                     {headers.map(h => {
-                                        const val = item?.[h];
+                                        const rawVal = item?.[h];
                                         const cellKey = `${isNestedTable ? 'n_' : 'r_'}${ri}_${h}`;
-                                        const isArrayOfObjects = Array.isArray(val) && val.length > 0 && typeof val[0] === 'object';
+                                        let val = rawVal;
+                                        if (rawVal && typeof rawVal === 'object' && 'json' in rawVal) {
+                                            val = rawVal.json;
+                                        }
+                                        if (typeof val === 'string' && (val.trim().startsWith('{') || val.trim().startsWith('['))) {
+                                            try { val = JSON.parse(val); } catch (_) {}
+                                        }
 
-                                        if (isArrayOfObjects) {
+                                        const isArray = Array.isArray(val) && val.length > 0;
+                                        const isObject = typeof val === 'object' && val !== null && !Array.isArray(val) && Object.keys(val).length > 0;
+                                        const canExpand = isArray || isObject;
+
+                                        if (canExpand) {
                                             const isExpanded = !!expandedCells[cellKey];
                                             return (
                                                 <td key={h} className="px-4 py-2 border-r border-[#1a1f2e]/50 text-gray-300">
@@ -155,19 +176,19 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                                                         }`}
                                                     >
                                                         <span>{isExpanded ? '▼' : '▶'}</span>
-                                                        <span>{val.length} {val.length === 1 ? 'item' : 'items'}</span>
+                                                        <span>
+                                                            {isArray
+                                                                ? `${val.length} ${val.length === 1 ? 'item' : 'items'}`
+                                                                : `${Object.keys(val).length} fields`}
+                                                        </span>
                                                     </button>
                                                 </td>
                                             );
                                         }
 
-                                        let displayVal = val;
-                                        if (val && typeof val === 'object' && 'json' in val) {
-                                            displayVal = val.json;
-                                        }
-                                        const display = typeof displayVal === 'object' && displayVal !== null 
-                                            ? JSON.stringify(displayVal) 
-                                            : String(displayVal ?? '');
+                                        const display = typeof val === 'object' && val !== null 
+                                            ? JSON.stringify(val) 
+                                            : String(val ?? '');
                                         return (
                                             <td 
                                                 key={h} 
@@ -182,10 +203,19 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
 
                                 {/* Expandable Sub-table Row */}
                                 {headers.map(h => {
-                                    const val = item?.[h];
+                                    const rawVal = item?.[h];
                                     const cellKey = `${isNestedTable ? 'n_' : 'r_'}${ri}_${h}`;
-                                    const isArrayOfObjects = Array.isArray(val) && val.length > 0 && typeof val[0] === 'object';
-                                    if (!isArrayOfObjects || !expandedCells[cellKey]) return null;
+                                    let val = rawVal;
+                                    if (rawVal && typeof rawVal === 'object' && 'json' in rawVal) {
+                                        val = rawVal.json;
+                                    }
+                                    if (typeof val === 'string' && (val.trim().startsWith('{') || val.trim().startsWith('['))) {
+                                        try { val = JSON.parse(val); } catch (_) {}
+                                    }
+                                    const isArray = Array.isArray(val) && val.length > 0;
+                                    const isObject = typeof val === 'object' && val !== null && !Array.isArray(val) && Object.keys(val).length > 0;
+                                    const canExpand = isArray || isObject;
+                                    if (!canExpand || !expandedCells[cellKey]) return null;
 
                                     return (
                                         <tr key={`${cellKey}_expanded`} className="bg-[#0b0e14]">
@@ -195,7 +225,11 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                                                         <span className="flex items-center gap-2">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
                                                             <span className="font-mono text-gray-200">{h}</span>
-                                                            <span className="text-gray-500 font-normal">({val.length} {val.length === 1 ? 'record' : 'records'})</span>
+                                                            <span className="text-gray-500 font-normal">
+                                                                {isArray
+                                                                    ? `(${val.length} ${val.length === 1 ? 'record' : 'records'})`
+                                                                    : `(${Object.keys(val).length} fields)`}
+                                                            </span>
                                                         </span>
                                                         <button
                                                             type="button"
@@ -205,7 +239,17 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                                                             ✕ Close
                                                         </button>
                                                     </div>
-                                                    {renderArrayOfObjectsTable(val, true)}
+                                                    {isArray ? (
+                                                        typeof val[0] === 'object' ? (
+                                                            renderArrayOfObjectsTable(val, true)
+                                                        ) : (
+                                                            <pre className="text-xs text-emerald-300 font-mono bg-[#161b22] p-2.5 rounded overflow-x-auto">
+                                                                {JSON.stringify(val, null, 2)}
+                                                            </pre>
+                                                        )
+                                                    ) : (
+                                                        renderObjectTable(val)
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -275,6 +319,96 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                 const keys = singleRecord && typeof singleRecord === 'object' ? Object.keys(singleRecord) : [];
                 const firstKey = keys[0];
                 const isActionWrapper = Boolean(keys.length === 1 && firstKey && typeof singleRecord[firstKey] === 'object' && singleRecord[firstKey] !== null && !Array.isArray(singleRecord[firstKey]));
+
+                let parsedBody = singleRecord?.body;
+                if (typeof parsedBody === 'string' && (parsedBody.trim().startsWith('{') || parsedBody.trim().startsWith('['))) {
+                    try { parsedBody = JSON.parse(parsedBody); } catch (_) {}
+                }
+                const isHttpOrWebhookResult = Boolean(
+                    singleRecord && 
+                    typeof singleRecord === 'object' && 
+                    ('statusCode' in singleRecord || 'headers' in singleRecord) && 
+                    'body' in singleRecord
+                );
+
+                if (isHttpOrWebhookResult) {
+                    const isBodyArray = Array.isArray(parsedBody);
+                    const isBodyObj = typeof parsedBody === 'object' && parsedBody !== null && !isBodyArray;
+                    const isStatusSuccess = typeof singleRecord.statusCode === 'number' && singleRecord.statusCode >= 200 && singleRecord.statusCode < 300;
+
+                    return (
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2 p-2.5 rounded-lg bg-[#161b22] border border-[#2a2f3e]">
+                                <div className="flex items-center gap-2">
+                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold border ${
+                                        isStatusSuccess 
+                                            ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/50' 
+                                            : 'bg-rose-950/60 text-rose-400 border-rose-800/50'
+                                    }`}>
+                                        {singleRecord.statusCode} {singleRecord.statusText || (isStatusSuccess ? 'OK' : 'Response')}
+                                    </span>
+                                    <span className="text-xs text-gray-400 font-mono">
+                                        {isBodyArray ? `${parsedBody.length} records in body` : isBodyObj ? `${Object.keys(parsedBody).length} fields in body` : 'Response'}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center p-0.5 bg-[#0d1117] rounded-md border border-[#2a2f3e]">
+                                    <button
+                                        type="button"
+                                        onClick={() => setHttpSubView("body")}
+                                        className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                                            httpSubView === "body"
+                                                ? "bg-indigo-600 text-white shadow-sm"
+                                                : "text-gray-400 hover:text-gray-200"
+                                        }`}
+                                    >
+                                        Body {isBodyArray ? `(${parsedBody.length})` : ''}
+                                    </button>
+                                    {singleRecord.headers && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setHttpSubView("headers")}
+                                            className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                                                httpSubView === "headers"
+                                                    ? "bg-indigo-600 text-white shadow-sm"
+                                                    : "text-gray-400 hover:text-gray-200"
+                                            }`}
+                                        >
+                                            Headers ({Object.keys(singleRecord.headers).length})
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setHttpSubView("full")}
+                                        className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                                            httpSubView === "full"
+                                                ? "bg-indigo-600 text-white shadow-sm"
+                                                : "text-gray-400 hover:text-gray-200"
+                                        }`}
+                                    >
+                                        Full Output
+                                    </button>
+                                </div>
+                            </div>
+
+                            {httpSubView === "body" ? (
+                                isBodyArray ? (
+                                    renderArrayOfObjectsTable(parsedBody)
+                                ) : isBodyObj ? (
+                                    renderObjectTable(parsedBody)
+                                ) : (
+                                    <div className="w-full border border-[#2a2f3e] rounded-lg p-4 bg-[#161b22]">
+                                        <pre className="text-xs text-emerald-300 font-mono whitespace-pre-wrap">{String(parsedBody ?? '')}</pre>
+                                    </div>
+                                )
+                            ) : httpSubView === "headers" ? (
+                                renderObjectTable(singleRecord.headers || {})
+                            ) : (
+                                renderArrayOfObjectsTable(records)
+                            )}
+                        </div>
+                    );
+                }
 
                 const displayData = (isActionWrapper && firstKey) ? singleRecord[firstKey] : singleRecord;
 
@@ -353,23 +487,66 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
         <div className="w-full h-full bg-[#0d1117] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="p-4 border-b border-gray-800 bg-[#161b22] sticky top-0 z-20 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                    {nodeIcon && (
-                        <img src={nodeIcon} className="w-10 h-8 rounded bg-white p-0.5" alt="" />
-                    )}
-                    <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
-                        {testResult !== null && testResult !== undefined ? (
-                            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        ) : (
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                            </svg>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        {nodeIcon && (
+                            <img src={nodeIcon} className="w-10 h-8 rounded bg-white p-0.5 flex-shrink-0" alt="" />
                         )}
-                        {nodeName ? `${nodeName} Output` : 'Test Output'}
-                    </h2>
+                        <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2 truncate">
+                            {testResult !== null && testResult !== undefined ? (
+                                <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            ) : (
+                                <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                </svg>
+                            )}
+                            <span className="truncate">{nodeName ? `${nodeName} Output` : 'Test Output'}</span>
+                        </h2>
+                    </div>
+
+                    {testResult !== null && testResult !== undefined && (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex items-center p-0.5 bg-[#0a0e17] rounded-lg border border-[#1e293b]">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode("table")}
+                                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === "table"
+                                            ? "bg-indigo-600 text-white shadow-sm"
+                                            : "text-gray-400 hover:text-gray-200"
+                                    }`}
+                                >
+                                    Table
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode("json")}
+                                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === "json"
+                                            ? "bg-indigo-600 text-white shadow-sm"
+                                            : "text-gray-400 hover:text-gray-200"
+                                    }`}
+                                >
+                                    JSON
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(JSON.stringify(testResult, null, 2));
+                                    toast.success("JSON copied to clipboard");
+                                }}
+                                className="px-2.5 py-1 text-xs font-medium text-gray-300 hover:text-white bg-[#1a202c] hover:bg-[#202737] border border-[#2a2f3e] rounded-lg transition-colors flex items-center gap-1"
+                                title="Copy raw JSON"
+                            >
+                                📋 Copy
+                            </button>
+                        </div>
+                    )}
                 </div>
+
                 {testResult !== null && testResult !== undefined ? (
                     <div className="mt-2 text-[10px] text-gray-500">
                         {typeof testResult === 'object' && !Array.isArray(testResult) && testResult.status === 'sent'
@@ -390,10 +567,23 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                {testResult !== null && testResult !== undefined
-                    ? renderResult(testResult)
-                    : <NotTestedState nodeName={nodeName} />
-                }
+                {testResult !== null && testResult !== undefined ? (
+                    viewMode === "json" ? (
+                        <div className="w-full h-full flex flex-col">
+                            <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500 font-mono">
+                                <span>Formatted JSON response</span>
+                                <span>{JSON.stringify(testResult, null, 2).split('\n').length} lines</span>
+                            </div>
+                            <pre className="flex-1 w-full bg-[#06090e] border border-[#1e293b] text-emerald-300 font-mono text-xs p-4 rounded-xl overflow-auto select-text leading-relaxed scrollbar-thin scrollbar-thumb-gray-700">
+                                {JSON.stringify(testResult, null, 2)}
+                            </pre>
+                        </div>
+                    ) : (
+                        renderResult(testResult)
+                    )
+                ) : (
+                    <NotTestedState nodeName={nodeName} />
+                )}
             </div>
         </div>
     );

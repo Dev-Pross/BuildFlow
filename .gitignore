@@ -53,3 +53,4 @@ packages/db/tsconfig.tsbuildinfo
 apps/http-backend/tsconfig.tsbuildinfo
 packages/nodes/tsconfig.tsbuildinfo
 .agents/rules/code-mentor.md
+standard the output.md

@@ -44,18 +44,27 @@ export interface NodeConfig {
   sampleOutput?: Record<string, any>;
 }
 
+export interface CommonKeyPreset {
+  key: string;
+  label: string;
+  description?: string;
+  defaultValue?: string;
+}
+
 export interface ConfigField {
   name: string; // Field's internal key, e.g., "sheetId"
   label: string; // Human-readable label, e.g., "Sheet ID"
-  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password" | "column_mapper" | "bulk_payload" | "dynamic_schema_dropdown";
+  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password" | "column_mapper" | "bulk_payload" | "dynamic_schema_dropdown" | "key_value_pairs" | "json";
   required?: boolean;
   defaultValue?: string | number | boolean; // Initial value if not set
   placeholder?: string;
   fetchOptions?: string,
   value?: string,
   options?: Array<{ label: string; id: string | number; outputs?: any[] }>; // For dropdowns
+  commonKeys?: Array<string | CommonKeyPreset>; // Standard keys for autocomplete/dropdown (e.g. common headers)
   dependsOn?: string; // Name of another field this depends on
   showForOperation?: Array<string>;
+
   description?: string; // Help text for this field
   multiline?: boolean; // For textarea: allow specifying multiline
   min?: number; // For number fields: min value

@@ -253,3 +253,19 @@ export const ExecuteItemSchema = z.object({
 export type ExecuteItem = z.infer<typeof ExecuteItemSchema>
 
 export type FilterNodeInput = z.infer<typeof FilterNodeInput>;
+
+export const HttpRequestNodeSchema = z.object({
+  url: z.string().trim().min(1, "URL is required").refine(
+    (val) => /^(https?:\/\/|\{\{)/.test(val),
+    { message: "URL must start with http://, https://, or a {{variable}}" }
+  ),
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("GET"),
+  headers: z.union([z.record(z.string(), z.any()), z.array(z.any()), z.string()]).optional(),
+  body: z.any().optional(),
+  queryParams: z.union([z.record(z.string(), z.any()), z.array(z.any()), z.string()]).optional(),
+  timeout: z.number().int().positive().optional().default(30000)
+});
+
+
+export type HttpRequestNodeInput = z.infer<typeof HttpRequestNodeSchema>;
+export type HttpRequestInput = HttpRequestNodeInput;

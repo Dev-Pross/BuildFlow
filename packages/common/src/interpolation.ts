@@ -176,6 +176,13 @@ export function resolveVariable(variable: string, context: InterpolationContext,
   if (fallbackItem && typeof fallbackItem === 'object' && 'json' in fallbackItem) {
     const value = getNestedValue(fallbackItem.json, path);
     if (value !== undefined) return value;
+
+    // Support single-wire bracket syntax like "[0].json.body", "[0].body", or "json.body"
+    const cleanedPath = path.replace(/^\[\d+\]\.(json\.)?/, '').replace(/^\[\d+\]\./, '').replace(/^json\./, '');
+    if (cleanedPath !== path) {
+      const cleanedValue = getNestedValue(fallbackItem.json, cleanedPath);
+      if (cleanedValue !== undefined) return cleanedValue;
+    }
   }
 
   // 4. Direct property fallback (if raw object was passed in context)

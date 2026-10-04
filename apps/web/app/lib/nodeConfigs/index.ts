@@ -3,6 +3,7 @@ import { filterActionConfig } from "./filter.action";
 import { gmailActionConfig } from "./gmail.action";
 import { googleSheetActionConfig } from "./googleSheet.action";
 import { webhookTriggerConfig } from "./webhook.trigger";
+import { httpRequestActionConfig } from "./httpRequest.action";
 
 // 1. Create a dictionary of all your nodes
 // We map them by their 'label' (what shows on the node) AND their 'id' (internal type)
@@ -13,13 +14,16 @@ export const NODE_CONFIG_REGISTRY: Record<string, NodeConfig> = {
   [googleSheetActionConfig.label]: googleSheetActionConfig,
   [webhookTriggerConfig.label]: webhookTriggerConfig,
   [filterActionConfig.label]: filterActionConfig,
+  [httpRequestActionConfig.label]: httpRequestActionConfig,
 
   // Map by ID (internal safety fallback)
   [gmailActionConfig.id]: gmailActionConfig, // "gmail"
   [googleSheetActionConfig.id]: googleSheetActionConfig, // "google_sheet"
   [webhookTriggerConfig.id]: webhookTriggerConfig, // "webhook"
   [filterActionConfig.id]: filterActionConfig,
+  [httpRequestActionConfig.id]: httpRequestActionConfig, // "http_request"
 };
+
 
 /**
  * Helper to get the config object for a given node label or type.

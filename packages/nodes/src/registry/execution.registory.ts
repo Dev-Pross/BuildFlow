@@ -2,6 +2,7 @@ import { ExecutionContext, ExecutionResult, NodeExecutor } from "../registry/Exe
 import { GmailExecutor } from "@repo/nodes/nodeClient";
 import { GoogleSheetsNodeExecutor } from "@repo/nodes/nodeClient";
 import { FilterExecutor } from "../filter/filter.executor.js";
+import { HttpNodeExecutor } from "../http-node/http.executor.js";
 class ExecutionRegistry {
   private executors = new Map<string, NodeExecutor>();
 
@@ -42,6 +43,7 @@ class ExecutionRegistry {
     this.register("gmail", new GmailExecutor() as NodeExecutor);
     this.register("google_sheet", new GoogleSheetsNodeExecutor() as NodeExecutor)
     this.register("filter", new FilterExecutor() as NodeExecutor)
+    this.register("http_request", new HttpNodeExecutor() as NodeExecutor)
     console.log(`The current Executors are ${this.executors.size}`);
   }
 }

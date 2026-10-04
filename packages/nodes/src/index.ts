@@ -2,6 +2,7 @@
 // export { default as NodeRegistry } from './registry/node-registry.js';
 
 
+
 export { GmailExecutor } from './gmail/gmail.executor.js';
 
 
@@ -14,4 +15,7 @@ export { default as NodeRegistry } from './registry/node-registry.js';
 export { ExecutionRegister } from './registry/execution.registory.js';
 export { GoogleSheetsService } from './google-sheets/google-sheets.service.js';
 export { FilterNode } from './filter/filter.node.js';
+export { HttpNode } from './http-node/http.node.js';
+export { HttpNodeExecutor } from "./http-node/http.executor.js";
+
 console.log("Hello World From node / index.ts");
