@@ -1,6 +1,6 @@
 // lib/api.ts
 import axios from "axios";
-import { BACKEND_URL, NodeSchema, NodeUpdateSchema, workflowUpdateSchema } from "@repo/common/zod";
+import { BACKEND_URL, NodeSchema, WorkflowSyncSchema, NodeUpdateSchema, workflowUpdateSchema } from "@repo/common/zod";
 import { TriggerUpdateSchema } from "@repo/common/zod";
 import z from "zod";
 // Wrap all API calls in async functions and make sure to set withCredentials: true and add Content-Type header.
@@ -51,6 +51,15 @@ export const api = {
         withCredentials: true,
         headers: { "Content-Type": "application/json" },
       })
+    },
+    sync: async (data: z.infer<typeof WorkflowSyncSchema>) => {
+      return await axios.put(`${BACKEND_URL}/user/workflow/sync`,
+        data,
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
     }
   },
   triggers: {

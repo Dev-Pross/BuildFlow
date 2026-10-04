@@ -29,6 +29,7 @@ export const TriggerSchema = z.object({
 });
 
 export const NodeSchema = z.object({
+  id: z.string().optional(),
   Name: z.string(),
   AvailableNodeId: z.string(),
   Config: z.any().optional(),
@@ -74,6 +75,37 @@ export const workflowUpdateSchema = z.object({
   workflowId: z.string()
 })
 
+export const WorkflowSyncSchema = z.object({
+  workflowId: z.string(),
+  deletedNodeIds: z.array(z.string()).optional(),
+  deletedTriggerId: z.string().optional(),
+
+  newNodes: z.array(z.object({
+    NodeId: z.string(),
+    name: z.string(),
+    AvailableNodeID: z.string(),
+    stage: z.number().optional(),
+    Config: z.any().optional(),
+    icon: z.string().optional(),
+    position: z.any().optional(),
+    workflowId: z.string()
+  })).optional(),
+
+  changedNodes: z.array(z.object({
+    NodeId: z.string(),
+    Config: z.any().optional(),
+    position: z.any().optional()
+  })).optional(),
+
+  trigger: z.object({
+    TriggerId: z.string(),
+    Config: z.any().optional(),
+    position: z.any().optional(),
+    CredentialID: z.string().optional()
+  }).optional(),
+  edges: z.any().optional()
+
+})
 // Execution Logs Schemas - for GET /user/workflow/logs/:workflowId
 export const ExecutionStatusEnum = z.enum(['Start', 'Pending', 'InProgress', 'ReConnecting', 'Failed', 'Completed']);
 
@@ -216,6 +248,7 @@ export const ExecuteItemSchema = z.object({
       rowIndex: z.number()
     })).optional()
 });
+
 
 export type ExecuteItem = z.infer<typeof ExecuteItemSchema>
 

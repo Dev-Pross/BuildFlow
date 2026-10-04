@@ -59,9 +59,14 @@ class GmailExecutor {
 
       // Send email
 
-      const outputBoxes: ExecuteItem[] = [];
+      const successOutputs: ExecuteItem[] = [];
+      const failedOutputs: ExecuteItem[] = [];
 
-      const itemsToProcess: ExecuteItem[] = context.items && context.items.length > 0 ? context.items : [{ json: {} }]
+      const itemsToProcess: ExecuteItem[] = context.items && context.items.length > 0 ? context.items : []
+      if (itemsToProcess.length === 0) {
+        return { success: true, output: [] }
+      }
+
       for (let index = 0; index < itemsToProcess.length; index++) {
         const configForThisRow = context.config?.[index] || {};
         const { to, subject, body } = configForThisRow;
@@ -70,28 +75,38 @@ class GmailExecutor {
         const result = await this.gmailService.sendEmail(to, subject, body);
 
         if (!result.success) {
-          throw new Error(result.error)
-        }
-
-        outputBoxes.push({
-          json: {
-            ...(item.json || {}),
-            gmailResponse: {
-              status: "sent",
-              messageId: result.data?.id,
-              threadId: result.data?.threadId
+          failedOutputs.push({
+            json: {
+              ...(item.json),
+              error: result.error,
+              success: result.success
+            },
+            sourceRefs: {
+              ...(item.sourceRefs),
+              [context.nodeId]: { wireIndex: 1, rowIndex: failedOutputs.length }
             }
+          })
+
+          continue;
+        }
+        successOutputs.push({
+          json: {
+            ...(item.json),
+            status: "sent",
+            messsageId: result.data?.id,
+            success: result.success,
+            threadId: result.data?.threadId
           },
           sourceRefs: {
-            ...(item.sourceRefs || {}),
-            [context.nodeId]: { wireIndex: 0, rowIndex: index }
+            ...(item.sourceRefs),
+            [context.nodeId]: { wireIndex: 0, rowIndex: successOutputs.length }
           }
         })
       }
 
       return {
         success: true,
-        output: [outputBoxes],
+        output: [successOutputs, failedOutputs],
       };
     } catch (error) {
       return {
