@@ -46,6 +46,7 @@ export default function ConfigModal({
   const [testResult, setTestResult] = useState<any>(null);
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
   const [isLoadingHeaders, setIsLoadingHeaders] = useState(false);
+  const [customRowKeys, setCustomRowKeys] = useState<Record<string, boolean>>({});
 
   // Reset test result when switching to a different node
   useEffect(() => {
@@ -305,11 +306,24 @@ export default function ConfigModal({
       return;
     }
 
+    if (activeSubField?.startsWith("row-") && Array.isArray(config[activeField])) {
+      const index = parseInt(activeSubField.replace("row-", ""), 10);
+      if (!isNaN(index) && config[activeField][index]) {
+        const rows = [...config[activeField]];
+        rows[index] = { ...rows[index], value: (rows[index].value || "") + variableSyntax };
+        const newConfig = { ...config, [activeField]: rows };
+        setConfig(newConfig);
+        dispatchConfig(newConfig);
+        return;
+      }
+    }
+
     const currentValue = config[activeField] || "";
     const newConfig = { ...config, [activeField]: currentValue + variableSyntax };
-    setConfig(newConfig)
-    dispatchConfig(newConfig)
-  }
+    setConfig(newConfig);
+    dispatchConfig(newConfig);
+  };
+
 
   const handleFieldChange = async (fieldName: string, value: string, nodeConfig: any) => {
     // Update config with new value
@@ -430,9 +444,18 @@ export default function ConfigModal({
   // };
 
   const isFieldVisible = (field: ConfigField, formData: any) => {
+    // 1. Explicit field-level dependency check (e.g. body depends on method !== 'GET')
+    if (field.dependsOn && field.showForOperation) {
+      const parentVal = formData[field.dependsOn] ?? (field.dependsOn === "method" ? "GET" : undefined);
+      if (!parentVal || !field.showForOperation.includes(parentVal)) {
+        return false;
+      }
+    }
+
     const currentOps = formData.operation || "read_rows";
 
-    if (field.showForOperation && (!field.showForOperation.includes(currentOps)))
+    // 2. Fall back to operation check only if field does not have a custom dependsOn
+    if (!field.dependsOn && field.showForOperation && (!field.showForOperation.includes(currentOps)))
       return false;
 
     if (field.name === 'range') {
@@ -480,12 +503,14 @@ export default function ConfigModal({
       }
     };
 
-    extractKeysRecursive(data[0].json);
+    const itemToInspect = (data[0] && typeof data[0] === 'object' && 'json' in data[0]) ? data[0].json : data[0];
+    extractKeysRecursive(itemToInspect);
     return Array.from(new Set(keys));
   };
 
   const renderField = (field: ConfigField, nodeConfig: any) => {
     const fieldValue = config[field.name] ?? field.defaultValue ?? "";
+    const isRequired = field.required || (field.name === "range" && config.operation === "write_rows");
 
     if (field.type === "dynamic_schema_dropdown") {
       let options: string[] = ["(No Data Mapped)"];
@@ -778,7 +803,355 @@ export default function ConfigModal({
       );
     }
 
-    const isRequired = field.required || (field.name === "range" && config.operation === "write_rows");
+    if (field.type === "key_value_pairs") {
+      const rawValue = config[field.name];
+      let pairs: Array<{ id: string; key: string; value: string }> = [];
+
+      if (Array.isArray(rawValue)) {
+        pairs = rawValue.map((item, idx) => ({
+          id: item.id || `pair-${idx}`,
+          key: item.key || "",
+          value: item.value || ""
+        }));
+      } else if (rawValue && typeof rawValue === "object") {
+        pairs = Object.entries(rawValue).map(([k, v], idx) => ({
+          id: `pair-${idx}`,
+          key: k,
+          value: String(v ?? "")
+        }));
+      }
+
+      // Normalize common keys: supports string[] or CommonKeyPreset[]
+      const presets: Array<{ key: string; label: string; description?: string; defaultValue?: string }> =
+        (field.commonKeys || []).map((k: any) =>
+          typeof k === "string"
+            ? { key: k, label: k, description: "", defaultValue: "" }
+            : {
+                key: k.key,
+                label: k.label || k.key,
+                description: k.description || "",
+                defaultValue: k.defaultValue || ""
+              }
+        );
+      const hasPresets = presets.length > 0;
+
+      const updatePairs = (newPairs: Array<{ id: string; key: string; value: string }>) => {
+        const newConfig = { ...config, [field.name]: newPairs };
+        setConfig(newConfig);
+        dispatchConfig(newConfig);
+      };
+
+      const handleAddRow = () => {
+        updatePairs([...pairs, { id: `pair-${Date.now()}`, key: "", value: "" }]);
+      };
+
+      const handleDeleteRow = (index: number) => {
+        const updated = pairs.filter((_, i) => i !== index);
+        updatePairs(updated);
+      };
+
+      const handleKeyChange = (index: number, newKey: string) => {
+        const updated = pairs.map((pair, i) =>
+          i === index ? { ...pair, key: newKey } : pair
+        );
+        updatePairs(updated);
+      };
+
+      const handleValChange = (index: number, newVal: string) => {
+        const updated = pairs.map((pair, i) =>
+          i === index ? { ...pair, value: newVal } : pair
+        );
+        updatePairs(updated);
+      };
+
+      return (
+        <div key={field.name} className="space-y-2 p-3.5 bg-[#0c1017] rounded-xl border border-[#1e293b]/70">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="block text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                {field.label}
+                {field.required && <span className="text-red-400 ml-0.5">*</span>}
+              </label>
+              {field.description && (
+                <p className="text-[11px] text-gray-400 mt-0.5">{field.description}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleAddRow}
+              className="px-2.5 py-1 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-lg transition-colors flex items-center gap-1"
+            >
+              <span>+</span> Add {field.label.replace(/s$/, '') || "Row"}
+            </button>
+          </div>
+
+          {!hasPresets && field.commonKeys && field.commonKeys.length > 0 && (
+            <datalist id={`datalist-${field.name}`}>
+              {field.commonKeys.map((k: any) => (
+                <option key={typeof k === "string" ? k : k.key} value={typeof k === "string" ? k : k.key} />
+              ))}
+            </datalist>
+          )}
+
+          {pairs.length === 0 ? (
+            <div className="py-3 px-3 text-center rounded-lg border border-dashed border-gray-800 text-xs text-gray-500">
+              No {field.label.toLowerCase()} added. Click{" "}
+              <button
+                type="button"
+                className="text-indigo-400 hover:underline font-medium"
+                onClick={handleAddRow}
+              >
+                + Add
+              </button>{" "}
+              to create one.
+            </div>
+          ) : (
+            <div className="space-y-2 mt-2">
+              <div className="grid grid-cols-[1fr_1.5fr_32px] gap-2 px-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                <span>Key</span>
+                <span>Value</span>
+                <span></span>
+              </div>
+              {pairs.map((pair, index) => {
+                const pairId = pair.id || `pair-${index}`;
+                const isKnownPreset = presets.some((p) => p.key === pair.key);
+                const isCustomMode = customRowKeys[pairId] || (!isKnownPreset && pair.key !== "");
+
+                return (
+                  <div key={pairId} className="grid grid-cols-[1fr_1.5fr_32px] gap-2 items-center">
+                    {hasPresets ? (
+                      isCustomMode ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={pair.key}
+                            placeholder="Custom header name..."
+                            onChange={(e) => handleKeyChange(index, e.target.value)}
+                            className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-xs text-gray-200 rounded-lg outline-none focus:border-indigo-500/50 transition-colors font-mono"
+                          />
+                          <button
+                            type="button"
+                            title="Switch back to header dropdown"
+                            onClick={() => {
+                              setCustomRowKeys((prev) => ({ ...prev, [pairId]: false }));
+                              handleKeyChange(index, "");
+                            }}
+                            className="p-2 text-gray-400 hover:text-indigo-400 text-xs bg-[#0a0e17] border border-[#1e293b] rounded-lg"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <select
+                          value={isKnownPreset ? pair.key : ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "__custom__") {
+                              setCustomRowKeys((prev) => ({ ...prev, [pairId]: true }));
+                              handleKeyChange(index, "");
+                            } else {
+                              const selectedPreset = presets.find((p) => p.key === val);
+                              handleKeyChange(index, val);
+                              if (selectedPreset && selectedPreset.defaultValue && !pair.value) {
+                                handleValChange(index, selectedPreset.defaultValue);
+                              }
+                            }
+                          }}
+                          className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-xs text-gray-200 rounded-lg outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+                        >
+                          <option value="">Select header...</option>
+                          {presets.map((p) => (
+                            <option key={p.key} value={p.key}>
+                              {p.label} {p.description ? `— ${p.description}` : ""}
+                            </option>
+                          ))}
+                          <option value="__custom__">+ Custom Header... (enter custom key)</option>
+                        </select>
+                      )
+                    ) : (
+                      <input
+                        type="text"
+                        list={field.commonKeys ? `datalist-${field.name}` : undefined}
+                        value={pair.key}
+                        placeholder="Key"
+                        onChange={(e) => handleKeyChange(index, e.target.value)}
+                        className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-xs text-gray-200 rounded-lg outline-none focus:border-indigo-500/50 transition-colors"
+                      />
+                    )}
+                    <RichVariableInput
+                      value={pair.value}
+                      placeholder="Value (or {{variable}})..."
+                      onChange={(val) => handleValChange(index, val)}
+                      onFocus={() => {
+                        setActiveField(field.name);
+                        setActiveSubField(`row-${index}`);
+                      }}
+                      availableNodes={availableNodes}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRow(index)}
+                      className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-xs"
+                      title="Delete row"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (field.type === "json") {
+      const rawJson = String(fieldValue ?? "");
+      let isValidJson = true;
+      let jsonError: string | null = null;
+
+      if (rawJson.trim()) {
+        try {
+          // Mask {{variable}} tags with a safe string literal to avoid false syntax errors
+          const masked = rawJson.replace(/\{\{[^}]+\}\}/g, '"__BF_VAR__"');
+          JSON.parse(masked);
+        } catch (err: any) {
+          isValidJson = false;
+          jsonError = err.message || "Invalid JSON syntax";
+        }
+      }
+
+      const handleFormatJson = () => {
+        if (!rawJson.trim()) return;
+        try {
+          const parsed = JSON.parse(rawJson);
+          const formatted = JSON.stringify(parsed, null, 2);
+          const newConfig = { ...config, [field.name]: formatted };
+          setConfig(newConfig);
+          dispatchConfig(newConfig);
+          toast.success("JSON formatted");
+        } catch {
+          toast.error("Cannot auto-format: please check JSON syntax first");
+        }
+      };
+
+      const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const target = e.currentTarget;
+          const start = target.selectionStart;
+          const end = target.selectionEnd;
+          const current = target.value;
+          const updated = current.substring(0, start) + "  " + current.substring(end);
+          const newConfig = { ...config, [field.name]: updated };
+          setConfig(newConfig);
+          dispatchConfig(newConfig);
+
+          setTimeout(() => {
+            target.selectionStart = target.selectionEnd = start + 2;
+          }, 0);
+        }
+      };
+
+      return (
+        <div key={field.name} className="space-y-2 p-3.5 bg-[#0c1017] rounded-xl border border-[#1e293b]/70">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <label className="block text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                {field.label}
+                {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+              </label>
+              {rawJson.trim() ? (
+                isValidJson ? (
+                  <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Valid JSON
+                  </span>
+                ) : (
+                  <span
+                    className="px-2 py-0.5 text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/30 rounded-full flex items-center gap-1 cursor-help"
+                    title={jsonError || "Invalid JSON"}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                    Invalid JSON
+                  </span>
+                )
+              ) : (
+                <span className="text-[10px] text-gray-500">Optional</span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleFormatJson}
+              className="px-2.5 py-0.5 text-[11px] font-medium text-gray-400 hover:text-indigo-300 hover:bg-indigo-500/10 border border-gray-700 hover:border-indigo-500/30 rounded transition-colors"
+              title="Format JSON indentation"
+            >
+              Prettify
+            </button>
+          </div>
+
+          {field.description && (
+            <p className="text-[11px] text-gray-400">{field.description}</p>
+          )}
+
+          {jsonError && rawJson.trim() && (
+            <p className="text-[11px] text-rose-400 font-mono bg-rose-500/10 p-2 rounded border border-rose-500/20 truncate" title={jsonError}>
+              ⚠️ {jsonError}
+            </p>
+          )}
+
+          <div className="relative">
+            <textarea
+              value={rawJson}
+              placeholder={field.placeholder || '{\n  "key": "value"\n}'}
+              rows={6}
+              onFocus={() => {
+                setActiveField(field.name);
+                setActiveSubField(null);
+              }}
+              onKeyDown={handleKeyDown}
+              onChange={(e) => {
+                const newConfig = { ...config, [field.name]: e.target.value };
+                setConfig(newConfig);
+                dispatchConfig(newConfig);
+              }}
+              className="w-full p-3 bg-[#06090e] border border-[#1e293b] text-xs font-mono text-emerald-300 rounded-lg outline-none focus:border-indigo-500/50 transition-colors resize-y leading-relaxed placeholder-gray-600"
+              spellCheck={false}
+            />
+          </div>
+          <div className="text-[10px] text-gray-500 flex items-center justify-between">
+            <span>Supports <kbd className="text-gray-400 font-mono bg-gray-800 px-1 rounded">Tab</kbd> indentation &amp; variable drops</span>
+            <span>Lines: {rawJson ? rawJson.split('\n').length : 0}</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (field.type === "number") {
+      return (
+        <div key={field.name} className="form-group">
+          <label className="block text-sm font-medium text-white mb-1">
+            {field.label}
+            {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+          </label>
+          <input
+            type="number"
+            value={fieldValue ?? field.defaultValue ?? ""}
+            placeholder={field.placeholder}
+            onFocus={() => setActiveField(field.name)}
+            onChange={(e) => {
+              const numVal = e.target.value === "" ? "" : Number(e.target.value);
+              const newConfig = { ...config, [field.name]: numVal };
+              setConfig(newConfig);
+              dispatchConfig(newConfig);
+            }}
+            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
+          />
+        </div>
+      );
+    }
+
     return (
       <div key={field.name} className="form-group">
         <label className="block text-sm font-medium text-white mb-1">
@@ -786,7 +1159,7 @@ export default function ConfigModal({
           {isRequired && <span className="text-red-400 ml-0.5">*</span>}
         </label>
         <RichVariableInput
-          value={fieldValue || ''}
+          value={String(fieldValue ?? "")}
           placeholder={field.placeholder}
           onFocus={() => setActiveField(field.name)}
           onChange={(newValue) => {
@@ -798,6 +1171,7 @@ export default function ConfigModal({
         />
       </div>
     );
+
     // return (
     //   <div key={field.name} className="form-group">
     //     <label className="block text-sm font-medium text-white mb-1">

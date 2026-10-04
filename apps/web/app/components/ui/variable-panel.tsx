@@ -19,6 +19,9 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     previousNodes?.length > 0 ? previousNodes[previousNodes.length - 1]!.nodeId : null
   );
   const state = useAppSelector((state) => state.nodeOutput);
+  const [httpBodyViews, setHttpBodyViews] = useState<Record<string, 'body' | 'meta'>>({});
+  const [httpModeViews, setHttpModeViews] = useState<Record<string, 'tree' | 'table'>>({});
+  const [treeExpanded, setTreeExpanded] = useState<Record<string, boolean>>({});
 
   // Get tested outputs from Redux
   const testedOutputs = useAppSelector(selectAllOutputs);
@@ -210,8 +213,196 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     );
   };
 
+  // Interactive recursive JSON Tree viewer
+  const renderJsonTree = (
+    nodeId: string,
+    nodeName: string,
+    data: any,
+    currentPath: string,
+    depth = 0,
+    isTested = true
+  ): React.ReactNode => {
+    if (data === null || data === undefined) {
+      return <span className="text-gray-500 italic text-xs px-2 py-0.5 font-mono">null</span>;
+    }
+
+    if (typeof data !== 'object') {
+      const varSyntax = `{{${nodeId}${currentPath}}}`;
+      return (
+        <div 
+          className={`flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1a2333] transition-colors group ${activeField && isTested ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+          onClick={() => activeField && isTested && handleInsert(varSyntax)}
+          title={activeField ? `Insert: ${varSyntax}` : 'Select an input field first'}
+        >
+          <span className="font-mono text-xs text-emerald-400 truncate max-w-[200px]">{JSON.stringify(data)}</span>
+          <span className="text-[10px] text-blue-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+            + Map
+          </span>
+        </div>
+      );
+    }
+
+    if (Array.isArray(data)) {
+      const arraySyntax = `{{${nodeId}${currentPath}}}`;
+      const isExpanded = treeExpanded[`${nodeId}_${currentPath}`] ?? (depth < 2);
+
+      return (
+        <div className="flex flex-col w-full">
+          <div className="flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1f293d] group transition-colors">
+            <div 
+              className="flex items-center gap-1.5 cursor-pointer flex-1 min-w-0"
+              onClick={() => setTreeExpanded(prev => ({ ...prev, [`${nodeId}_${currentPath}`]: !isExpanded }))}
+            >
+              <span className="text-gray-500 text-[10px] font-mono">{isExpanded ? '▼' : '▶'}</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-800/40 text-purple-300">
+                Array ({data.length})
+              </span>
+            </div>
+
+            <button
+              type="button"
+              draggable={isTested}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', arraySyntax);
+                e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
+                  nodeName: nodeId,
+                  path: currentPath.replace(/^\./, ''),
+                  display: arraySyntax
+                }));
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (activeField && isTested) handleInsert(arraySyntax);
+              }}
+              className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+                activeField && isTested
+                  ? 'bg-blue-500/20 hover:bg-blue-500/35 border-blue-500/40 text-blue-300 cursor-grab active:cursor-grabbing'
+                  : 'bg-gray-800/40 border-gray-700/50 text-gray-500 cursor-not-allowed'
+              }`}
+              title={`Map entire array: ${arraySyntax}`}
+            >
+              + Map Array ({data.length})
+            </button>
+          </div>
+
+          {isExpanded && (
+            <div className="pl-3.5 border-l border-gray-800/80 ml-2 mt-0.5 space-y-0.5">
+              {data.slice(0, 50).map((item, idx) => (
+                <div key={idx} className="flex flex-col">
+                  <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono py-0.5">
+                    <span>[{idx}]:</span>
+                  </div>
+                  {renderJsonTree(nodeId, nodeName, item, `${currentPath}.[${idx}]`, depth + 1, isTested)}
+                </div>
+              ))}
+              {data.length > 50 && (
+                <div className="text-[10px] text-gray-500 italic py-1 pl-2 font-mono">
+                  ...and {data.length - 50} more items
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const entries = Object.entries(data);
+    return (
+      <div className="flex flex-col w-full space-y-0.5">
+        {entries.map(([key, val]) => {
+          const itemPath = `${currentPath}.${key}`;
+          const itemSyntax = `{{${nodeId}${itemPath}}}`;
+          const isValArray = Array.isArray(val);
+          const isValObj = typeof val === 'object' && val !== null && !isValArray;
+          const isNested = isValArray || isValObj;
+          const isExpanded = treeExpanded[`${nodeId}_${itemPath}`] ?? (depth < 2);
+
+          if (isNested) {
+            return (
+              <div key={key} className="flex flex-col">
+                <div className="flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1a2333] transition-colors group">
+                  <div 
+                    className="flex items-center gap-1.5 cursor-pointer flex-1 min-w-0"
+                    onClick={() => setTreeExpanded(prev => ({ ...prev, [`${nodeId}_${itemPath}`]: !isExpanded }))}
+                  >
+                    <span className="text-gray-500 text-[10px] font-mono">{isExpanded ? '▼' : '▶'}</span>
+                    <span className="font-mono text-xs text-blue-300 font-medium truncate">{key}</span>
+                    <span className="text-[10px] text-gray-500 font-mono">
+                      {isValArray ? `[${val.length}]` : '{...}'}
+                    </span>
+                  </div>
+
+                  {isValArray && (
+                    <button
+                      type="button"
+                      draggable={isTested}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', itemSyntax);
+                        e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
+                          nodeName: nodeId,
+                          path: itemPath.replace(/^\./, ''),
+                          display: itemSyntax
+                        }));
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (activeField && isTested) handleInsert(itemSyntax);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+                        activeField && isTested
+                          ? 'bg-blue-500/20 hover:bg-blue-500/35 border-blue-500/40 text-blue-300 cursor-grab active:cursor-grabbing'
+                          : 'bg-gray-800/40 border-gray-700/50 text-gray-500 cursor-not-allowed'
+                      }`}
+                      title={`Map entire array: ${itemSyntax}`}
+                    >
+                      + Map Array
+                    </button>
+                  )}
+                </div>
+
+                {isExpanded && (
+                  <div className="pl-3.5 border-l border-gray-800/80 ml-2 mt-0.5">
+                    {renderJsonTree(nodeId, nodeName, val, itemPath, depth + 1, isTested)}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={key}
+              className={`flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1a2333] transition-colors group ${activeField && isTested ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+              onClick={() => activeField && isTested && handleInsert(itemSyntax)}
+              title={activeField ? `Insert: ${itemSyntax}` : 'Select an input field first'}
+            >
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <span className="text-gray-600 text-xs">•</span>
+                <span className="font-mono text-xs text-gray-300 truncate">{key}:</span>
+                <span className="font-mono text-xs text-emerald-400/90 truncate max-w-[150px]">{String(val ?? '')}</span>
+              </div>
+              <span className="text-[10px] text-blue-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+                + Map
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   // Rendering for standard array of objects
-  const renderArrayTable = (nodeName: string, nodeId: string, dataArray: any[], isTested: boolean, wireIndex?: number) => {
+  const renderArrayTable = (
+    nodeName: string, 
+    nodeId: string, 
+    dataArray: any[], 
+    isTested: boolean, 
+    wireIndex?: number,
+    customPathPrefix?: string,
+    customLabel?: string
+  ) => {
     const formattedNodeName = nodeId;
 
     // Find all unique keys across objects to form headers
@@ -229,22 +420,33 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
         <div className="overflow-x-auto w-full border-t border-gray-800">
           <table className="w-full text-left text-xs text-gray-300 min-w-max">
             <tbody>
-              {dataArray.slice(0, 100).map((item, index) => (
-                <tr key={index} className="border-b border-gray-800/50 hover:bg-gray-800 transition-colors">
-                  <td className="px-2 py-1.5 w-8 text-center border-r border-gray-800/50 text-gray-600 font-mono text-[10px]">{index}</td>
-                  <td className={`px-3 py-1.5 truncate max-w-[300px] transition-colors
-                     ${activeField ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer" : "cursor-not-allowed"}`}
-                    onClick={() => handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : ''}[${index}]}}`)}
-                  >
-                    {String(item)}
-                  </td>
-                </tr>
-              ))}
+              {dataArray.slice(0, 100).map((item, index) => {
+                const insertSyntax = customPathPrefix
+                  ? `{{${formattedNodeName}${customPathPrefix}[${index}]}}`
+                  : `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : ''}[${index}]}}`;
+                return (
+                  <tr key={index} className="border-b border-gray-800/50 hover:bg-gray-800 transition-colors">
+                    <td className="px-2 py-1.5 w-8 text-center border-r border-gray-800/50 text-gray-600 font-mono text-[10px]">{index}</td>
+                    <td className={`px-3 py-1.5 truncate max-w-[300px] transition-colors
+                       ${activeField ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer" : "cursor-not-allowed"}`}
+                      onClick={() => handleInsert(insertSyntax)}
+                    >
+                      {String(item)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       );
     }
+
+    const allRowsSyntax = customPathPrefix
+      ? `{{${formattedNodeName}${customPathPrefix}}}`
+      : `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'}}}`;
+
+    const allRowsLabel = customLabel || `+ All Rows (${nodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'})`;
 
     return (
       <div className="w-full border-t border-gray-800">
@@ -255,18 +457,17 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
               type="button"
               draggable={isTested}
               onDragStart={(e) => {
-                const syntax = `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'}}}`;
-                e.dataTransfer.setData('text/plain', syntax);
+                e.dataTransfer.setData('text/plain', allRowsSyntax);
                 e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
                   nodeName: formattedNodeName,
-                  path: wireIndex !== undefined ? `[${wireIndex}]` : 'rows',
-                  display: syntax
+                  path: customPathPrefix ? customPathPrefix.replace(/^\./, '') : (wireIndex !== undefined ? `[${wireIndex}]` : 'rows'),
+                  display: allRowsSyntax
                 }));
                 e.dataTransfer.effectAllowed = 'copy';
               }}
               onClick={() => {
                 if (activeField && isTested) {
-                  handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'}}}`);
+                  handleInsert(allRowsSyntax);
                 }
               }}
               className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border ${activeField && isTested
@@ -277,11 +478,11 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                 !isTested
                   ? 'Test node first'
                   : activeField
-                    ? `Insert all rows: {{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'}}}`
+                    ? `Insert: ${allRowsSyntax}`
                     : 'Select a field first'
               }
             >
-              {`+ All Rows (${nodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : '.rows'})`}
+              {allRowsLabel}
             </button>
             <span className="px-1.5 py-0.5 rounded bg-blue-900/30 border border-blue-800/40 text-blue-400 font-medium">
               {dataArray.length} items
@@ -293,52 +494,57 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
             <thead className="bg-[#1a1f2e] sticky top-0">
               <tr>
                 <th className="px-2 py-2 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal w-8">#</th>
-                {headers.map((header) => (
-                  <th
-                    draggable={true}
-                    onDragStart={(e) => {
-                      const variableText = `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].${header}` : `.${header}`}}}`;
+                {headers.map((header) => {
+                  const headerVariableText = customPathPrefix
+                    ? `{{${formattedNodeName}${customPathPrefix}.[0].${header}}}`
+                    : `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].${header}` : `.${header}`}}}`;
 
-                      e.dataTransfer.setData('text/plain', variableText);
-
-                      e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
-                        nodeName: formattedNodeName,
-                        path: wireIndex !== undefined ? `[${wireIndex}].${header}` : header,
-                        display: variableText.replace('{{', '').replace('}}', '')
-                      }))
-
-                      e.dataTransfer.effectAllowed = 'copy';
-
-                    }}
-                    key={header}
-                    className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium text-gray-400 truncate max-w-[150px] transition-colors
-                      ${activeField && isTested ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-grab active:cursor-grabbing" : "cursor-not-allowed opacity-50"}
-                    `}
-                    onClick={() => {
-                      if (activeField && isTested) {
-                        handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].${header}` : `.${header}`}}}`);
+                  return (
+                    <th
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', headerVariableText);
+                        e.dataTransfer.setData('application/buildflow-variable', JSON.stringify({
+                          nodeName: formattedNodeName,
+                          path: customPathPrefix ? `${customPathPrefix}.[0].${header}` : (wireIndex !== undefined ? `[${wireIndex}].${header}` : header),
+                          display: headerVariableText.replace('{{', '').replace('}}', '')
+                        }));
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      key={header}
+                      className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium text-gray-400 truncate max-w-[150px] transition-colors
+                        ${activeField && isTested ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-grab active:cursor-grabbing" : "cursor-not-allowed opacity-50"}
+                      `}
+                      onClick={() => {
+                        if (activeField && isTested) {
+                          handleInsert(headerVariableText);
+                        }
+                      }}
+                      title={
+                        !isTested
+                          ? "Test node first to map data"
+                          : activeField
+                            ? `Insert: ${headerVariableText}`
+                            : "Select a field first"
                       }
-                    }}
-                    title={
-                      !isTested
-                        ? "Test node first to map data"
-                        : activeField
-                          ? `Insert entire column as array: {{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].${header}` : `.${header}`}}}`
-                          : "Select a field first"
-                    }
-                  >
-                    {header}
-                  </th>
-                ))}
+                    >
+                      {header}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {dataArray.slice(0, 50).map((item, rowIndex) => (
+              {dataArray.slice(0, 100).map((item, rowIndex) => (
                 <tr key={rowIndex} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors group">
                   <td className="px-2 py-1.5 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26]">{rowIndex}</td>
                   {headers.map(header => {
                     const val = item?.[header];
                     const displayStr = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '');
+                    const cellVariableText = customPathPrefix
+                      ? `{{${formattedNodeName}${customPathPrefix}.[${rowIndex}].${header}}}`
+                      : `{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].[${rowIndex}].json.${header}` : `.[${rowIndex}].json.${header}`}}}`;
+
                     return (
                       <td
                         key={header}
@@ -346,14 +552,14 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                         ${activeField && isTested ? "group-hover:text-white hover:bg-blue-500/30 cursor-pointer" : "cursor-not-allowed opacity-70"}`}
                         onClick={() => {
                           if (activeField && isTested) {
-                            handleInsert(`{{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].[${rowIndex}].json.${header}` : `.[${rowIndex}].json.${header}`}}}`);
+                            handleInsert(cellVariableText);
                           }
                         }}
                         title={
                           !isTested
                             ? "Test node first to map data"
                             : activeField
-                              ? `Insert {{${formattedNodeName}${wireIndex !== undefined ? `.[${wireIndex}].[${rowIndex}].json.${header}` : `.[${rowIndex}].json.${header}`}}}`
+                              ? `Insert ${cellVariableText}`
                               : "Select a field first"
                         }
                       >
@@ -515,9 +721,107 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                                 {renderArrayTable(node.nodeName, node.nodeId, wire.map((item: any) => (item && typeof item === 'object' && 'json' in item) ? item.json : item), isTested, wIndex)}
                               </div>
                             );
-                          }) : (
-                            renderArrayTable(node.nodeName, node.nodeId, testOutput.data[0].map((item: any) => (item && typeof item === 'object' && 'json' in item) ? item.json : item), isTested)
-                          )}
+                          }) : (() => {
+                            const records = testOutput.data[0].map((item: any) => (item && typeof item === 'object' && 'json' in item) ? item.json : item);
+                            const firstRecord = records[0];
+                            let bodyData = firstRecord?.body;
+                            if (typeof bodyData === 'string' && (bodyData.trim().startsWith('{') || bodyData.trim().startsWith('['))) {
+                              try { bodyData = JSON.parse(bodyData); } catch (_) {}
+                            }
+                            const hasBody = bodyData !== undefined && bodyData !== null && typeof bodyData === 'object';
+                            const currentView = httpBodyViews[node.nodeId] ?? (hasBody ? 'body' : 'meta');
+
+                            if (hasBody) {
+                              const isBodyArray = Array.isArray(bodyData);
+                              const bodyArray = isBodyArray ? bodyData : [bodyData];
+                              const defaultMode = isBodyArray ? 'table' : 'tree';
+                              const currentMode = httpModeViews[node.nodeId] ?? defaultMode;
+
+                              return (
+                                <div className="flex flex-col">
+                                  <div className="flex items-center justify-between px-3 py-1.5 bg-[#161b22] border-b border-[#2a2f3e] flex-wrap gap-1.5">
+                                    <div className="flex items-center gap-1 p-0.5 bg-[#0d1117] rounded-md border border-[#2a2f3e]">
+                                      <button
+                                        type="button"
+                                        onClick={() => setHttpBodyViews(prev => ({ ...prev, [node.nodeId]: 'body' }))}
+                                        className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                                          currentView === 'body'
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-gray-200'
+                                        }`}
+                                      >
+                                        Response Body {isBodyArray ? `(${bodyData.length})` : '(Object)'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setHttpBodyViews(prev => ({ ...prev, [node.nodeId]: 'meta' }))}
+                                        className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                                          currentView === 'meta'
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-gray-400 hover:text-gray-200'
+                                        }`}
+                                      >
+                                        Status & Headers
+                                      </button>
+                                    </div>
+
+                                    {currentView === 'body' && (
+                                      <div className="flex items-center gap-1 p-0.5 bg-[#0d1117] rounded-md border border-[#2a2f3e]">
+                                        <button
+                                          type="button"
+                                          onClick={() => setHttpModeViews(prev => ({ ...prev, [node.nodeId]: 'tree' }))}
+                                          className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                                            currentMode === 'tree'
+                                              ? 'bg-indigo-600 text-white shadow-sm'
+                                              : 'text-gray-400 hover:text-gray-200'
+                                          }`}
+                                        >
+                                          Tree (JSON)
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setHttpModeViews(prev => ({ ...prev, [node.nodeId]: 'table' }))}
+                                          className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                                            currentMode === 'table'
+                                              ? 'bg-indigo-600 text-white shadow-sm'
+                                              : 'text-gray-400 hover:text-gray-200'
+                                          }`}
+                                        >
+                                          Table
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {currentView === 'body' ? (
+                                    currentMode === 'tree' ? (
+                                      <div className="p-2.5 bg-[#111620] overflow-x-auto">
+                                        <div className="text-[10px] text-gray-500 font-mono mb-2 flex items-center justify-between">
+                                          <span>Interactive JSON Explorer (click or drag to map)</span>
+                                          <span>{isBodyArray ? `${bodyData.length} items` : 'Object'}</span>
+                                        </div>
+                                        {renderJsonTree(node.nodeId, node.nodeName, bodyData, ".[0].json.body", 0, isTested)}
+                                      </div>
+                                    ) : (
+                                      renderArrayTable(
+                                        node.nodeName,
+                                        node.nodeId,
+                                        bodyArray,
+                                        isTested,
+                                        undefined,
+                                        ".[0].json.body",
+                                        isBodyArray ? `+ All Rows (${node.nodeName} Body)` : `+ All Fields (${node.nodeName} Body)`
+                                      )
+                                    )
+                                  ) : (
+                                    renderArrayTable(node.nodeName, node.nodeId, records, isTested)
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            return renderArrayTable(node.nodeName, node.nodeId, records, isTested);
+                          })()}
                         </div>
                       ) :
                         /* Try matching Standard Array pattern */

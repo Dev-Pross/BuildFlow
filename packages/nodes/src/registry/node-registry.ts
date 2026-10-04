@@ -2,6 +2,7 @@ import { prismaClient } from "@repo/db";
 import { GoogleSheetNode } from "../google-sheets/google-sheets.node.js";
 import { GmailNode } from "../gmail/gmail.node.js";
 import { FilterNode } from "../filter/filter.node.js";
+import { HttpNode } from "../http-node/http.node.js";
 
 interface NodeDefinition {
   name: string;
@@ -10,6 +11,7 @@ interface NodeDefinition {
   config: any;
   requireAuth: boolean;
   authType?: string;
+  icon?: string;
 }
 
 class NodeRegistry {
@@ -28,13 +30,21 @@ class NodeRegistry {
           config: definition.config,
           requireAuth: definition.requireAuth,
           authType: definition.authType,
+          icon: definition.icon,
         },
         update: {
-          ...definition,
+          name: definition.name,
+          type: definition.type,
+          description: definition.description,
+          config: definition.config,
+          requireAuth: definition.requireAuth,
+          authType: definition.authType,
+          icon: definition.icon,
         },
 
         where: { type: definition.type },
       });
+
 
       this.registered.add(definition.type);
       console.log(`✅ Registered node: ${definition.name}`);
@@ -52,15 +62,18 @@ class NodeRegistry {
           name: definition.name,
           type: definition.type,
           config: definition.config,
+          icon: definition.icon,
         },
         update: {
           name: definition.name,
           type: definition.type,
           config: definition.config,
+          icon: definition.icon,
         },
 
         where: { type: definition.type },
       });
+
 
       this.triggers.add(definition.type);
       console.log(`✅ Registered Trigger: ${definition.name}`);
@@ -72,6 +85,7 @@ class NodeRegistry {
     await GoogleSheetNode.register();
     await GmailNode.register();
     await FilterNode.register();
+    await HttpNode.register();
     await NodeRegistry.registerTrigger({
       name: 'webhook',
       type: 'webhook',

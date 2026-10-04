@@ -33,8 +33,10 @@ export function getNodeColorClass(nodeId: string): string {
     return COLORS[index]!;
 }
 
-export function parseValueToHtml(rawValue: string, availableNodes: AvailableNode[]): string {
-    if (!rawValue) return "";
+export function parseValueToHtml(rawValue: any, availableNodes: AvailableNode[]): string {
+    if (rawValue === null || rawValue === undefined) return "";
+    const stringValue = typeof rawValue === 'string' ? rawValue : String(rawValue);
+    if (!stringValue) return "";
 
     // 1. Sanitize the raw input to prevent Cross-Site Scripting (XSS)
     const escapeHtml = (str: string) => {
@@ -45,7 +47,8 @@ export function parseValueToHtml(rawValue: string, availableNodes: AvailableNode
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     };
-    const sanitizedValue = escapeHtml(rawValue).replace(/\n/g, "<br>");
+    const sanitizedValue = escapeHtml(stringValue).replace(/\n/g, "<br>");
+
     
     // 2. Parse the sanitized value to inject the visual pills
     return sanitizedValue.replace(/\{\{([^.]+)\.([^}]+)\}\}/g, (match, nodeId, path) => {
