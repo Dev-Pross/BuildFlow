@@ -8,6 +8,7 @@ import {
   Edge,
   Controls,
   Background,
+  BackgroundVariant,
   useNodesState,
   useEdgesState,
   NodeChange,
@@ -23,6 +24,7 @@ import ActionSideBar from "@/app/components/Actions/ActionSidebar";
 import { api } from "@/app/lib/api";
 import ConfigModal from "./components/ConfigModal";
 import TriggerReplaceModal from "./components/TriggerReplaceModal";
+import { WorkflowToolbar } from "./components/WorkflowToolbar";
 import { toast } from "sonner";
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
 import { useAppDispatch, useAppSelector } from "@/app/hooks/redux";
@@ -1015,7 +1017,7 @@ export default function WorkflowCanvas() {
           </div>
         </div>
       )}
-      <div className=" w-auto h-full text-black">
+      <div className="w-auto h-full text-[#f0f0e8] bg-[#0d120d]">
         <SidebarProvider>
           <AppSidebar />
 
@@ -1039,31 +1041,46 @@ export default function WorkflowCanvas() {
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         onNodeDragStop={nodeChangeDb}
+        defaultEdgeOptions={{
+          animated: true,
+          style: { stroke: "#475569", strokeWidth: 2 },
+        }}
         fitView
       >
-        <Background bgColor="#fdfdfd" />
-        <Controls />
+        <Background
+          bgColor="#f8fafc"
+          color="#cbd5e1"
+          variant={BackgroundVariant.Dots}
+          gap={24}
+          size={1.5}
+        />
+        <Controls className="!bg-white !border-gray-200 !rounded-2xl !shadow-xl [&>button]:!bg-white [&>button]:!text-gray-700 [&>button]:!border-gray-100 [&>button:hover]:!bg-gray-100" />
 
-
-        <div style={{ position: "fixed", bottom: "60px", right: "10rem", display: "flex", gap: "1rem", zIndex: 50 }}>
-          <button
-            onClick={batchSave}
-            className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"
-          >
-            {displayStatus}
-          </button>
-          <button
-            onClick={async () => {
-              await handleExecute();
-            }}
-            disabled={loading}
-            className="border bg-white text-black font-bold p-4 shadow-lg px-12 rounded-2xl"
-            style={{ fontWeight: 600 }}
-            type="button"
-          >
-            {loading ? "Executing..." : "Execute"}
-          </button>
-        </div>
+        <WorkflowToolbar
+          onExecute={handleExecute}
+          isExecuting={loading}
+          onSave={batchSave}
+          saveStatus={displayStatus}
+          hasUnsavedChanges={
+            reduxWorkflow.isChanged.nodes ||
+            reduxWorkflow.isChanged.trigger ||
+            reduxWorkflow.isChanged.edges
+          }
+          onExport={() => {
+            const flowJson = JSON.stringify(
+              { workflow: reduxWorkflow.data, nodes, edges },
+              null,
+              2
+            );
+            const blob = new Blob([flowJson], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${reduxWorkflow.data.name || "workflow"}.json`;
+            a.click();
+            toast.success("Workflow exported successfully!");
+          }}
+        />
       </ReactFlow>
 
       <ConfigModal

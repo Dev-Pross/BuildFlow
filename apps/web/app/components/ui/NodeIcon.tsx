@@ -1,4 +1,15 @@
 import React from "react";
+import { 
+  Zap, 
+  Globe, 
+  Filter, 
+  GitFork, 
+  Repeat, 
+  FileSpreadsheet, 
+  Mail, 
+  SlidersHorizontal,
+  Bot
+} from "lucide-react";
 
 interface NodeIconProps {
   icon?: string | null;
@@ -9,15 +20,22 @@ interface NodeIconProps {
 }
 
 const SIZE_MAP = {
-  sm: "w-7 h-7 text-sm",
-  md: "w-8 h-8 text-base",
-  lg: "w-9 h-9 text-lg",
-  xl: "w-12 h-12 text-2xl",
+  sm: "w-7 h-7 text-xs",
+  md: "w-9 h-9 text-sm",
+  lg: "w-11 h-11 text-base",
+  xl: "w-14 h-14 text-xl",
+};
+
+const ICON_SIZE_MAP = {
+  sm: 14,
+  md: 18,
+  lg: 22,
+  xl: 28,
 };
 
 export function NodeIcon({
   icon,
-  name,
+  name = "",
   nodeType = "action",
   size = "md",
   className = "",
@@ -30,47 +48,54 @@ export function NodeIcon({
       icon.startsWith("data:image"));
 
   const sizeClasses = SIZE_MAP[size] || SIZE_MAP.md;
+  const iconPixelSize = ICON_SIZE_MAP[size] || ICON_SIZE_MAP.md;
+  const lowerName = name.toLowerCase();
+
+  const renderKnownIcon = () => {
+    if (lowerName.includes("sheet")) {
+      return <FileSpreadsheet size={iconPixelSize} className="text-emerald-500" />;
+    }
+    if (lowerName.includes("mail") || lowerName.includes("gmail")) {
+      return <Mail size={iconPixelSize} className="text-rose-500" />;
+    }
+    if (lowerName.includes("webhook")) {
+      return <Zap size={iconPixelSize} className="text-amber-500" />;
+    }
+    if (lowerName.includes("http") || lowerName.includes("api") || lowerName.includes("request")) {
+      return <Globe size={iconPixelSize} className="text-cyan-500" />;
+    }
+    if (lowerName.includes("filter")) {
+      return <Filter size={iconPixelSize} className="text-indigo-400" />;
+    }
+    if (lowerName.includes("if") || lowerName.includes("condition") || lowerName.includes("branch")) {
+      return <GitFork size={iconPixelSize} className="text-violet-400" />;
+    }
+    if (lowerName.includes("iterator") || lowerName.includes("loop")) {
+      return <Repeat size={iconPixelSize} className="text-blue-400" />;
+    }
+    if (lowerName.includes("ai") || lowerName.includes("gpt") || lowerName.includes("agent")) {
+      return <Bot size={iconPixelSize} className="text-emerald-400" />;
+    }
+    if (nodeType === "trigger") {
+      return <Zap size={iconPixelSize} className="text-amber-500" />;
+    }
+    return <SlidersHorizontal size={iconPixelSize} className="text-gray-400" />;
+  };
 
   return (
     <div
-      className={`relative flex-shrink-0 flex items-center justify-center rounded-lg bg-white/10 p-1 border border-white/5 shadow-sm overflow-hidden ${sizeClasses} ${className}`}
+      className={`relative flex-shrink-0 flex items-center justify-center rounded-2xl bg-white shadow-sm border border-gray-100 overflow-hidden ${sizeClasses} ${className}`}
     >
       {isImageUrl ? (
         <img
           src={icon}
           alt={name || "Node icon"}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-contain p-1.5"
         />
-      ) : icon ? (
-        <span className="leading-none select-none font-sans">{icon}</span>
-      ) : nodeType === "trigger" ? (
-        <svg
-          className="w-3/5 h-3/5 text-amber-400"
-          fill="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-        </svg>
+      ) : icon && icon.length <= 4 ? (
+        <span className="leading-none select-none font-sans text-center">{icon}</span>
       ) : (
-        <svg
-          className="w-3/5 h-3/5 text-indigo-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-          />
-        </svg>
+        renderKnownIcon()
       )}
     </div>
   );

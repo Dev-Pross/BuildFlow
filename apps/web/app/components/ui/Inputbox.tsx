@@ -23,24 +23,24 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputType = isPasswordType && isVisible ? 'text' : type;
 
     return (
-      <div className="w-full flex flex-col gap-1.5 px-2 py-4">
+      <div className="w-full flex flex-col gap-1.5 px-2 py-3">
         {label && (
-          <label htmlFor={props.id} className="text-sm font-medium text-[#c8d4a8]">
+          <label htmlFor={props.id} className="text-xs font-semibold text-[#9ca3af]">
             {label}
           </label>
         )}
 
         <div 
           className={`
-            relative flex items-center gap-2 px-3 py-2 rounded-md border bg-[#141a14] transition-all duration-200
+            relative flex items-center gap-2 px-3.5 py-2.5 rounded-xl border bg-[#1e2025] transition-all duration-200
             ${error 
-              ? "border-red-500/60 focus-within:ring-2 focus-within:ring-red-500/20" 
-              : "border-[#2a3525] focus-within:border-[#baf266]/50 focus-within:ring-2 focus-within:ring-[#baf266]/15"
+              ? "border-rose-500/60 focus-within:ring-2 focus-within:ring-rose-500/20" 
+              : "border-[#2a2c33] focus-within:border-indigo-500/60 focus-within:ring-2 focus-within:ring-indigo-500/20"
             }
           `}
         >
           {startIcon && (
-            <span className="text-[#5a6350] select-none">
+            <span className="text-[#6b7280] select-none">
               {iconMap[startIcon]}
             </span>
           )}
@@ -48,7 +48,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             type={inputType}
-            className="w-full bg-transparent p-0 text-sm placeholder:text-[#4a5440] focus:outline-none text-[#e8e8d8]"
+            className="w-full bg-transparent p-0 text-sm placeholder:text-[#6b7280] focus:outline-none text-white"
             {...props}
           />
 
@@ -56,7 +56,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button" 
               onClick={() => setIsVisible(!isVisible)}
-              className="text-[#5a6350] hover:text-[#8a9178] focus:outline-none transition-colors"
+              className="text-[#6b7280] hover:text-white focus:outline-none transition-colors"
             >
               {isVisible ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -64,7 +64,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         </div>
 
         {error && (
-          <span className="text-xs text-red-400 animate-pulse">{error}</span>
+          <span className="text-xs text-rose-400">{error}</span>
         )}
       </div>
     );

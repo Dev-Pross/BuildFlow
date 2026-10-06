@@ -1,7 +1,11 @@
+"use client";
+
+import React from "react";
 import { Handle, Position } from "@xyflow/react";
 import { NodeIcon } from "@/app/components/ui/NodeIcon";
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
-import { RefreshCw } from "lucide-react";
+import { Settings, Trash2, RefreshCw, Plus, Play, Check } from "lucide-react";
+
 interface BaseNodeProps {
   id: string;
   type: string;
@@ -12,13 +16,82 @@ interface BaseNodeProps {
     config: any;
     nodeType?: "trigger" | "action";
     isConfigured?: boolean;
-
     status?: "idle" | "running" | "success" | "error";
     onConfigure?: () => void;
     onTest?: () => void;
     onAddChild?: (sourceHandleId?: string) => void;
     onDelete?: () => void;
-    onReplace?: () => void
+    onReplace?: () => void;
+  };
+}
+
+// Pastel style mapper matching Make.com (photo_2026-02-14_11-35-22.jpg)
+function getNodeTheme(name: string, isTrigger: boolean) {
+  const lower = name.toLowerCase();
+  if (lower.includes("sheet") || lower.includes("drive")) {
+    return {
+      cardBg: "bg-[#ecfdf5] border-[#a7f3d0] text-[#065f46]",
+      iconBg: "bg-white shadow-sm",
+      badge: "bg-emerald-100/80 text-emerald-800 border-emerald-200",
+      accent: "text-emerald-700",
+      handle: "!bg-emerald-500",
+    };
+  }
+  if (lower.includes("mail") || lower.includes("gmail") || lower.includes("webhook")) {
+    return {
+      cardBg: "bg-[#fdf2f8] border-[#fbcfe8] text-[#9d174d]",
+      iconBg: "bg-white shadow-sm",
+      badge: "bg-pink-100/80 text-pink-800 border-pink-200",
+      accent: "text-pink-700",
+      handle: "!bg-pink-500",
+    };
+  }
+  if (lower.includes("slack") || lower.includes("http") || lower.includes("api") || lower.includes("request")) {
+    return {
+      cardBg: "bg-[#f0f9ff] border-[#bae6fd] text-[#0369a1]",
+      iconBg: "bg-white shadow-sm",
+      badge: "bg-sky-100/80 text-sky-800 border-sky-200",
+      accent: "text-sky-700",
+      handle: "!bg-sky-500",
+    };
+  }
+  if (lower.includes("if") || lower.includes("canva") || lower.includes("logic")) {
+    return {
+      cardBg: "bg-[#faf5ff] border-[#e9d5ff] text-[#6b21a8]",
+      iconBg: "bg-white shadow-sm",
+      badge: "bg-purple-100/80 text-purple-800 border-purple-200",
+      accent: "text-purple-700",
+      handle: "!bg-purple-500",
+    };
+  }
+  if (lower.includes("filter") || lower.includes("iterator") || lower.includes("loop")) {
+    return {
+      cardBg: "bg-[#fffbeb] border-[#fde68a] text-[#92400e]",
+      iconBg: "bg-white shadow-sm",
+      badge: "bg-amber-100/80 text-amber-800 border-amber-200",
+      accent: "text-amber-700",
+      handle: "!bg-amber-500",
+    };
+  }
+  if (lower.includes("notion")) {
+    return {
+      cardBg: "bg-[#18181b] border-zinc-800 text-white",
+      iconBg: "bg-zinc-800 text-white",
+      badge: "bg-zinc-800 text-zinc-300 border-zinc-700",
+      accent: "text-white",
+      handle: "!bg-zinc-700",
+    };
+  }
+
+  // Default clean card
+  return {
+    cardBg: isTrigger
+      ? "bg-[#fff7ed] border-[#fed7aa] text-[#9a3412]"
+      : "bg-white border-gray-200 text-gray-900",
+    iconBg: "bg-gray-50 shadow-sm",
+    badge: "bg-gray-100 text-gray-700 border-gray-200",
+    accent: "text-gray-700",
+    handle: "!bg-[#18181b]",
   };
 }
 
@@ -33,140 +106,167 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
     onTest,
     nodeType,
     onDelete,
-    onReplace
+    onReplace,
+    isConfigured,
   } = data;
 
-  // For a node to be connectable, it must have handles.
-  // We always want placeholder and configured nodes to be connectable.
-  // TRIGGER nodes: Only source handle out (right)
-  // ACTION nodes: Both target handle in (left) and source handle out (right)
+  const isTrigger = nodeType === "trigger";
+  const theme = getNodeTheme(label, isTrigger);
 
+  // ── Placeholder Node (Make.com Style) ──
   if (isPlaceholder) {
     return (
       <div
         onClick={onConfigure}
-        className="
-          group
-          w-[140px] 
-          px-4 py-6
-          bg-white
-          border-2 border-dashed border-gray-600
-          rounded-lg
-          cursor-pointer
-          transition-all duration-200
-          hover:border-blue-500 
-          hover:bg-white
-          hover:shadow-lg hover:shadow-blue-500/20
-          flex flex-col items-center gap-3
-        "
+        className="group w-[150px] p-5 rounded-3xl bg-white/90 border-2 border-dashed border-gray-300 hover:border-gray-900 hover:bg-white hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col items-center gap-2.5 select-none"
       >
-        {/* Icon */}
-        <div
-          className="
-            w-7 h-7  flex items-center justify-center
-             bg-white
-            text-2xl
-            group-hover:border-blue-500
-            transition-all duration-200
-          "
-        >
-          {icon || "➕"}
+        <div className="w-11 h-11 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-700 group-hover:scale-110 group-hover:bg-[#18181b] group-hover:text-white transition-all shadow-sm">
+          <Plus className="w-5 h-5" />
         </div>
-        {/* Label */}
         <div className="text-center">
-          <p className="text-black font-bold  text-sm group-hover:text-blue-400 transition-colors">
+          <p className="text-xs font-bold text-gray-700 group-hover:text-gray-900 transition-colors">
             {label}
           </p>
-          {/* <p className="text-gray-500 text-xs mt-1">Click to configure</p> */}
+          <span className="text-[10px] text-gray-400 mt-0.5 block">Click to setup</span>
         </div>
 
         {/* Handles */}
         {nodeType === "action" ? (
           <>
-            {/* Action placeholders get both handles -- left (input), right (output) */}
-            <Handle type="target" position={Position.Left} id="a-in" />
-            <Handle type="source" position={Position.Right} id="a-out" />
+            <Handle
+              type="target"
+              position={Position.Left}
+              id="a-in"
+              className="!w-3 !h-3 !bg-white !border-2 !border-gray-400 hover:!border-black transition-colors"
+            />
+            <Handle
+              type="source"
+              position={Position.Right}
+              id="a-out"
+              className="!w-3 !h-3 !bg-white !border-2 !border-gray-400 hover:!border-black transition-colors"
+            />
           </>
         ) : (
-          // Trigger placeholders only output
-          <Handle type="source" position={Position.Right} id="t-out" />
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="t-out"
+            className="!w-3 !h-3 !bg-white !border-2 !border-gray-900"
+          />
         )}
       </div>
     );
   }
 
+  // ── Configured Visual Node Card (Make.com Style) ──
   return (
-    <div className="text-black bg-gray-50 border-gray-200 rounded-lg shadow-[gray_0px_0px_2px_0.1px] min-w-[200px] relative">
-      <div className="px-4 py-3">
-        {/* Icon + Label */}
-        <div className="flex flex-col items-center gap-2 mb-1">
+    <div
+      className={`min-w-[190px] max-w-[240px] rounded-3xl border-2 p-4 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 relative group select-none ${theme.cardBg}`}
+    >
+      <div className="flex flex-col items-center text-center">
+        {/* Node Icon Container */}
+        <div className="mb-2 relative">
           <NodeIcon
             icon={icon}
             name={label}
             size="xl"
             nodeType={nodeType}
-            className="w-14 h-14 bg-white border-gray-200 shadow-sm"
+            className={`w-14 h-14 rounded-2xl ${theme.iconBg} border border-black/5`}
           />
-          <span className="font-semibold text-sm">{label}</span>
         </div>
-        <div className="flex justify-center w-full">
-          {data.isConfigured ? (
-            <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-center text-xs rounded-full">
-              ✓ Configured
+
+        {/* Node Label */}
+        <h4 className="font-extrabold text-sm tracking-tight truncate w-full" title={label}>
+          {label}
+        </h4>
+
+        {/* Operation / Description */}
+        <p className="text-[11px] opacity-75 truncate w-full mt-0.5 font-medium">
+          {config?.operation?.replace(/_/g, " ") || (isTrigger ? "Webhook trigger" : "Action step")}
+        </p>
+
+        {/* Configured Status Pill */}
+        <div className="mt-2.5 flex items-center justify-center">
+          {isConfigured ? (
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs ${theme.badge}`}
+            >
+              <Check className="h-3 w-3 stroke-[3]" />
+              <span>Ready</span>
             </span>
           ) : (
-            <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-              Not Configured
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700 border border-rose-200">
+              Setup needed
             </span>
           )}
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-2 mt-2">
+        {/* Quick Action Buttons on Hover */}
+        <div className="flex items-center justify-center gap-1 pt-3 mt-3 border-t border-black/10 w-full">
           {onConfigure && (
             <button
+              type="button"
               onClick={onConfigure}
-              className="text-xs px-2 py-1 bg-blue-100 rounded hover:bg-blue-200"
+              className="p-1.5 rounded-xl bg-white/70 hover:bg-white text-gray-700 hover:text-black transition-colors shadow-xs cursor-pointer"
+              title="Configure Node"
             >
-              <svg width="10px" height="10px" viewBox="0 0 32.00 32.00" xmlns="http://www.w3.org/2000/svg" fill="#000000"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round" stroke="#000000" strokeWidth="0.576"></g><g id="SVGRepo_iconCarrier"><title>file_type_config</title><path d="M23.265,24.381l.9-.894c4.164.136,4.228-.01,4.411-.438l1.144-2.785L29.805,20l-.093-.231c-.049-.122-.2-.486-2.8-2.965V15.5c3-2.89,2.936-3.038,2.765-3.461L28.538,9.225c-.171-.422-.236-.587-4.37-.474l-.9-.93a20.166,20.166,0,0,0-.141-4.106l-.116-.263-2.974-1.3c-.438-.2-.592-.272-3.4,2.786l-1.262-.019c-2.891-3.086-3.028-3.03-3.461-2.855L9.149,3.182c-.433.175-.586.237-.418,4.437l-.893.89c-4.162-.136-4.226.012-4.407.438L2.285,11.733,2.195,12l.094.232c.049.12.194.48,2.8,2.962l0,1.3c-3,2.89-2.935,3.038-2.763,3.462l1.138,2.817c.174.431.236.584,4.369.476l.9.935a20.243,20.243,0,0,0,.137,4.1l.116.265,2.993,1.308c.435.182.586.247,3.386-2.8l1.262.016c2.895,3.09,3.043,3.03,3.466,2.859l2.759-1.115C23.288,28.644,23.44,28.583,23.265,24.381ZM11.407,17.857a4.957,4.957,0,1,1,6.488,2.824A5.014,5.014,0,0,1,11.407,17.857Z" fill="#000000"></path></g></svg>
+              <Settings className="w-3.5 h-3.5" />
             </button>
           )}
-          {onDelete && (
+
+          {onTest && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete()
-              }}
-              className="text-xs px-2 py-1 bg-blue-100 rounded hover:bg-blue-200"
+              type="button"
+              onClick={onTest}
+              className="p-1.5 rounded-xl bg-white/70 hover:bg-white text-gray-700 hover:text-black transition-colors shadow-xs cursor-pointer"
+              title="Test Node"
             >
-              <svg width="12px" height="12px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2M4 7h16" /></svg>
+              <Play className="w-3.5 h-3.5" />
             </button>
           )}
+
           {onReplace && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onReplace()
+                onReplace();
               }}
-              className="text-xs px-2 py-1 bg-blue-100 rounded hover:bg-blue-200"
+              className="p-1.5 rounded-xl bg-white/70 hover:bg-white text-gray-700 hover:text-black transition-colors shadow-xs cursor-pointer"
+              title="Replace Node"
             >
-              <RefreshCw size={12} />
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1.5 rounded-xl bg-white/70 hover:bg-white text-rose-600 hover:text-rose-700 transition-colors shadow-xs cursor-pointer"
+              title="Delete Node"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Handles */}
+      {/* ── ReactFlow Handles ── */}
       {nodeType === "action" ? (
         <>
-          {/* Action nodes get input handle on left */}
+          {/* Target Handle (Left) */}
           <Handle
             type="target"
             position={Position.Left}
             id="a-in"
-            className="!w-3 !h-3 !bg-indigo-500 !border-2 !border-white hover:!scale-125 transition-transform cursor-crosshair shadow-sm"
+            className="!w-4 !h-4 !bg-white !border-3 !border-gray-800 hover:!scale-125 transition-transform cursor-crosshair shadow-md"
           />
 
+          {/* Dynamic Source Handles (Right) */}
           {(() => {
             const nodeConfigDef = getNodeConfig(label);
             let resolvedOutputs;
@@ -189,28 +289,31 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
 
             return outputs.map((output: any, index: number) => {
               const topPosition = `${((index + 1) * 100) / (outputs.length + 1)}%`;
-              const bgClass = output.id === "out-1" ? "!bg-rose-500" : "!bg-indigo-500";
-              const textClass = output.id === "out-1" ? "text-rose-600 bg-rose-50 border-rose-200" : "text-indigo-600 bg-indigo-50 border-indigo-200";
+              const isAlternative = output.id === "out-1";
 
               return (
-                <div key={output.id} className="group">
+                <div key={output.id} className="group/handle">
                   <Handle
                     type="source"
                     position={Position.Right}
                     id={output.id}
                     style={{ top: topPosition }}
-                    className={`!w-4 !h-4 flex items-center justify-center ${bgClass} !border-2 !border-white hover:!scale-125 transition-all cursor-crosshair shadow-sm z-20`}
+                    className={`!w-5 !h-5 flex items-center justify-center !border-2 !border-white transition-all cursor-crosshair shadow-md z-20 ${
+                      isAlternative
+                        ? "!bg-rose-500 !text-white"
+                        : "!bg-[#18181b] !text-white"
+                    }`}
                     title={`${output.label} (${output.id})`}
                   >
-                    {/* The + Button inside the Handle! Always visible */}
                     {onAddChild && (
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onAddChild(output.id);
                         }}
-                        className="w-full h-full flex items-center justify-center text-white font-bold z-30 leading-none pb-[1px]"
-                        style={{ fontSize: '11px' }}
+                        className="w-full h-full flex items-center justify-center font-bold z-30 leading-none pb-[1px] cursor-pointer text-white"
+                        style={{ fontSize: "12px" }}
                         title={`Add node from ${output.label}`}
                       >
                         +
@@ -218,12 +321,22 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
                     )}
                   </Handle>
 
-                  {/* Floating Label (Shows on hover or is very subtle next to it) */}
+                  {/* Output Label Tag */}
                   <div
-                    className="absolute pointer-events-none flex items-center gap-1"
-                    style={{ top: topPosition, right: '-20px', transform: 'translate(100%, -150%)' }}
+                    className="absolute pointer-events-none flex items-center gap-1 z-30"
+                    style={{
+                      top: topPosition,
+                      right: "-12px",
+                      transform: "translate(100%, -50%)",
+                    }}
                   >
-                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border shadow-xs ${textClass} whitespace-nowrap opacity-60 group-hover:opacity-100 transition-opacity`}>
+                    <span
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shadow-xs whitespace-nowrap opacity-80 group-hover/handle:opacity-100 transition-opacity ${
+                        isAlternative
+                          ? "bg-rose-50 text-rose-700 border-rose-200"
+                          : "bg-white text-gray-800 border-gray-200"
+                      }`}
+                    >
                       {output.label}
                     </span>
                   </div>
@@ -233,24 +346,24 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
           })()}
         </>
       ) : (
-        // Trigger node gets only source handle (output)
-        <div className="group">
+        /* Trigger Node Source Handle (Right) */
+        <div className="group/handle">
           <Handle
             type="source"
             position={Position.Right}
             id="t-out"
-            className="!w-4 !h-4 flex items-center justify-center !bg-amber-500 !border-2 !border-white hover:!scale-125 transition-all cursor-crosshair shadow-sm z-20"
+            className="!w-5 !h-5 flex items-center justify-center !bg-[#18181b] !border-2 !border-white hover:!scale-125 transition-all cursor-crosshair shadow-md z-20"
           >
-            {/* The + Button inside the Handle! Always visible */}
             {onAddChild && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAddChild("t-out");
                 }}
-                className="w-full h-full flex items-center justify-center text-white font-bold z-30 leading-none pb-[1px]"
-                style={{ fontSize: '11px' }}
-                title={`Add action`}
+                className="w-full h-full flex items-center justify-center text-white font-bold z-30 leading-none pb-[1px] cursor-pointer"
+                style={{ fontSize: "12px" }}
+                title="Add action node"
               >
                 +
               </button>

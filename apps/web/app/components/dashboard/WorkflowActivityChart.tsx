@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Activity } from "lucide-react";
 import { DashboardExecutionTrend, DashboardRange } from "@/app/types/dashboard.types";
 
 const RANGE_OPTIONS: DashboardRange[] = ["7d", "30d", "90d"];
@@ -45,38 +45,40 @@ export default function WorkflowActivityChart({
   }, [chartData]);
 
   return (
-    <div className="rounded-2xl border border-[#2a3525]/60 bg-[#111611] p-5 flex flex-col">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[#baf266]" />
-          <h3 className="text-sm font-semibold text-[#e8e8d8]">Workflow Activity Trend</h3>
+    <div className="rounded-3xl border border-[#222429] bg-[#141518] p-6 flex flex-col shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+          <h3 className="text-sm font-bold text-white">Workflow Activity Trend</h3>
         </div>
-        <button className="p-1 rounded-md hover:bg-[#1a2118] text-[#5a6350] transition-colors" type="button">
+        <button className="p-1.5 rounded-xl hover:bg-[#1e2025] text-[#9ca3af] transition-colors" type="button">
           <MoreHorizontal className="h-4 w-4" />
         </button>
       </div>
 
       {/* Peak indicator */}
-      {peakValue.value > 0 && (
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs text-[#5a6350]">CRM</span>
-          <span className="text-lg font-bold text-[#f0f0e8]">{peakValue.value}</span>
-          <span className="text-[10px] font-medium text-[#baf266] bg-[#baf266]/10 px-1.5 py-0.5 rounded">
+      {peakValue.value > 0 ? (
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-xs text-[#9ca3af]">Peak Executions</span>
+          <span className="text-xl font-bold text-white">{peakValue.value}</span>
+          <span className="text-[11px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
             ▲ {((peakValue.value / (trend?.totals.total || 1)) * 100).toFixed(0)}%
           </span>
         </div>
+      ) : (
+        <div className="h-6 mb-4" />
       )}
 
       {/* Range toggles */}
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-1.5 mb-4">
         {RANGE_OPTIONS.map((r) => (
           <button
             key={r}
             onClick={() => onRangeChange(r)}
-            className={`px-2.5 py-1 text-[10px] font-semibold uppercase rounded-md transition-all ${
+            className={`px-3 py-1.5 text-xs font-semibold uppercase rounded-xl transition-all cursor-pointer ${
               selectedRange === r
-                ? "bg-[#baf266]/15 text-[#baf266] border border-[#baf266]/25"
-                : "text-[#5a6350] hover:text-[#8a9178] border border-transparent"
+                ? "bg-white text-black shadow-sm font-bold"
+                : "text-[#9ca3af] hover:text-white hover:bg-[#1e2025]"
             }`}
             type="button"
           >
@@ -85,39 +87,55 @@ export default function WorkflowActivityChart({
         ))}
       </div>
 
-      {/* Chart */}
-      <div className="flex-1 min-h-0">
+      {/* Chart area */}
+      <div className="flex-1 min-h-[220px]">
         {trendLoading ? (
-          <div className="flex h-full items-center justify-center text-[#5a6350] text-sm">Loading...</div>
+          <div className="flex flex-col h-full justify-end gap-3 p-4 animate-pulse">
+            <div className="flex items-end gap-3 h-40">
+              {[40, 65, 30, 85, 55, 90, 70].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t-xl bg-[#1e2025]"
+                  style={{ height: `${h}%` }}
+                />
+              ))}
+            </div>
+            <div className="h-3 w-full rounded bg-[#1e2025]" />
+          </div>
         ) : trendError ? (
-          <div className="flex h-full items-center justify-center text-[#f87171] text-sm">{trendError}</div>
+          <div className="flex h-full items-center justify-center text-rose-400 text-sm">{trendError}</div>
+        ) : chartData.length === 0 ? (
+          <div className="flex flex-col h-full items-center justify-center text-[#6b7280] gap-2">
+            <Activity className="h-8 w-8 text-[#2a2c33]" />
+            <span className="text-xs">No activity recorded for this period</span>
+          </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
               <defs>
-                <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#baf266" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#baf266" stopOpacity={0.02} />
+                <linearGradient id="indigoGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.0} />
                 </linearGradient>
                 <linearGradient id="grayGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#5a6350" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#5a6350" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="#4b5563" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#4b5563" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#1a2118" vertical={false} />
-              <XAxis dataKey="label" stroke="#4a5440" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-              <YAxis stroke="#4a5440" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+              <CartesianGrid stroke="#1e2025" vertical={false} />
+              <XAxis dataKey="label" stroke="#6b7280" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+              <YAxis stroke="#6b7280" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#141a14",
-                  border: "1px solid #2a3525",
-                  borderRadius: "10px",
-                  color: "#e8e8d8",
+                  backgroundColor: "#18191c",
+                  border: "1px solid #2a2c33",
+                  borderRadius: "12px",
+                  color: "#f9fafb",
                   fontSize: "12px",
                 }}
               />
-              <Area type="monotone" dataKey="completed" stroke="#baf266" strokeWidth={2} fill="url(#greenGradient)" />
-              <Area type="monotone" dataKey="failed" stroke="#5a6350" strokeWidth={1.5} fill="url(#grayGradient)" />
+              <Area type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={2.5} fill="url(#indigoGradient)" />
+              <Area type="monotone" dataKey="failed" stroke="#ef4444" strokeWidth={1.5} fill="url(#grayGradient)" />
             </AreaChart>
           </ResponsiveContainer>
         )}
