@@ -35,18 +35,18 @@ export function useAutoSave(workflowId: string) {
             const payload: any = {
                 workflowId: workflowId
             };
-            if (deletedNodeIds.length > 0) payload.deletedNodeIds = deletedNodeIds;
+            if (deletedNodeIds && deletedNodeIds.length > 0) payload.deletedNodeIds = deletedNodeIds;
             if (deletedTriggerId) payload.deletedTriggerId = deletedTriggerId;
 
-            if (newNodeIds.length > 0 && data.nodes) {
+            if (newNodeIds && newNodeIds.length > 0 && data.nodes) {
                 payload.newNodes = data.nodes
                     .filter(n => newNodeIds.includes(n.NodeId))
                     .map(node => ({ ...node, workflowId }))
             }
 
-            if (isChanged.nodes && data.nodes && changedNodeIds.length > 0) {
+            if (isChanged.nodes && data.nodes && changedNodeIds && changedNodeIds.length > 0) {
                 payload.changedNodes = data.nodes
-                    .filter(n => changedNodeIds.includes(n.NodeId) && !newNodeIds.includes(n.NodeId))
+                    .filter(n => changedNodeIds.includes(n.NodeId) && !(newNodeIds && newNodeIds.includes(n.NodeId)))
                     .map(node => ({
                         NodeId: node.NodeId,
                         Config: node.Config,

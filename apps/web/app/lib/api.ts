@@ -168,9 +168,9 @@ export const api = {
   },
   execute: {
     // Execute a single node for testing
-    node: async (nodeId: string, config?: any) => {
+    node: async (nodeId: string, config?: any, items?: any[]) => {
       const res = await axios.post(`${BACKEND_URL}/execute/node`,
-        { NodeId: nodeId, Config: config },
+        { NodeId: nodeId, Config: config, items },
         {
           withCredentials: true,
           headers: { "Content-Type": "application/json" },

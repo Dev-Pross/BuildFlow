@@ -100,38 +100,48 @@ export default function WorkflowCanvas() {
     // BFS backward through the graph to find ALL ancestor nodes
     const visited = new Set<string>();
     const queue = [selectedNodeId];
-    const previousNodeIds: string[] = [];
+    
+    // Store both the nodeId and the wireIndex that connects it downward
+    const previousNodeMappings: { id: string; wireIndex: number }[] = [];
 
     while (queue.length > 0) {
       const current = queue.shift()!;
-      const parents = allEdges
-        .filter(e => e.target === current)
-        .map(e => e.source);
-      for (const parentId of parents) {
-        if (!visited.has(parentId)) {
-          visited.add(parentId);
-          previousNodeIds.push(parentId);
-          queue.push(parentId);
+      const incomingEdges = allEdges.filter(e => e.target === current);
+      
+      for (const edge of incomingEdges) {
+        if (!visited.has(edge.source)) {
+          visited.add(edge.source);
+          
+          // Parse wire index from sourceHandle (e.g. "out-1" -> 1)
+          const match = edge.sourceHandle ? String(edge.sourceHandle).match(/\d+$/) : null;
+          const wireIndex = match ? parseInt(match[0], 10) : 0;
+          
+          previousNodeMappings.push({ id: edge.source, wireIndex });
+          queue.push(edge.source);
         }
       }
     }
 
     // Build PreviousNodeOutput for each ancestor
-    return previousNodeIds
-      .map(id => allNodes.find(n => n.id === id))
-      .filter((node): node is Node => !!node && !node.data?.isPlaceholder)
-      .map(node => {
+    return previousNodeMappings
+      .map(mapping => {
+        const node = allNodes.find(n => n.id === mapping.id);
+        if (!node || node.data?.isPlaceholder) return null;
+
         const label = (node.data?.label as string) || "";
         const icon = (node.data?.icon as string) || "⚙️";
         const nodeConfig = getNodeConfig(label);
+        
         return {
           nodeId: node.id,
           nodeName: label || "Unknown",
           nodeType: nodeConfig ? nodeConfig.id : "unknown",
           icon: icon,
-          variables: nodeConfig?.outputSchema || []
-        };
-      });
+          variables: nodeConfig?.outputSchema || [],
+          wireIndex: mapping.wireIndex // Inject the exact edge pin!
+        } as PreviousNodeOutput;
+      })
+      .filter((n): n is PreviousNodeOutput => n !== null);
   };
   // State
   const handleExecute = async () => {
@@ -236,6 +246,7 @@ export default function WorkflowCanvas() {
   console.log("The Detaisl of Selected Node is ", selectedNode)
 
   function checkIsConfigure(nodeName: string, config: any): boolean {
+    if (nodeName === "webhook") return true; // Webhooks have no user inputs
     const nodeConfig = getNodeConfig(nodeName);
     if (!nodeConfig || !nodeConfig.fields) return true;
     const requiredFields = nodeConfig.fields.filter((f: any) => f.required);
@@ -444,24 +455,6 @@ export default function WorkflowCanvas() {
           const Trigger = workflows?.data?.Data?.Trigger;
 
 
-          if (!Trigger) {
-            setNodes([{
-              id: "trigger-placeholder",
-              type: "customNode",
-              position: { x: 250, y: 50 },
-              data: {
-                label: "Add Trigger",
-                icon: "➕",
-                isPlaceholder: true,
-                nodeType: "trigger",
-                onConfigure: () => setTriggerOpen(true),
-              },
-            }]);
-            setEdges([]);
-            setError(null);
-            return;
-          }
-
           // store updating
           dispatch(
             workflowActions.setWorkflowFromBackend({
@@ -469,38 +462,57 @@ export default function WorkflowCanvas() {
               data: workflows.data.Data,
             })
           )
-          // Ensure trigger position
-          const triggerPosition = ensurePosition(
-            Trigger?.Position,
-            DEFAULT_TRIGGER_POSITION
-          );
-
-          const triggerNode = {
-            id: Trigger.id,
-            type: "customNode",
-            position: triggerPosition,
-            deletable: false,
-            data: {
-              label: Trigger.name || Trigger.data?.label || "Trigger",
-              icon: Trigger?.icon || "⚡",
-              nodeType: "trigger",
-              config: Trigger.config || {},
-              isConfigured: checkIsConfigure(Trigger.name, Trigger.config || {}),
-              onConfigure: () =>
-                handleNodeConfigure({
-                  id: Trigger.id,
-                  name: Trigger.name,
-                  icon: Trigger.icon
-                }),
-              onTest: (Trigger.name.toLowerCase().includes('webhook') ? undefined : () => testNodeFromCanvas(Trigger.id, Trigger.name, "trigger")),
-              onAddChild: (sourceHandleId?: string) => {
-                setBranchSourceNodeId(Trigger.id);
-                setBranchSourceHandleId(sourceHandleId || null);
-                setActionOpen(true);
+          
+          let triggerNode: any;
+          let triggerPosition = { x: 250, y: 50 };
+          
+          if (!Trigger) {
+            triggerNode = {
+              id: "trigger-placeholder",
+              type: "customNode",
+              position: triggerPosition,
+              data: {
+                label: "Add Trigger",
+                icon: "➕",
+                isPlaceholder: true,
+                nodeType: "trigger",
+                onConfigure: () => setTriggerOpen(true),
               },
-              onReplace: () => handleRequestReplaceTrigger(Trigger.id)
-            },
-          };
+            };
+          } else {
+            // Ensure trigger position
+            triggerPosition = ensurePosition(
+              Trigger?.Position,
+              DEFAULT_TRIGGER_POSITION
+            );
+
+            triggerNode = {
+              id: Trigger.id,
+              type: "customNode",
+              position: triggerPosition,
+              deletable: false,
+              data: {
+                label: Trigger.name || Trigger.data?.label || "Trigger",
+                icon: Trigger?.icon || "⚡",
+                nodeType: "trigger",
+                config: Trigger.config || {},
+                isConfigured: checkIsConfigure(Trigger.name, Trigger.config || {}),
+                onConfigure: () =>
+                  handleNodeConfigure({
+                    id: Trigger.id,
+                    name: Trigger.name,
+                    icon: Trigger.icon
+                  }),
+                onTest: (Trigger.name.toLowerCase().includes('webhook') ? undefined : () => testNodeFromCanvas(Trigger.id, Trigger.name, "trigger")),
+                onAddChild: (sourceHandleId?: string) => {
+                  setBranchSourceNodeId(Trigger.id);
+                  setBranchSourceHandleId(sourceHandleId || null);
+                  setActionOpen(true);
+                },
+                onReplace: () => handleRequestReplaceTrigger(Trigger.id)
+              },
+            };
+          }
 
           // 3. Transform action nodes, ensuring position property is always valid
           const transformedNodes = dbNodes.map((node: any) => ({
@@ -895,8 +907,9 @@ export default function WorkflowCanvas() {
         },
       };
 
-      if (replacingTriggerId) {
-        const oldCanvasTrigger = nodes.find(n => n.id === replacingTriggerId);
+      if (replacingTriggerId || nodes.some(n => n.id === "trigger-placeholder")) {
+        const targetTriggerId = replacingTriggerId || "trigger-placeholder";
+        const oldCanvasTrigger = nodes.find(n => n.id === targetTriggerId);
         const oldTrigger = reduxWorkflow.data.trigger;
         const triggerPos = oldCanvasTrigger?.position ?? oldTrigger?.position ?? DEFAULT_TRIGGER_POSITION;
         newNode.position = triggerPos;
@@ -912,12 +925,12 @@ export default function WorkflowCanvas() {
         };
 
         dispatch(workflowActions.setWorkflowTrigger(newTrigger));
-        dispatch(clearNodeOutput(replacingTriggerId));
+        if (replacingTriggerId) dispatch(clearNodeOutput(replacingTriggerId));
 
-        setNodes(prev => prev.map(n => n.id === replacingTriggerId ? newNode : n));
+        setNodes(prev => prev.map(n => n.id === targetTriggerId ? newNode : n));
 
         const updatedEdges = edges.map(e => {
-          if (e.source === replacingTriggerId || !nodes.some(n => n.id === e.source && n.data?.nodeType === 'action')) {
+          if (e.source === targetTriggerId || !nodes.some(n => n.id === e.source && n.data?.nodeType === 'action')) {
             return {
               ...e,
               id: `e-${triggerId}-${e.target}`,
@@ -937,8 +950,16 @@ export default function WorkflowCanvas() {
         return;
       }
 
-      setNodes([newNode]);
-      setEdges([]);
+      // Fallback if no placeholder existed (shouldn't happen, but just in case)
+      setNodes([newNode, ...nodes.filter(n => n.data?.nodeType !== 'trigger')]);
+      
+      const updatedEdgesFallback = edges.map(e => {
+        if (!nodes.some(n => n.id === e.source && n.data?.nodeType === 'action')) {
+          return { ...e, source: triggerId, sourceHandle: "t-out" };
+        }
+        return e;
+      });
+      setEdges(updatedEdgesFallback);
 
       dispatch(workflowActions.setWorkflowTrigger({
         TriggerId: triggerId,

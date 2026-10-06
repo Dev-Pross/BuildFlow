@@ -142,6 +142,13 @@ export function resolveVariable(variable: string, context: InterpolationContext,
     const absoluteValue = getNestedValue(nodeData, path);
     if (absoluteValue !== undefined) return absoluteValue;
 
+    // Check if intermediate item in array has .json wrapper (e.g. "[0].[1].email" -> nodeData[0][1].json.email)
+    const jsonPath = path.replace(/(\[\d+\])\.(?!json\.)([a-zA-Z_])/g, '$1.json.$2');
+    if (jsonPath !== path) {
+      const jsonValue = getNestedValue(nodeData, jsonPath);
+      if (jsonValue !== undefined) return jsonValue;
+    }
+
     // Second, if they asked for a column from a specific wire (e.g. "[1].email"), 
     // extract it across the array!
     if (keys.length === 2 && !isNaN(Number(keys[0]))) {
@@ -348,8 +355,8 @@ export function validateVariables(
 export function extractVariablesFromOutput(
   output: any,
   prefix: string = ''
-): Array<{ name: string; path: string; type: string; sampleValue?: any }> {
-  const variables: Array<{ name: string; path: string; type: string; sampleValue?: any }> = [];
+): Array<{ name: string; path: string; type: string; sampleValue?: any; children?: any[] }> {
+  const variables: Array<{ name: string; path: string; type: string; sampleValue?: any; children?: any[] }> = [];
 
   if (output === null || output === undefined) {
     return variables;
@@ -399,16 +406,13 @@ export function extractVariablesFromOutput(
       path: prefix || 'data',
       type: 'array',
       sampleValue: output.length > 0 ? `[${output.length} items]` : '[]',
+      children: output.length > 0 && typeof output[0] === 'object' ? extractVariablesFromOutput(output[0], "[0]") : undefined
     });
-
-    // Extract variables from first element if exists
-    if (output.length > 0 && typeof output[0] === 'object') {
-      const childVars = extractVariablesFromOutput(output[0], `${prefix}[0]`);
-      variables.push(...childVars);
-    }
   } else if (typeof output === 'object') {
     for (const [key, value] of Object.entries(output)) {
-      const path = prefix ? `${prefix}.${key}` : key;
+      if (key === 'sourceRefs' || key === 'Source Refs') continue;
+      
+      const path = key; // Use relative path for hierarchical structure
       const name = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
 
       if (value === null || value === undefined) {
@@ -419,16 +423,16 @@ export function extractVariablesFromOutput(
           path,
           type: 'array',
           sampleValue: `[${value.length} items]`,
+          children: value.length > 0 && typeof value[0] === 'object' ? extractVariablesFromOutput(value[0], "[0]") : undefined
         });
-        // Extract from first element
-        if (value.length > 0 && typeof value[0] === 'object') {
-          const childVars = extractVariablesFromOutput(value[0], `${path}[0]`);
-          variables.push(...childVars);
-        }
       } else if (typeof value === 'object') {
-        variables.push({ name, path, type: 'object', sampleValue: '{...}' });
-        const childVars = extractVariablesFromOutput(value, path);
-        variables.push(...childVars);
+        variables.push({ 
+          name, 
+          path, 
+          type: 'object', 
+          sampleValue: '{...}',
+          children: extractVariablesFromOutput(value, "") 
+        });
       } else {
         variables.push({
           name,

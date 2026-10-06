@@ -31,13 +31,14 @@ execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response)
             const config = dataSafe.data.Config ? dataSafe.data.Config : nodeData.config // for test api data prefered fist then config in db 
             // // console.log(`config and type: ${JSON.stringify(config)} & ${type}`)
 
+            const rawItems = dataSafe.data.items || (dataSafe.data.Config && dataSafe.data.Config.items) || [];
             const context = {
                 userId: req.user.sub,
                 config: [config],
                 credentialId: nodeData.CredentialsID || config?.credentialId || "",
                 authType: nodeData.AvailableNode.authType,
                 nodeId: nodeData.id,
-                items: []
+                items: Array.isArray(rawItems) ? rawItems : [rawItems]
             }
             const result = await prismaClient.$transaction(async (tx) => {
                 // // console.log(`Execution context: ${JSON.stringify(context)}`)

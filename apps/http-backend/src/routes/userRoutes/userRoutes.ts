@@ -969,8 +969,10 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Re
     // console.log("This is the Trigger Data of  the workflow", trigger)
 
     if (trigger?.Trigger?.name === "webhook") {
-      const data = await axios.post(`${HOOKS_URL}/hooks/catch/${userId}/${workflowId}`, {
-        triggerData: "",
+      const uniqueId = trigger.Trigger.id
+      const data = await axios.post(`${HOOKS_URL}/hooks/catch/${userId}/${workflowId}/${uniqueId}`, {
+        test_mode: true,
+        timestamp: new Date().toISOString()
 
       },
         { timeout: 30000 },)
@@ -1003,6 +1005,32 @@ router.post("/executeWorkflow", userMiddleware, async (req: AuthRequest, res: Re
   }
 
 })
+
+router.get("/workflow/latest-webhook/:workflowId", userMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const workflowId = req.params.workflowId;
+    if (!workflowId) return res.status(statusCodes.BAD_REQUEST).json({ message: "Invalid input" });
+    
+    // Look back from the 'since' timestamp, or default to last 5 minutes
+    const since = req.query.since ? new Date(req.query.since as string) : new Date(Date.now() - 5 * 60000);
+    
+    const latestExecution = await prismaClient.workflowExecution.findFirst({
+      where: { 
+        workflowId: workflowId,
+        startAt: { gte: since }
+      },
+      orderBy: { startAt: "desc" }
+    });
+
+    if (latestExecution && latestExecution.metadata) {
+      return res.status(statusCodes.OK).json({ success: true, metadata: latestExecution.metadata });
+    }
+    
+    return res.status(statusCodes.OK).json({ success: false, message: "No new webhook received yet" });
+  } catch (error: any) {
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({ message: "Internal Server Error" });
+  }
+});
 
 router.get("/workflow/logs/:workflowId", userMiddleware, async (req: AuthRequest, res) => {
   try {

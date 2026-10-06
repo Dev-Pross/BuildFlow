@@ -3,6 +3,8 @@ import { GoogleSheetNode } from "../google-sheets/google-sheets.node.js";
 import { GmailNode } from "../gmail/gmail.node.js";
 import { FilterNode } from "../filter/filter.node.js";
 import { HttpNode } from "../http-node/http.node.js";
+import { IfElseNode } from "../if-else-node/if-else.node.js";
+import { IteratorNode } from "../iterator-node/iterator.node.js";
 
 interface NodeDefinition {
   name: string;
@@ -86,6 +88,8 @@ class NodeRegistry {
     await GmailNode.register();
     await FilterNode.register();
     await HttpNode.register();
+    await IfElseNode.register();
+    await IteratorNode.register();
     await NodeRegistry.registerTrigger({
       name: 'webhook',
       type: 'webhook',
