@@ -142,6 +142,9 @@ const workflowSlice = createSlice({
             };
             state.isChanged = { trigger: false, nodes: false, edges: false };
             state.changedNodeIds = [];
+            state.newNodeIds = [];
+            state.deletedNodeIds = [];
+            state.deletedTriggerId = null;
         },
 
         setWorkflow(state, action: PayloadAction<Workflow>) {
@@ -160,12 +163,18 @@ const workflowSlice = createSlice({
         },
 
         addWorkflowNode(state, action: PayloadAction<NodeItem>) {
+            if (!state.data.nodes) state.data.nodes = [];
             state.data.nodes.push(action.payload)
+            
+            if (!state.newNodeIds) state.newNodeIds = [];
             state.newNodeIds.push(action.payload.NodeId)
+            
             state.isChanged.nodes = true
             state.lastChanged = Date.now()
-            if (!state.changedNodeIds?.includes(action.payload.NodeId))
-                state.changedNodeIds?.push(action.payload.NodeId)
+            
+            if (!state.changedNodeIds) state.changedNodeIds = [];
+            if (!state.changedNodeIds.includes(action.payload.NodeId))
+                state.changedNodeIds.push(action.payload.NodeId)
         },
 
         updateNodePosition(state, action: PayloadAction<{ nodeId: string, position: Position }>) {
@@ -226,6 +235,9 @@ const workflowSlice = createSlice({
             state.lastSynced = Date.now()
         },
         deleteNode(state, action: PayloadAction<string>) {
+            if (!state.data.nodes) state.data.nodes = [];
+            if (!state.data.edges) state.data.edges = [];
+            
             state.data.nodes = state.data.nodes.filter(n => n.NodeId !== action.payload)
             state.data.edges = state.data.edges.filter(e => (e.source !== action.payload && e.target !== action.payload))
 
@@ -233,14 +245,19 @@ const workflowSlice = createSlice({
             state.isChanged.nodes = true
             state.lastChanged = Date.now()
 
+            if (!state.newNodeIds) state.newNodeIds = [];
+            if (!state.deletedNodeIds) state.deletedNodeIds = [];
+
             if (state.newNodeIds.includes(action.payload))
                 state.newNodeIds = state.newNodeIds.filter(n => n !== action.payload)
             else
                 state.deletedNodeIds.push(action.payload)
-            // state.deletedNodeIds.push(action.payload)
         },
         replaceNode(state, action: PayloadAction<{ oldNodeId: string, newNode: NodeItem }>) {
             const { oldNodeId, newNode } = action.payload;
+
+            if (!state.data.nodes) state.data.nodes = [];
+            if (!state.data.edges) state.data.edges = [];
 
             state.data.nodes = state.data.nodes.map(n =>
                 n.NodeId === oldNodeId ? newNode : n
@@ -256,6 +273,9 @@ const workflowSlice = createSlice({
 
                 return e
             });
+
+            if (!state.newNodeIds) state.newNodeIds = [];
+            if (!state.deletedNodeIds) state.deletedNodeIds = [];
 
             if (state.newNodeIds.includes(action.payload.oldNodeId))
                 state.newNodeIds = state.newNodeIds.filter(n => n !== action.payload.oldNodeId)

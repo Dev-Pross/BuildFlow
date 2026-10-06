@@ -118,13 +118,15 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
         const headers = Array.from(keysSet);
 
         if (headers.length === 0) {
-            // Array of primitives
+            // Array of primitives or empty objects
             return (
                 <div className="w-full border border-[#2a2f3e] rounded-lg overflow-hidden">
                     {normalizedData.slice(0, 100).map((item, i) => (
                         <div key={i} className="flex border-b border-[#1a1f2e]/50 last:border-b-0 hover:bg-[#1f2536] transition-colors">
                             <div className="w-10 px-3 py-2 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26] text-[10px]">{i}</div>
-                            <div className="flex-1 px-4 py-2 text-xs text-gray-300 font-mono">{String(item)}</div>
+                            <div className="flex-1 px-4 py-2 text-xs text-gray-300 font-mono">
+                                {typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item ?? 'null')}
+                            </div>
                         </div>
                     ))}
                 </div>

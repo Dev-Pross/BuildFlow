@@ -1,7 +1,8 @@
 "use client";
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
 import { useEffect, useState, useRef } from "react";
-import { HOOKS_URL } from "@repo/common/zod";
+import { HOOKS_URL, BACKEND_URL } from "@repo/common/zod";
+import axios from "axios";
 import { extractVariablesFromOutput, resolveConfigVariables, InterpolationContext } from "@repo/common/zod";
 import { useAppSelector, useAppDispatch } from "@/app/hooks/redux";
 import { toast } from "sonner";
@@ -22,6 +23,26 @@ import { TestPanel } from "@/app/components/ui/TestPanel";
 import { RichVariableInput } from "@/app/components/ui/RichVariableInput";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { NodeIcon } from "@/app/components/ui/NodeIcon";
+
+const IF_ELSE_OPERATORS = [
+  { id: "equals", label: "Equals" },
+  { id: "not_equals", label: "Does not equal" },
+  { id: "contains", label: "Contains" },
+  { id: "not_contains", label: "Does not contain" },
+  { id: "starts_with", label: "Starts with" },
+  { id: "ends_with", label: "Ends with" },
+  { id: "greater_than", label: "Greater than (>)" },
+  { id: "less_than", label: "Less than (<)" },
+  { id: "greater_than_or_equal", label: "Greater or equal (>=)" },
+  { id: "less_than_or_equal", label: "Less or equal (<=)" },
+  { id: "is_any_of", label: "Is any of (comma-separated)" },
+  { id: "is_not_any_of", label: "Is not any of" },
+  { id: "is_empty", label: "Is empty", unary: true },
+  { id: "is_not_empty", label: "Is not empty", unary: true },
+  { id: "is_true", label: "Is true", unary: true },
+  { id: "is_false", label: "Is false", unary: true },
+  { id: "regex_match", label: "Matches regex" },
+];
 
 interface ConfigModalProps {
   isOpen: boolean;
@@ -47,6 +68,11 @@ export default function ConfigModal({
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
   const [isLoadingHeaders, setIsLoadingHeaders] = useState(false);
   const [customRowKeys, setCustomRowKeys] = useState<Record<string, boolean>>({});
+  
+  // Webhook Listening State
+  const [isListeningWebhook, setIsListeningWebhook] = useState(false);
+  const [webhookCountdown, setWebhookCountdown] = useState(0);
+  const webhookListenStartTime = useRef<number>(0);
 
   // Reset test result when switching to a different node
   useEffect(() => {
@@ -92,43 +118,136 @@ export default function ConfigModal({
     }
   };
 
-  // Build interpolation context from all previously tested nodes
-  const buildTestContext = (): InterpolationContext => {
+  // Build interpolation context and mock sourceRefs from all previously tested nodes
+  const buildTestContextAndRefs = () => {
     const context: InterpolationContext = {};
+    const sourceRefs: Record<string, { wireIndex: number, rowIndex: number }> = {};
     const nameCounts: Record<string, number> = {};
-    console.log('[buildTestContext] All tested outputs:', allTestedOutputs);
+
+    // 1. Trace edges backward to find wireIndex for ancestors
+    const mapping: Record<string, number> = {};
+    if (selectedNode) {
+      const queue = [selectedNode.id];
+      const visited = new Set<string>();
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const incomingEdges = reduxWorkflow.edges.filter(e => e.target === current);
+        
+        for (const edge of incomingEdges) {
+          if (!visited.has(edge.source)) {
+            visited.add(edge.source);
+            queue.push(edge.source);
+            
+            const match = edge.sourceHandle ? String(edge.sourceHandle).match(/\d+$/) : null;
+            const wireIndex = match ? parseInt(match[0], 10) : 0;
+            mapping[edge.source] = wireIndex;
+          }
+        }
+      }
+    }
 
     for (const [nodeId, testOutput] of Object.entries(allTestedOutputs)) {
-      console.log(`[buildTestContext] Processing node ${nodeId}:`, {
-        nodeName: testOutput.nodeName,
-        success: testOutput.success,
-        hasData: !!testOutput.data
-      });
-
       if (testOutput.success && testOutput.data) {
-        // Normalize node name: "Google Sheet" -> "google_sheet"
         const baseName = testOutput.nodeName
           .replace(/ Output$/i, '')
           .replace(/ Node$/i, '')
           .toLowerCase()
           .replace(/\s+/g, '_');
-        console.log(`[buildTestContext] Normalized "${testOutput.nodeName}" -> "${baseName}"`);
+
+        const wireIndex = mapping[nodeId] ?? 0;
 
         context[nodeId] = testOutput.data;
+        sourceRefs[nodeId] = { wireIndex, rowIndex: 0 };
 
         if (!nameCounts[baseName]) {
           nameCounts[baseName] = 1;
-          context[baseName] = testOutput.data; // e.g. "google_sheet"
+          context[baseName] = testOutput.data;
+          sourceRefs[baseName] = { wireIndex, rowIndex: 0 };
         } else {
           nameCounts[baseName]++;
-          const uniqueKey = `${baseName}_${nameCounts[baseName]}`; // e.g. "google_sheet_2"
+          const uniqueKey = `${baseName}_${nameCounts[baseName]}`;
           context[uniqueKey] = testOutput.data;
+          sourceRefs[uniqueKey] = { wireIndex, rowIndex: 0 };
         }
       }
     }
 
-    console.log('[buildTestContext] Final context:', context);
-    return context;
+    return { context, sourceRefs };
+  };
+
+  // Webhook polling effect
+  useEffect(() => {
+    if (!isListeningWebhook || !workflowId || webhookCountdown <= 0) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const since = new Date(webhookListenStartTime.current).toISOString();
+        const res = await axios.get(`${BACKEND_URL}/user/workflow/latest-webhook/${workflowId}?since=${since}`, {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" }
+        });
+        
+        if (res.data?.success && res.data?.metadata) {
+          // Found a webhook!
+          setIsListeningWebhook(false);
+          setWebhookCountdown(0);
+          toast.success("Webhook payload received!");
+          
+          const outputData = [res.data.metadata]; // Assuming an array structure for webhook payloads
+          const extractedVariables = extractVariablesFromOutput(outputData);
+          
+          const mapToVariableDefinition = (v: any): VariableDefinition => ({
+            name: v.name,
+            path: v.path,
+            type: v.type as any,
+            sampleValue: v.sampleValue,
+            children: v.children ? v.children.map(mapToVariableDefinition) : undefined
+          });
+
+          const variables: VariableDefinition[] = extractedVariables.map(mapToVariableDefinition);
+
+          const testOutput: NodeTestOutput = {
+            nodeId: selectedNode.id,
+            nodeName: selectedNode.name || 'Webhook',
+            nodeType: selectedNode.type || '',
+            data: outputData,
+            metadata: {},
+            variables,
+            testedAt: Date.now(),
+            success: true
+          };
+
+          dispatch(setNodeOutput(testOutput));
+          setTestResult(outputData);
+        }
+      } catch (e) {
+        // Ignore polling errors
+      }
+    }, 3000);
+
+    const countdownInterval = setInterval(() => {
+      setWebhookCountdown(prev => {
+        if (prev <= 1) {
+          setIsListeningWebhook(false);
+          toast.info("Stopped listening for webhook (timeout).");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearInterval(countdownInterval);
+    };
+  }, [isListeningWebhook, workflowId, webhookCountdown, selectedNode]);
+
+  const handleListenWebhook = () => {
+    setTestResult(null);
+    webhookListenStartTime.current = Date.now();
+    setIsListeningWebhook(true);
+    setWebhookCountdown(60); // Listen for 60 seconds
   };
 
   // Test the current node and store output in Redux
@@ -140,11 +259,17 @@ export default function ConfigModal({
 
     try {
       // Build context from previously tested nodes for variable resolution
-      const interpolationContext = buildTestContext();
+      const { context: interpolationContext, sourceRefs } = buildTestContextAndRefs();
       console.log('[ConfigModal] Interpolation context:', interpolationContext);
+      console.log('[ConfigModal] Mock sourceRefs:', sourceRefs);
 
       // Resolve any {{variable}} in the config before testing
-      const resolvedConfig = resolveConfigVariables(config, interpolationContext);
+      const resolvedConfig = resolveConfigVariables(config, interpolationContext, sourceRefs);
+      // Do not resolve conditionGroups for if_else, the backend evaluates them per-item
+      if (selectedNode.type === "if_else" || selectedNode.type === "action") {
+        resolvedConfig.conditionGroups = config.conditionGroups;
+      }
+
       console.log('[ConfigModal] Original config:', config);
       console.log('[ConfigModal] Resolved config:', resolvedConfig);
 
@@ -157,7 +282,19 @@ export default function ConfigModal({
         toast.warning(`Some variables couldn't be resolved. Test the previous nodes first.\n${unresolvedVars.join('\n')}`);
       }
 
-      const response = await api.execute.node(selectedNode.id, resolvedConfig);
+      // Collect items from incoming edges
+      let itemsToPass: any[] = [];
+      const incomingEdges = reduxWorkflow.edges.filter((e: any) => e.target === selectedNode.id);
+      for (const edge of incomingEdges) {
+        const sourceOutput = allTestedOutputs[edge.source];
+        if (sourceOutput && sourceOutput.data) {
+          const sourceData = Array.isArray(sourceOutput.data) ? sourceOutput.data : [sourceOutput.data];
+          const flatData = sourceData.flat(Infinity);
+          itemsToPass.push(...flatData);
+        }
+      }
+
+      const response = await api.execute.node(selectedNode.id, resolvedConfig, itemsToPass);
       console.log('[ConfigModal] API response (already extracted output):', response);
 
       // api.execute.node now returns full executionResult
@@ -169,13 +306,16 @@ export default function ConfigModal({
       const extractedVariables = extractVariablesFromOutput(outputData);
       console.log('[ConfigModal] Extracted variables:', extractedVariables);
 
-      // Convert to VariableDefinition format
-      const variables: VariableDefinition[] = extractedVariables.map(v => ({
+      const mapToVariableDefinition = (v: any): VariableDefinition => ({
         name: v.name,
         path: v.path,
         type: v.type as any,
-        sampleValue: v.sampleValue
-      }));
+        sampleValue: v.sampleValue,
+        children: v.children ? v.children.map(mapToVariableDefinition) : undefined
+      });
+
+      // Convert to VariableDefinition format
+      const variables: VariableDefinition[] = extractedVariables.map(mapToVariableDefinition);
 
       // Store in Redux
       const testOutput: NodeTestOutput = {
@@ -240,25 +380,44 @@ export default function ConfigModal({
       }
 
       // Build context from previously tested nodes for variable resolution
-      const interpolationContext = buildTestContext();
+      const { context: interpolationContext, sourceRefs } = buildTestContextAndRefs();
 
       // Resolve any {{variable}} in the config before testing
-      const resolvedConfig = resolveConfigVariables(targetNodeConfig, interpolationContext);
+      const resolvedConfig = resolveConfigVariables(targetNodeConfig, interpolationContext, sourceRefs);
 
-      const response = await api.execute.node(nodeId, resolvedConfig);
+      // Do not resolve conditionGroups for if_else, the backend evaluates them per-item
+      if (targetNodeType === "if_else" || targetNodeType === "action") {
+        resolvedConfig.conditionGroups = targetNodeConfig.conditionGroups;
+      }
+
+      // Collect items from incoming edges for this previous node
+      let itemsToPass: any[] = [];
+      const incomingEdges = reduxWorkflow.edges.filter((e: any) => e.target === nodeId);
+      for (const edge of incomingEdges) {
+        const sourceOutput = allTestedOutputs[edge.source];
+        if (sourceOutput && sourceOutput.data) {
+          const sourceData = Array.isArray(sourceOutput.data) ? sourceOutput.data : [sourceOutput.data];
+          itemsToPass.push(...sourceData);
+        }
+      }
+
+      const response = await api.execute.node(nodeId, resolvedConfig, itemsToPass);
       const outputData = response.output;
       const metadata = response.metadata;
 
       // Extract variables from the output for the variable panel
       const extractedVariables = extractVariablesFromOutput(outputData);
 
-      // Convert to VariableDefinition format
-      const variables: VariableDefinition[] = extractedVariables.map(v => ({
+      const mapToVariableDefinition = (v: any): VariableDefinition => ({
         name: v.name,
         path: v.path,
         type: v.type as any,
-        sampleValue: v.sampleValue
-      }));
+        sampleValue: v.sampleValue,
+        children: v.children ? v.children.map(mapToVariableDefinition) : undefined
+      });
+
+      // Convert to VariableDefinition format
+      const variables: VariableDefinition[] = extractedVariables.map(mapToVariableDefinition);
 
       // Store in Redux
       const testOutput: NodeTestOutput = {
@@ -315,6 +474,38 @@ export default function ConfigModal({
         setConfig(newConfig);
         dispatchConfig(newConfig);
         return;
+      }
+    }
+
+    if (activeSubField?.match(/^g\d+-r\d+-op[12]$/)) {
+      const match = activeSubField.match(/^g(\d+)-r(\d+)-(op[12])$/);
+      if (match) {
+        const groupIdx = parseInt(match[1]!, 10);
+        const ruleIdx = parseInt(match[2]!, 10);
+        const operand = match[3] as "op1" | "op2";
+        const operandKey = operand === "op1" ? "operand1" : "operand2";
+
+        const groups = Array.isArray(config[activeField]) ? [...config[activeField]] : [];
+        if (groups[groupIdx] && groups[groupIdx].conditions && groups[groupIdx].conditions[ruleIdx]) {
+          const rule = groups[groupIdx].conditions[ruleIdx];
+          const currentVal = rule[operandKey] || "";
+          
+          const updatedGroups = groups.map((grp, gI) => 
+            gI === groupIdx 
+              ? {
+                  ...grp,
+                  conditions: grp.conditions.map((r: any, rI: number) => 
+                    rI === ruleIdx ? { ...r, [operandKey]: currentVal + variableSyntax } : r
+                  )
+                }
+              : grp
+          );
+
+          const newConfig = { ...config, [activeField]: updatedGroups };
+          setConfig(newConfig);
+          dispatchConfig(newConfig);
+          return;
+        }
       }
     }
 
@@ -519,8 +710,8 @@ export default function ConfigModal({
       const dependentFieldValue = config[dependentFieldName];
 
       if (dependentFieldValue && typeof dependentFieldValue === 'string') {
-        const interpolationContext = buildTestContext();
-        const resolvedConfig = resolveConfigVariables({ temp: dependentFieldValue }, interpolationContext);
+        const { context: interpolationContext, sourceRefs } = buildTestContextAndRefs();
+        const resolvedConfig = resolveConfigVariables({ temp: dependentFieldValue }, interpolationContext, sourceRefs);
         const resolvedData = resolvedConfig.temp;
 
         if (resolvedData !== dependentFieldValue) {
@@ -1128,6 +1319,349 @@ export default function ConfigModal({
       );
     }
 
+    if (field.type === "condition_builder") {
+      const conditionGroups: Array<{
+        id?: string;
+        combinator?: "AND" | "OR";
+        conditions: Array<{
+          id?: string;
+          operand1: string;
+          operator: string;
+          operand2?: any;
+        }>;
+      }> = (Array.isArray(config.conditionGroups) && config.conditionGroups.length > 0)
+        ? config.conditionGroups
+        : [
+            {
+              id: "group-1",
+              combinator: "AND",
+              conditions: [
+                { id: "rule-1", operand1: "", operator: "equals", operand2: "" }
+              ]
+            }
+          ];
+
+      const nodeCombinator: "AND" | "OR" = config.combinator || "OR";
+
+      const updateBuilderState = (newGroups: any[], newCombinator = nodeCombinator) => {
+        const newConfig = {
+          ...config,
+          combinator: newCombinator,
+          conditionGroups: newGroups
+        };
+        setConfig(newConfig);
+        dispatchConfig(newConfig);
+      };
+
+      const handleAddGroup = () => {
+        const newGroup = {
+          id: `group-${Date.now()}`,
+          combinator: "AND" as const,
+          conditions: [
+            { id: `rule-${Date.now()}`, operand1: "", operator: "equals", operand2: "" }
+          ]
+        };
+        updateBuilderState([...conditionGroups, newGroup]);
+      };
+
+      const handleDeleteGroup = (groupIndex: number) => {
+        const updated = conditionGroups.filter((_, idx) => idx !== groupIndex);
+        updateBuilderState(updated);
+      };
+
+      const handleGroupCombinatorChange = (groupIndex: number, newComb: "AND" | "OR") => {
+        const updated = conditionGroups.map((grp, idx) =>
+          idx === groupIndex ? { ...grp, combinator: newComb } : grp
+        );
+        updateBuilderState(updated);
+      };
+
+      const handleAddRule = (groupIndex: number) => {
+        const newRule = {
+          id: `rule-${Date.now()}`,
+          operand1: "",
+          operator: "equals",
+          operand2: ""
+        };
+        const updated = conditionGroups.map((grp, idx) =>
+          idx === groupIndex
+            ? { ...grp, conditions: [...(grp.conditions || []), newRule] }
+            : grp
+        );
+        updateBuilderState(updated);
+      };
+
+      const handleDeleteRule = (groupIndex: number, ruleIndex: number) => {
+        const updated = conditionGroups.map((grp, gIdx) =>
+          gIdx === groupIndex
+            ? { ...grp, conditions: grp.conditions.filter((_, rIdx) => rIdx !== ruleIndex) }
+            : grp
+        );
+        updateBuilderState(updated);
+      };
+
+      const handleRuleChange = (groupIndex: number, ruleIndex: number, patch: Record<string, any>) => {
+        const updated = conditionGroups.map((grp, gIdx) =>
+          gIdx === groupIndex
+            ? {
+                ...grp,
+                conditions: grp.conditions.map((rule, rIdx) =>
+                  rIdx === ruleIndex ? { ...rule, ...patch } : rule
+                )
+              }
+            : grp
+        );
+        updateBuilderState(updated);
+      };
+
+      return (
+        <div key={field.name} className="space-y-3">
+          <div>
+            <label className="block text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 uppercase tracking-widest mb-1 shadow-sm">
+              {field.label}
+            </label>
+            {field.description && (
+              <p className="text-xs text-gray-400/90 leading-relaxed font-medium">
+                {field.description}
+              </p>
+            )}
+          </div>
+          
+          <div className="space-y-5 p-5 bg-gradient-to-b from-[#0e131f] to-[#0c1017] rounded-2xl border border-indigo-500/20 shadow-[0_0_40px_rgba(99,102,241,0.03)] backdrop-blur-xl relative overflow-hidden">
+            {/* Ambient Background Glow */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Top Level: Node Combinator Control */}
+            <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-indigo-500/10 z-10">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 bg-indigo-500/10 rounded-md border border-indigo-500/20 shadow-sm">
+                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                  </div>
+                  <span className="text-[13px] font-bold text-gray-200 uppercase tracking-wide">
+                    Global Strategy
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1.5 font-medium ml-9">
+                  {nodeCombinator === "OR"
+                    ? "Passes if ANY condition group matches"
+                    : "Passes only if ALL condition groups match"}
+                </p>
+              </div>
+
+              <div className="flex items-center bg-[#06090e]/80 p-1 rounded-xl border border-[#1e293b]/80 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => updateBuilderState(conditionGroups, "OR")}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${
+                    nodeCombinator === "OR"
+                      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                  }`}
+                >
+                  ANY (OR)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateBuilderState(conditionGroups, "AND")}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${
+                    nodeCombinator === "AND"
+                      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                  }`}
+                >
+                  ALL (AND)
+                </button>
+              </div>
+            </div>
+
+            {/* Condition Groups List */}
+            <div className="space-y-4 relative z-10">
+              {conditionGroups.map((group, groupIndex) => {
+                const isGroupAnd = (group.combinator || "AND") === "AND";
+                return (
+                  <div key={group.id || `group-${groupIndex}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {/* Between-Group Divider */}
+                    {groupIndex > 0 && (
+                      <div className="flex items-center gap-3 my-4 opacity-80">
+                        <div className="flex-1 border-t border-dashed border-indigo-500/20" />
+                        <span className="px-3 py-1 bg-[#0c1017] text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm">
+                          {nodeCombinator}
+                        </span>
+                        <div className="flex-1 border-t border-dashed border-indigo-500/20" />
+                      </div>
+                    )}
+
+                    {/* Group Card */}
+                    <div className="group/card bg-[#111827]/80 backdrop-blur-md border border-gray-800/60 hover:border-indigo-500/40 rounded-2xl p-4 space-y-4 shadow-lg transition-all duration-300">
+                      {/* Group Header */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800/60 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-black flex items-center justify-center shadow-sm">
+                            {groupIndex + 1}
+                          </span>
+                          <span className="text-[13px] font-bold text-gray-200">
+                            Condition Group
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Group Combinator Toggle */}
+                          <div className="flex items-center bg-[#06090e] p-0.5 rounded-lg border border-[#1e293b] shadow-inner">
+                            <button
+                              type="button"
+                              onClick={() => handleGroupCombinatorChange(groupIndex, "AND")}
+                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
+                                isGroupAnd
+                                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
+                                  : "text-gray-500 hover:text-gray-300 border border-transparent"
+                              }`}
+                            >
+                              AND
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleGroupCombinatorChange(groupIndex, "OR")}
+                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
+                                !isGroupAnd
+                                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
+                                  : "text-gray-500 hover:text-gray-300 border border-transparent"
+                              }`}
+                            >
+                              OR
+                            </button>
+                          </div>
+
+                          {/* Delete Group Button */}
+                          {conditionGroups.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteGroup(groupIndex)}
+                              className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/15 rounded-lg transition-colors border border-transparent hover:border-rose-500/20"
+                              title="Delete this group"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Condition Rules inside Group */}
+                      <div className="space-y-2.5">
+                        {group.conditions.map((rule, ruleIndex) => {
+                          const operatorDef = IF_ELSE_OPERATORS.find((op) => op.id === rule.operator);
+                          const isUnary = Boolean(operatorDef?.unary);
+
+                          return (
+                            <div
+                              key={rule.id || `rule-${ruleIndex}`}
+                              className="flex flex-col gap-3 bg-[#0a0e17]/80 p-3 rounded-xl border border-gray-800/40 group-hover/card:border-gray-700/50 transition-colors"
+                            >
+                              {/* Operand 1 (Left Field) */}
+                              <div className="relative w-full">
+                                <RichVariableInput
+                                  value={rule.operand1 || ""}
+                                  placeholder="Field (e.g. {{status}})..."
+                                  onChange={(val) => handleRuleChange(groupIndex, ruleIndex, { operand1: val })}
+                                  onFocus={() => {
+                                    setActiveField(field.name);
+                                    setActiveSubField(`g${groupIndex}-r${ruleIndex}-op1`);
+                                  }}
+                                  availableNodes={availableNodes}
+                                />
+                              </div>
+
+                              {/* Operator Selector */}
+                              <div className="relative w-full">
+                                <select
+                                  value={rule.operator}
+                                  onChange={(e) => handleRuleChange(groupIndex, ruleIndex, { operator: e.target.value })}
+                                  className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-[11px] font-bold tracking-wide text-indigo-300 uppercase rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/50 transition-all cursor-pointer appearance-none shadow-inner"
+                                >
+                                  {IF_ELSE_OPERATORS.map((op) => (
+                                    <option key={op.id} value={op.id} className="bg-[#0f1420] text-gray-200 normal-case">
+                                      {op.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-500/70">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 w-full">
+                                {/* Operand 2 (Right Value) or Unary Placeholder */}
+                                <div className="relative flex-1">
+                                  {isUnary ? (
+                                    <div className="h-[38px] px-3 flex items-center bg-gray-900/40 border border-dashed border-gray-700 rounded-lg text-[11px] text-gray-500 italic font-medium select-none">
+                                      No value required
+                                    </div>
+                                  ) : (
+                                    <RichVariableInput
+                                      value={rule.operand2 ?? ""}
+                                      placeholder="Value..."
+                                      onChange={(val) => handleRuleChange(groupIndex, ruleIndex, { operand2: val })}
+                                      onFocus={() => {
+                                        setActiveField(field.name);
+                                        setActiveSubField(`g${groupIndex}-r${ruleIndex}-op2`);
+                                      }}
+                                      availableNodes={availableNodes}
+                                    />
+                                  )}
+                                </div>
+
+                                {/* Delete Rule Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRule(groupIndex, ruleIndex)}
+                                  disabled={group.conditions.length <= 1}
+                                  className="w-[38px] h-[38px] flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed border border-transparent hover:border-rose-500/20"
+                                  title="Delete condition"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Add Condition inside Group */}
+                      <div className="pt-2 border-t border-gray-800/40 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleAddRule(groupIndex)}
+                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                          Add Condition
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add Alternative Group Button */}
+            <div className="pt-3 relative z-10">
+              <button
+                type="button"
+                onClick={handleAddGroup}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 hover:from-indigo-500/10 hover:to-purple-500/10 border border-dashed border-indigo-500/30 hover:border-indigo-500/60 rounded-xl text-xs font-bold text-indigo-300 hover:text-indigo-200 transition-all duration-300 flex items-center justify-center gap-2 shadow-sm group"
+              >
+                <div className="p-1 rounded bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                </div>
+                <span>Add Alternative Condition Group ({nodeCombinator})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (field.type === "number") {
       return (
         <div key={field.name} className="form-group">
@@ -1148,6 +1682,42 @@ export default function ConfigModal({
             }}
             className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
           />
+        </div>
+      );
+    }
+
+    if (field.type === "readonly_copy") {
+      let url = "";
+      if (workflowId && selectedNode) {
+        url = `${HOOKS_URL}/hooks/catch/${userId}/${workflowId}/${selectedNode.id}`;
+      }
+      
+      return (
+        <div key={field.name} className="form-group mb-4 p-4 bg-[#0a0e17] rounded-xl border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.05)]">
+          <label className="block text-sm font-semibold text-gray-200 mb-2">
+            {field.label}
+          </label>
+          {field.description && (
+            <p className="text-xs text-gray-400 mb-3">{field.description}</p>
+          )}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={url}
+              className="w-full p-2.5 border border-[#1e293b] bg-[#06090e] text-indigo-300 font-mono text-[11px] sm:text-xs rounded-lg outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(url);
+                toast.success("Copied to clipboard!");
+              }}
+              className="px-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
+            >
+              Copy
+            </button>
+          </div>
         </div>
       );
     }
@@ -1274,64 +1844,6 @@ export default function ConfigModal({
                           {nodeConfig.label}
                         </p>
                         <p className="mt-2 text-gray-300">{nodeConfig.description}</p>
-                        {nodeConfig.id === "webhook" && (
-                          <div
-                            className="mt-6 p-4 rounded-lg"
-                            style={{ background: "#111827" }}
-                          >
-                            <p className="font-medium mb-2 text-white">
-                              Webhook URL:
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <code className="block bg-black p-2 rounded border font-mono text-sm break-all text-green-300 border-gray-700">
-                                {`${HOOKS_URL}/${userId}/${selectedNode.id}`}
-                              </code>
-                              <button
-                                type="button"
-                                aria-label="Copy webhook url"
-                                className="p-1 rounded hover:bg-gray-800"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(
-                                    `${HOOKS_URL}/${userId}/${selectedNode.id}`
-                                  );
-                                  toast.success("Webhook url copied");
-                                }}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="w-4 h-4 text-gray-300"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <rect
-                                    x="9"
-                                    y="9"
-                                    width="13"
-                                    height="13"
-                                    rx="2"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    fill="none"
-                                  />
-                                  <rect
-                                    x="3"
-                                    y="3"
-                                    width="13"
-                                    height="13"
-                                    rx="2"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    fill="none"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                            <p className="text-xs text-gray-400 mt-1">
-                              Copy this URL to trigger the workflow
-                            </p>
-                          </div>
-                        )}
                       </div>
                     );
                   }
@@ -1373,7 +1885,26 @@ export default function ConfigModal({
 
               {/* Footer */}
               <div className="p-4 border-t border-[#1e293b]/60 flex justify-between items-center gap-3 bg-gradient-to-r from-[#0f1420] to-[#141c2b] flex-shrink-0">
-                {!selectedNode.name.includes("webhook") &&
+                {selectedNode.name.toLowerCase().includes("webhook") ? (
+                  <button
+                    onClick={handleListenWebhook}
+                    disabled={isListeningWebhook || loading}
+                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none"
+                    type="button"
+                  >
+                    {isListeningWebhook ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
+                        Listening... {webhookCountdown}s
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Listen for Test Event
+                      </>
+                    )}
+                  </button>
+                ) : (
                   <button
                     onClick={handleTestNode}
                     disabled={isTestingNode || loading}
@@ -1392,7 +1923,7 @@ export default function ConfigModal({
                       </>
                     )}
                   </button>
-                }
+                )}
                 <div className="flex gap-2 ml-auto">
                   <button
                     onClick={() => onClose()}

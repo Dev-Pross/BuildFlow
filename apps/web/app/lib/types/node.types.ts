@@ -17,6 +17,7 @@ export interface PreviousNodeOutput {
   nodeType: string;      // "google_sheet"
   icon?: string;         // "📊"
   variables: VariableDefinition[];
+  wireIndex?: number;    // NEW: For edge awareness
 }
 export interface NodeConfig {
   id: string; // Unique identifier for the node, e.g., "google_sheet"
@@ -54,7 +55,7 @@ export interface CommonKeyPreset {
 export interface ConfigField {
   name: string; // Field's internal key, e.g., "sheetId"
   label: string; // Human-readable label, e.g., "Sheet ID"
-  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password" | "column_mapper" | "bulk_payload" | "dynamic_schema_dropdown" | "key_value_pairs" | "json";
+  type: "text" | "dropdown" | "textarea" | "number" | "checkbox" | "password" | "column_mapper" | "bulk_payload" | "dynamic_schema_dropdown" | "key_value_pairs" | "json" | "condition_builder" | "readonly_copy";
   required?: boolean;
   defaultValue?: string | number | boolean; // Initial value if not set
   placeholder?: string;

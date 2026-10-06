@@ -232,23 +232,28 @@ export class FilterExecutor implements NodeExecutor {
                         error: "sourceKey is required to group datasets"
                     }
                     const groupResult = this.handleGroupBy(normalizedSource, sourceKey)
-                    const outputWires = groupResult.groupArray.map((group, wireIndex) => {
-                        return (group.rows || []).map((row: any, rowIndex: number) => {
-                            const json = row && row.json ? row.json : row;
-                            const existingRefs = row && row.sourceRefs ? row.sourceRefs : {};
-                            return {
-                                json: json,
-                                sourceRefs: {
-                                    ...existingRefs,
-                                    [context.nodeId]: { wireIndex: wireIndex, rowIndex: rowIndex }
-                                }
-                            };
+                    
+                    // GroupBy returns an array of objects, where each object represents a group.
+                    // This is much easier for non-tech users to map (fixed keys: 'groupKey' and 'items').
+                    const outputWire = groupResult.groupArray.map((group, idx) => {
+                        const items = (group.rows || []).map((row: any) => {
+                            return row && row.json ? row.json : row;
                         });
+                        
+                        return {
+                            json: {
+                                groupKey: group.groupName,
+                                items: items
+                            },
+                            sourceRefs: {
+                                [context.nodeId]: { wireIndex: 0, rowIndex: idx }
+                            }
+                        };
                     });
 
                     return {
                         success: true,
-                        output: outputWires,
+                        output: [outputWire],
                         metadata: {
                             operation_used: operation,
                             total_groups: groupResult.groupArray.length,

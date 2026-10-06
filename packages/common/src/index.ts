@@ -48,7 +48,8 @@ export const ExecuteWorkflow = z.object({
 
 export const ExecuteNode = z.object({
   NodeId: z.string(),
-  Config: z.any().optional()
+  Config: z.any().optional(),
+  items: z.any().optional()
 })
 export const NodeUpdateSchema = z.object({
   NodeId: z.string(),
@@ -265,6 +266,49 @@ export const HttpRequestNodeSchema = z.object({
   queryParams: z.union([z.record(z.string(), z.any()), z.array(z.any()), z.string()]).optional(),
   timeout: z.number().int().positive().optional().default(30000)
 });
+
+
+export const IfElseOperatorSchema = z.enum([
+  'equals', 'not_equals',
+
+  "greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal",
+
+  "contains", "not_contains", "starts_with", "ends_with", "regex_match",
+
+  "is_any_of", "is_not_any_of",
+
+  "is_empty", "is_not_empty", "is_true", "is_false"
+])
+
+export const IfElseRuleSchema = z.object({
+  id: z.string().optional(),          // Unique identifier for React keys & updates
+  operand1: z.any(),                  // The left operand (e.g. {{price}} or {{status}})
+  operator: IfElseOperatorSchema,           // The condition
+  operand2: z.any().optional()
+})
+
+export const IfElseGroupSchema = z.object({
+  id: z.string().optional(),
+  combinator: z.enum(['AND', 'OR']).default('AND'),
+
+  conditions: z.array(IfElseRuleSchema).default([])
+
+})
+
+export const IfElseNodeSchema = z.object({
+  combinator: z.enum(['AND', 'OR']).default('OR'),
+  conditionGroups: z.array(IfElseGroupSchema).default([])
+})
+
+export const IteratorNodeSchema = z.object({
+  arrayPath: z.string().min(1, "Array Path is required").default(""),
+})
+export type IteratorNodeInput = z.infer<typeof IteratorNodeSchema>;
+
+export type IfElseOperator = z.infer<typeof IfElseOperatorSchema>;
+export type IfElseRule = z.infer<typeof IfElseRuleSchema>;
+export type IfElseGroup = z.infer<typeof IfElseGroupSchema>;
+export type IfElseNodeInput = z.infer<typeof IfElseNodeSchema>;
 
 
 export type HttpRequestNodeInput = z.infer<typeof HttpRequestNodeSchema>;

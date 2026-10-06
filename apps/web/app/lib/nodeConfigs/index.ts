@@ -4,6 +4,9 @@ import { gmailActionConfig } from "./gmail.action";
 import { googleSheetActionConfig } from "./googleSheet.action";
 import { webhookTriggerConfig } from "./webhook.trigger";
 import { httpRequestActionConfig } from "./httpRequest.action";
+import { ifElseActionConfig } from "./ifElse.action";
+
+import { iteratorActionConfig } from "./iterator.action";
 
 // 1. Create a dictionary of all your nodes
 // We map them by their 'label' (what shows on the node) AND their 'id' (internal type)
@@ -15,6 +18,11 @@ export const NODE_CONFIG_REGISTRY: Record<string, NodeConfig> = {
   [webhookTriggerConfig.label]: webhookTriggerConfig,
   [filterActionConfig.label]: filterActionConfig,
   [httpRequestActionConfig.label]: httpRequestActionConfig,
+  [ifElseActionConfig.label]: ifElseActionConfig,
+  [iteratorActionConfig.label]: iteratorActionConfig,
+
+  // Fallbacks for legacy nodes
+  "Data Filter": filterActionConfig,
 
   // Map by ID (internal safety fallback)
   [gmailActionConfig.id]: gmailActionConfig, // "gmail"
@@ -22,6 +30,8 @@ export const NODE_CONFIG_REGISTRY: Record<string, NodeConfig> = {
   [webhookTriggerConfig.id]: webhookTriggerConfig, // "webhook"
   [filterActionConfig.id]: filterActionConfig,
   [httpRequestActionConfig.id]: httpRequestActionConfig, // "http_request"
+  [ifElseActionConfig.id]: ifElseActionConfig, // "if_else"
+  [iteratorActionConfig.id]: iteratorActionConfig,
 };
 
 

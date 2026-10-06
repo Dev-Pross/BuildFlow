@@ -3,7 +3,7 @@ import { NodeConfig } from "../types/node.types";
 export const filterActionConfig: NodeConfig = {
     id: "filter", // MUST match the 'type' in your backend registry
     type: "action",
-    label: "Data Filter",
+    label: "Data Ops",
     icon: "/filtering.png",
     description: "Deduplicate and cross-reference datasets",
 

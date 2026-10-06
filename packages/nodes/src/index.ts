@@ -17,5 +17,9 @@ export { GoogleSheetsService } from './google-sheets/google-sheets.service.js';
 export { FilterNode } from './filter/filter.node.js';
 export { HttpNode } from './http-node/http.node.js';
 export { HttpNodeExecutor } from "./http-node/http.executor.js";
+export { IfElseNodeExecutor } from "./if-else-node/if-else-executor.js";
+export { IteratorNode } from "./iterator-node/iterator.node.js";
+export { IteratorExecutor } from "./iterator-node/iterator.executor.js";
+export { IfElseNode } from "./if-else-node/if-else.node.js"
 
 console.log("Hello World From node / index.ts");
