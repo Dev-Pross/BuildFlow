@@ -1,16 +1,10 @@
+"use client";
+
 import { useState } from "react";
-import { Button } from "@workspace/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
-import { Input } from "@workspace/ui/components/input";
-import { Label } from "@workspace/ui/components/label";
 import { api } from "@/app/lib/api";
-import { useRouter} from "next/navigation"
+import { useRouter } from "next/navigation";
+import { Workflow, X, ArrowRight } from "lucide-react";
+
 interface CardDemoProps {
   onClose?: () => void;
 }
@@ -24,103 +18,120 @@ export function CardDemo({ onClose }: CardDemoProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      setError("Workflow name is required");
+      return;
+    }
+
     setError("");
     try {
       setLoading(true);
-      // Use name as Name, description as Config (according to api signature)
-      const create = await api.workflows.create(name, []);
-      // Optionally: do something with create.data, e.g. inform user or fetch further data
+      const create = await api.workflows.create(name.trim(), []);
       const id = create.data.Data.id;
 
-      router.push(`/workflows/${id}`);
       if (onClose) onClose();
-    } catch (error: any) {
+      router.push(`/workflows/${id}`);
+    } catch (err: any) {
       setLoading(false);
-      if (error?.response?.data?.message) {
-        setError(error.response.data.message);
-      } else if (typeof error === "string") {
-        setError(error);
-      } else if (error?.message) {
-        setError(error.message);
-      } else {
-        setError("An unexpected error occurred.");
-      }
+      const msg = err?.response?.data?.message || err?.message || "Failed to create workflow.";
+      setError(msg);
     }
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm transition-all"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-all"
       onClick={onClose}
     >
-      <Card
-        className="relative w-full max-w-sm z-10"
+      <div
+        className="relative w-full max-w-md rounded-3xl bg-[#18191c] border border-[#27282d] shadow-2xl p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        <CardHeader>
-          <CardTitle>Create Workflow</CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          <form
-            id="create-workflow-form"
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-6"
-          >
-            <div className="grid gap-2">
-              <Label htmlFor="workflow-name">Workflow Name</Label>
-              <Input
-                id="workflow-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Name of workflow"
-                required
-                disabled={loading}
-              />
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-white text-black flex items-center justify-center shadow-sm">
+              <Workflow className="h-5 w-5 text-black" />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="workflow-desc">Description (optional)</Label>
-              <Input
-                id="workflow-desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Workflow description (optional)"
-                disabled={loading}
-              />
+            <div>
+              <h2 className="text-lg font-bold text-white">New Automation Flow</h2>
+              <p className="text-xs text-[#9ca3af]">Configure a blank visual workspace</p>
             </div>
-            {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
-          </form>
-        </CardContent>
-
-        <CardFooter>
-          <Button
-            type="submit"
-            form="create-workflow-form"
-            className="w-full"
-            disabled={loading}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl text-[#9ca3af] hover:text-white hover:bg-[#222429] transition-colors"
           >
-            {loading ? "Creating..." : "Submit"}
-          </Button>
-        </CardFooter>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-        <button
-          type="button"
-          aria-label="Close"
-          className="absolute top-4 right-4 p-1 text-gray-400 hover:text-red-500 transition rounded-sm z-20"
-          onClick={onClose}
-          disabled={loading}
-        >
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-            <path
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M18 6L6 18M6 6l12 12"
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+              Workflow Name <span className="text-indigo-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Stripe Payment to Google Sheets"
+              required
+              disabled={loading}
+              className="w-full px-4 py-2.5 rounded-xl bg-[#1e2025] border border-[#2a2c33] text-sm text-white placeholder-[#6b7280] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
             />
-          </svg>
-        </button>
-      </Card>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+              Description <span className="text-[#6b7280] font-normal">(Optional)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the trigger and actions handled by this automation..."
+              disabled={loading}
+              className="w-full px-4 py-2.5 rounded-xl bg-[#1e2025] border border-[#2a2c33] text-sm text-white placeholder-[#6b7280] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-xs text-rose-300">
+              {error}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#27282d] mt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#9ca3af] hover:text-white hover:bg-[#222429] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-black text-xs font-bold hover:bg-gray-100 transition-all disabled:opacity-50 shadow-md cursor-pointer"
+            >
+              {loading ? (
+                "Creating Canvas..."
+              ) : (
+                <>
+                  <span>Create Workflow</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
+
+export default CardDemo;

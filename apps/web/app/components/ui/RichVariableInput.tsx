@@ -124,7 +124,7 @@ export function RichVariableInput({ value, onChange, availableNodes, placeholder
             onInput={handleInput}
             onFocus={onFocus}
             data-placeholder={placeholder}
-            className="w-full min-h-[40px] px-3 py-2 rounded-md border border-[#2a3525] bg-[#141a14] text-sm text-[#e8e8d8] focus:outline-none focus:border-[#baf266]/50 empty:before:content-[attr(data-placeholder)] empty:before:text-[#4a5440] whitespace-pre-wrap"
+            className="w-full min-h-[40px] px-3 py-2 rounded-md border border-[#27282d] bg-[#18191c] text-sm text-[#f9fafb] focus:outline-none focus:border-indigo-500/50 empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 whitespace-pre-wrap"
         />
     );
 }

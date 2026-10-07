@@ -1772,11 +1772,11 @@ export default function ConfigModal({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Main container */}
-      <div className="fixed inset-0 m-3 p-2 rounded-2xl z-50 bg-gradient-to-br from-[#0a0e17] via-[#0d1219] to-[#0a0e17] border border-[#1e293b]/60 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+      <div className="fixed inset-0 m-3 p-2 rounded-3xl z-50 bg-[#0f1012] border border-[#27282d] shadow-2xl shadow-black/80 overflow-hidden flex flex-col">
         <Group orientation="horizontal" id="buildflow-node-config-panels" className="w-full h-full flex items-stretch gap-0">
           {/* Left Panel: Variable / Data Mapping */}
           <Panel id="variable-panel" defaultSize="30%" minSize="20%" maxSize="45%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-            <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#1e293b]/60 shadow-xl bg-[#0d1117] flex flex-col">
+            <div className="w-full h-full min-h-0 rounded-2xl overflow-hidden border border-[#27282d] shadow-xl bg-[#18191c] flex flex-col">
               <VariablePanel
                 previousNodes={previousNodes}
                 onInsert={handleVariableInsert}
@@ -1793,10 +1793,10 @@ export default function ConfigModal({
 
           {/* Center Panel: Node Configuration Form */}
           <Panel id="form-panel" defaultSize="35%" minSize="25%" maxSize="50%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-            <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#0f1420]/95 border border-[#1e293b]/60 shadow-xl">
+            <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#141518] border border-[#222429] shadow-xl">
               {/* Header */}
-              <div className="p-4 border-b border-[#1e293b]/60 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#0f1420] to-[#141c2b]">
-                <h2 className="text-base font-semibold flex items-center gap-3 text-gray-100">
+              <div className="p-4 border-b border-[#222429] flex items-center justify-between flex-shrink-0 bg-[#18191c]">
+                <h2 className="text-base font-semibold flex items-center gap-3 text-[#f0f0e8]">
                   <NodeIcon icon={selectedNode.icon} name={selectedNode.name} size="md" />
                   <span>{selectedNode.name}</span>
                 </h2>
@@ -1928,7 +1928,7 @@ export default function ConfigModal({
                   <button
                     onClick={() => onClose()}
                     disabled={loading}
-                    className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-gray-200 rounded-xl disabled:opacity-50 text-sm font-medium transition-all border border-white/10 hover:border-white/20"
+                    className="px-6 py-2.5 bg-white text-black hover:bg-gray-100 rounded-xl disabled:opacity-50 text-xs font-bold transition-all shadow-sm cursor-pointer"
                     type="button"
                   >
                     Done
@@ -1945,7 +1945,7 @@ export default function ConfigModal({
 
           {/* Right Panel: Test Output */}
           <Panel id="test-panel" defaultSize="35%" minSize="20%" maxSize="65%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-            <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#1e293b]/60 shadow-xl bg-[#0d1117] flex flex-col">
+            <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#222429] shadow-xl bg-[#141518] flex flex-col">
               <TestPanel testResult={testResult} metadata={nodeTestOutput?.metadata} nodeName={selectedNode?.name} nodeIcon={selectedNode?.icon} />
             </div>
           </Panel>

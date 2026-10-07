@@ -10,7 +10,7 @@ interface RecentWorkflowsProps {
 const formatDate = (dateValue: string) => {
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return dateValue;
-  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const getTimeDuration = (dateValue: string) => {
@@ -19,10 +19,10 @@ const getTimeDuration = (dateValue: string) => {
   const diff = Date.now() - date.getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   if (days === 0) return "Today";
-  if (days === 1) return "1 day ago";
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-  return `${Math.floor(days / 30)} month ago`;
+  if (days === 1) return "1d ago";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
 };
 
 export default function RecentWorkflows({ overview }: RecentWorkflowsProps) {
@@ -32,69 +32,63 @@ export default function RecentWorkflows({ overview }: RecentWorkflowsProps) {
     switch (status?.toLowerCase()) {
       case "active":
       case "completed":
-        return <CheckCircle2 className="h-3.5 w-3.5 text-[#baf266]" />;
+        return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
       case "pending":
       case "draft":
-        return <Clock className="h-3.5 w-3.5 text-[#f59e0b]" />;
+        return <Clock className="h-4 w-4 text-amber-400" />;
       default:
-        return <Circle className="h-3.5 w-3.5 text-[#5a6350]" />;
+        return <Circle className="h-4 w-4 text-gray-500" />;
     }
   };
 
   const getStatusDot = (status?: string | null) => {
-    const colors: Record<string, string> = {
-      active: "#baf266",
-      completed: "#baf266",
-      pending: "#f59e0b",
-      draft: "#5a6350",
-    };
-    const c = colors[status?.toLowerCase() || ""] || "#5a6350";
+    const isSuccess = status?.toLowerCase() === "active" || status?.toLowerCase() === "completed";
     return (
       <span className="flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c }} />
-        <span className="text-xs text-[#8a9178]">{status || "Draft"}</span>
+        <span className={`w-2 h-2 rounded-full ${isSuccess ? "bg-emerald-400" : "bg-amber-400"}`} />
+        <span className="text-xs text-[#9ca3af] capitalize">{status || "Draft"}</span>
       </span>
     );
   };
 
   return (
-    <div className="rounded-2xl border border-[#2a3525]/60 bg-[#111611] p-5 flex flex-col">
+    <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-[#e8e8d8]">Recent Workflows</h3>
-        <button className="p-1 rounded-md hover:bg-[#1a2118] text-[#5a6350] transition-colors" type="button">
+        <h3 className="text-sm font-bold text-zinc-950">Recent Workflows</h3>
+        <button className="p-1.5 rounded-xl hover:bg-zinc-200 text-zinc-400 transition-colors" type="button">
           <MoreHorizontal className="h-4 w-4" />
         </button>
       </div>
 
       {workflows.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-sm text-[#5a6350]">
-          No workflows yet
+        <div className="flex-1 flex items-center justify-center text-xs text-zinc-400">
+          No workflows drafted yet
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-[#2a3525]/40">
-                <th className="py-2 pr-3 text-[10px] uppercase tracking-wider text-[#4a5440] font-semibold">Name</th>
-                <th className="py-2 pr-3 text-[10px] uppercase tracking-wider text-[#4a5440] font-semibold">Triggered at</th>
-                <th className="py-2 pr-3 text-[10px] uppercase tracking-wider text-[#4a5440] font-semibold">Status</th>
-                <th className="py-2 text-[10px] uppercase tracking-wider text-[#4a5440] font-semibold">Duration</th>
+              <tr className="border-b border-zinc-200">
+                <th className="py-2.5 pr-3 text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Name</th>
+                <th className="py-2.5 pr-3 text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Triggered</th>
+                <th className="py-2.5 pr-3 text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Status</th>
+                <th className="py-2.5 text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Duration</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-zinc-100">
               {workflows.slice(0, 5).map((wf) => (
-                <tr key={wf.id} className="border-b border-[#1a2118]/60 hover:bg-[#141a14] transition-colors">
-                  <td className="py-2.5 pr-3">
-                    <div className="flex items-center gap-2">
+                <tr key={wf.id} className="hover:bg-zinc-50 transition-colors">
+                  <td className="py-3 pr-3">
+                    <div className="flex items-center gap-2.5">
                       {getStatusIcon(wf.status)}
-                      <span className="text-xs font-medium text-[#c8d4a8] truncate max-w-[120px]">
+                      <span className="text-xs font-semibold text-zinc-900 truncate max-w-[140px]">
                         {wf.name}
                       </span>
                     </div>
                   </td>
-                  <td className="py-2.5 pr-3 text-xs text-[#6a7560]">{formatDate(wf.createdAt)}</td>
-                  <td className="py-2.5 pr-3">{getStatusDot(wf.status)}</td>
-                  <td className="py-2.5 text-xs text-[#5a6350]">{getTimeDuration(wf.createdAt)}</td>
+                  <td className="py-3 pr-3 text-xs text-zinc-500">{formatDate(wf.createdAt)}</td>
+                  <td className="py-3 pr-3">{getStatusDot(wf.status)}</td>
+                  <td className="py-3 text-xs text-zinc-400">{getTimeDuration(wf.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

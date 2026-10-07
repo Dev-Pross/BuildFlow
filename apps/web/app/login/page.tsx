@@ -1,113 +1,156 @@
-"use client"
-import React, { useState } from 'react'
-import Input from '../components/ui/Inputbox'
-import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
-import Link from 'next/link'
-import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+"use client";
 
-const Page = () => {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState({email: "", password:"", auth: ""})
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+import React, { useState } from 'react';
+import Input from '../components/ui/Inputbox';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Link from 'next/link';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Workflow, ArrowRight } from 'lucide-react';
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
+const LoginPage = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState({ email: "", password: "", auth: "" });
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const loginHandler = async()=>{
-    // Reset all errors
-    const newErrors = {email:'', password:'', auth:''}
-    
-    // Validation
-    if(!email){
-      newErrors.email = "Email is required"
-    } else if(!validateEmail(email)){
-      newErrors.email = "Invalid email format"
+  const validateEmail = (val: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(val);
+  };
+
+  const loginHandler = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const newErrors = { email: '', password: '', auth: '' };
+
+    if (!email) {
+      newErrors.email = "Email is required";
+    } else if (!validateEmail(email)) {
+      newErrors.email = "Invalid email format";
     }
-    
-    if(!password){
-      newErrors.password = "Password is required"
-    } else if(password.length < 8){
-      newErrors.password = "Password must be at least 8 characters"
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
     }
-    
-    // If there are any errors, set them and return
-    if(Object.values(newErrors).some(error => error !== '')){
-      setError(newErrors)
-      return
+
+    if (Object.values(newErrors).some(err => err !== '')) {
+      setError(newErrors);
+      return;
     }
-    
-    setIsLoading(true)
-    
-    try{
-      const result = await signIn("credentials",{
+
+    setIsLoading(true);
+
+    try {
+      const result = await signIn("credentials", {
         email,
         password,
         redirect: false
-      })
-      console.log('res',result);
-      
-      if(result?.error){
-        setError({...newErrors, auth:"Invalid credentials"})
-        toast.error("Invalid credentials")
+      });
+
+      if (result?.error) {
+        setError({ ...newErrors, auth: "Invalid credentials" });
+        toast.error("Invalid credentials");
+      } else if (result?.ok) {
+        toast.success("Login successful!");
+        router.push('/workflows');
       }
-      if(result?.ok){
-        toast.success("Login successful!")
-        router.push('/workflows')
-      }
-    } catch(e) {
-      setError({...newErrors, auth:"Login failed. Please try again"})
-      toast.error("Login failed. Please try again")
+    } catch {
+      setError({ ...newErrors, auth: "Login failed. Please try again" });
+      toast.error("Login failed. Please try again");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
   return (
-    <div className='dark bg-[#0a0d0a] overflow-hidden h-screen flex items-center justify-center'>
-        <Card blur="backdrop-blur-xl border border-[#2a3525]/60" color='bg-[#111611]/90' width='w-full max-w-sm md:max-w-md' height='max-h-xl h-sm md:h-md'>
-              {error.auth && (
-                        <span className="text-md w-full inline-flex justify-center text-red-400 animate-pulse">! {error.auth}</span>
-                      )}            
-              <Input
-                label="Email"
-                error={error.email}
-                startIcon="mail"
-                placeholder="eg.: johnguru@build.com"
-                type="email"
-                onChange={(e)=>{setEmail(e.target.value)}}
+    <div className="relative min-h-screen bg-[#0f1012] flex items-center justify-center p-4 overflow-hidden">
+      {/* Background subtle ambient glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Brand header */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-3 mb-4 group">
+            <div className="h-11 w-11 rounded-2xl bg-white text-black flex items-center justify-center group-hover:scale-105 transition-transform shadow-md">
+              <Workflow className="h-6 w-6 text-black" />
+            </div>
+            <span className="text-2xl font-extrabold tracking-tight text-white">
+              BuildFlow
+            </span>
+          </Link>
+          <h1 className="text-xl font-bold text-white">Welcome back</h1>
+          <p className="text-sm text-[#9ca3af] mt-1">Sign in to manage and run your automated flows</p>
+        </div>
+
+        <Card blur="border border-[#27282d] shadow-2xl" color="bg-[#18191c]" width="w-full">
+          {error.auth && (
+            <div className="mb-4 p-3 rounded-2xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-sm flex items-center justify-center gap-2">
+              <span>⚠️</span>
+              <span>{error.auth}</span>
+            </div>
+          )}
+
+          <form onSubmit={loginHandler} className="space-y-1">
+            <Input
+              label="Email"
+              error={error.email}
+              startIcon="mail"
+              placeholder="you@domain.com"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
             />
 
             <Input
-                label="Password"
-                error={error.password}
-                startIcon="password"
-                placeholder="* * * * *"
-                type="password"
-                onChange={(e)=>{setPassword(e.target.value)}}
+              label="Password"
+              error={error.password}
+              startIcon="password"
+              placeholder="••••••••"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
             />
-            <Link href='#' className='p-6 py-1 inline-flex justify-end text-[#baf266]/70 hover:text-[#baf266] transition-colors'>forgot password?</Link>
 
+            <div className="flex justify-end pt-1 pb-2 px-2">
+              <Link href="#" className="text-xs text-[#9ca3af] hover:text-white transition-colors">
+                Forgot password?
+              </Link>
+            </div>
 
-            <Button 
-              onClick={loginHandler} 
-              text={isLoading ? 'Logging in...' : 'Login'} 
-              variant='solid' 
-              size='md' 
-              bgColor='bg-[#baf266]' 
-              textColor='text-[#0a0d0a]'
-              className='w-full mt-4 font-semibold hover:opacity-90'
+            <Button
+              type="submit"
+              text={isLoading ? 'Signing in...' : 'Sign In'}
+              variant="solid"
+              size="md"
+              bgColor="bg-white"
+              textColor="text-black"
+              fullWidth
+              className="mt-4"
               disabled={isLoading}
-            />
-            <p className='text-[#8a9178] w-full inline-flex justify-center p-2'>New user? <Link href={'/register'}> <span className='text-[#baf266] px-1 hover:underline'>Register</span></Link></p>
-        </Card>
-    </div>
-  )
-}
+            >
+              {!isLoading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+            </Button>
+          </form>
 
-export default Page
+          <div className="mt-6 pt-5 border-t border-[#27282d] text-center">
+            <p className="text-xs text-[#9ca3af]">
+              Don&apos;t have an account?{' '}
+              <Link href="/register" className="text-indigo-400 font-semibold hover:underline">
+                Register now
+              </Link>
+            </p>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;
