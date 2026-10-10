@@ -1,7 +1,8 @@
 "use client";
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { HOOKS_URL, BACKEND_URL } from "@repo/common/zod";
+import { useWorkflowEvents } from "@/app/hooks/useWorkflowEvents";
 import axios from "axios";
 import { extractVariablesFromOutput, resolveConfigVariables, InterpolationContext } from "@repo/common/zod";
 import { useAppSelector, useAppDispatch } from "@/app/hooks/redux";
@@ -176,55 +177,52 @@ export default function ConfigModal({
     return { context, sourceRefs };
   };
 
-  // Webhook polling effect
+  // Real-time Webhook payload received via SSE stream
+  const handleRealtimeWebhook = useCallback((payload: any) => {
+    if (!isListeningWebhook || !payload) return;
+
+    // Instant receipt: cancel countdown, stop listening, display toast
+    setIsListeningWebhook(false);
+    setWebhookCountdown(0);
+    toast.success("Webhook payload received in real time!");
+
+    const outputData = [payload];
+    const extractedVariables = extractVariablesFromOutput(outputData);
+
+    const mapToVariableDefinition = (v: any): VariableDefinition => ({
+      name: v.name,
+      path: v.path,
+      type: v.type as any,
+      sampleValue: v.sampleValue,
+      children: v.children ? v.children.map(mapToVariableDefinition) : undefined
+    });
+
+    const variables: VariableDefinition[] = extractedVariables.map(mapToVariableDefinition);
+
+    const testOutput: NodeTestOutput = {
+      nodeId: selectedNode.id,
+      nodeName: selectedNode.name || 'Webhook',
+      nodeType: selectedNode.type || '',
+      data: outputData,
+      metadata: {},
+      variables,
+      testedAt: Date.now(),
+      success: true
+    };
+
+    dispatch(setNodeOutput(testOutput));
+    setTestResult(outputData);
+  }, [isListeningWebhook, selectedNode, dispatch]);
+
+  // Hook into the live events stream when listening
+  useWorkflowEvents({
+    workflowId: isListeningWebhook ? workflowId : null,
+    onTestWebhook: handleRealtimeWebhook,
+  });
+
+  // Countdown timeout effect (pure 1s timer, zero polling conflicts)
   useEffect(() => {
-    if (!isListeningWebhook || !workflowId || webhookCountdown <= 0) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const since = new Date(webhookListenStartTime.current).toISOString();
-        const res = await axios.get(`${BACKEND_URL}/user/workflow/latest-webhook/${workflowId}?since=${since}`, {
-          withCredentials: true,
-          headers: { "Content-Type": "application/json" }
-        });
-        
-        if (res.data?.success && res.data?.metadata) {
-          // Found a webhook!
-          setIsListeningWebhook(false);
-          setWebhookCountdown(0);
-          toast.success("Webhook payload received!");
-          
-          const outputData = [res.data.metadata]; // Assuming an array structure for webhook payloads
-          const extractedVariables = extractVariablesFromOutput(outputData);
-          
-          const mapToVariableDefinition = (v: any): VariableDefinition => ({
-            name: v.name,
-            path: v.path,
-            type: v.type as any,
-            sampleValue: v.sampleValue,
-            children: v.children ? v.children.map(mapToVariableDefinition) : undefined
-          });
-
-          const variables: VariableDefinition[] = extractedVariables.map(mapToVariableDefinition);
-
-          const testOutput: NodeTestOutput = {
-            nodeId: selectedNode.id,
-            nodeName: selectedNode.name || 'Webhook',
-            nodeType: selectedNode.type || '',
-            data: outputData,
-            metadata: {},
-            variables,
-            testedAt: Date.now(),
-            success: true
-          };
-
-          dispatch(setNodeOutput(testOutput));
-          setTestResult(outputData);
-        }
-      } catch (e) {
-        // Ignore polling errors
-      }
-    }, 3000);
+    if (!isListeningWebhook || webhookCountdown <= 0) return;
 
     const countdownInterval = setInterval(() => {
       setWebhookCountdown(prev => {
@@ -237,11 +235,8 @@ export default function ConfigModal({
       });
     }, 1000);
 
-    return () => {
-      clearInterval(pollInterval);
-      clearInterval(countdownInterval);
-    };
-  }, [isListeningWebhook, workflowId, webhookCountdown, selectedNode]);
+    return () => clearInterval(countdownInterval);
+  }, [isListeningWebhook, webhookCountdown]);
 
   const handleListenWebhook = () => {
     setTestResult(null);
@@ -635,41 +630,45 @@ export default function ConfigModal({
   // };
 
   const isFieldVisible = (field: ConfigField, formData: any) => {
-    // 1. Explicit field-level dependency check (e.g. body depends on method !== 'GET')
-    if (field.dependsOn && field.showForOperation) {
-      const parentVal = formData[field.dependsOn] ?? (field.dependsOn === "method" ? "GET" : undefined);
-      if (!parentVal || !field.showForOperation.includes(parentVal)) {
-        return false;
-      }
+    const currentOps = formData.operation || formData.method || "read_rows";
+
+    // 1. Operation check: if field specifies showForOperation, check against active operation / method
+    if (field.showForOperation && !field.showForOperation.includes(currentOps)) {
+      return false;
     }
 
-    const currentOps = formData.operation || "read_rows";
-
-    // 2. Fall back to operation check only if field does not have a custom dependsOn
-    if (!field.dependsOn && field.showForOperation && (!field.showForOperation.includes(currentOps)))
+    // 2. HTTP method dependency check (e.g. body depends on method)
+    if (field.dependsOn === "method" && field.showForOperation && !field.showForOperation.includes(formData.method ?? "GET")) {
       return false;
+    }
 
+    // 3. Mapping mode switches for Google Sheets
+    if (field.name === 'mappedColumns') {
+      return (formData.mappingMode ?? 'visual') === 'visual';
+    }
+
+    if (field.name === 'bulkValues') {
+      return formData.mappingMode === 'bulk';
+    }
+
+    // 4. Custom range visibility
     if (field.name === 'range') {
       if (currentOps === 'read_rows' && (formData.fetchEntireTable ?? true))
-        return false
+        return false;
       if (currentOps === 'clear_rows' && (formData.clearEntireTable ?? true))
-        return false
+        return false;
       if (currentOps === 'write_rows')
-        return true
+        return true;
     }
 
+    // 5. Clear header row checkbox visibility
     if (field.name === 'includeHeaderRow') {
       if (currentOps === 'clear_rows' && !(formData.clearEntireTable ?? true))
-        return false
+        return false;
     }
 
-    if (field.name === 'mappedColumns')
-      return (config.mappingMode ?? 'visual') === 'visual'
-
-    if (field.name === 'bulkValues')
-      return config.mappingMode === 'bulk'
-    return true
-  }
+    return true;
+  };
 
   const extractSchemaKeys = (data: any): string[] => {
     if (!Array.isArray(data)) return ["Invalid Data (Expected an Array)"];
@@ -986,6 +985,12 @@ export default function ConfigModal({
                       <option key={h} value={h}>{h}</option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {sheetHeaders.length === 0 && !isLoadingHeaders && (
+                <div className="text-xs text-gray-500 italic py-1">
+                  No columns detected in Row 1. Make sure your Google Sheet has header titles in row 1.
                 </div>
               )}
             </>

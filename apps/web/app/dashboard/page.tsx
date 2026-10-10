@@ -517,7 +517,7 @@ export default function DashboardPage() {
           <div>
             <label className="text-zinc-500 font-medium">User ID</label>
             <div className="p-2.5 rounded-xl bg-white border border-zinc-200 font-mono text-zinc-800 mt-1">
-              {user.id || "usr_demo_8829"}
+              {user.userId || "usr_demo_8829"}
             </div>
           </div>
           <div>

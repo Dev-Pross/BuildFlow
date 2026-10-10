@@ -1,5 +1,5 @@
 import { prismaClient } from "@repo/db/client";
-// import { register } from "./registory.js";
+import { emitLiveEvent } from "@repo/kafka";
 import { ExecutionRegister } from "@repo/nodes";
 import {
   resolveConfigVariables,
@@ -42,6 +42,7 @@ function delay(ms: number): Promise<void> {
 export async function executeWorkflow(
   workflowExecutionId: string
 ): Promise<void> {
+  let targetWorkflowId: string | null = null;
   try {
     console.log(`workflowExecutionId is ${workflowExecutionId}`);
     const data = await prismaClient.workflowExecution.findUnique({
@@ -69,6 +70,8 @@ export async function executeWorkflow(
       console.log(`No workflow execution found for id ${workflowExecutionId}`);
       return;
     }
+
+    targetWorkflowId = data.workflow.id;
 
     const update = await prismaClient.workflowExecution.update({
       where: {
@@ -266,7 +269,15 @@ export async function executeWorkflow(
           inputData: currentInputData ? currentInputData : {},
           startedAt: new Date()
         }
-      })
+      });
+
+      await emitLiveEvent({
+        type: "NODE_START",
+        workflowId: data.workflow.id,
+        executionId: workflowExecutionId,
+        nodeId: node.id,
+        startedAt: new Date().toISOString(),
+      });
 
       // checking node type
       const nodeType = node?.AvailableNode;
@@ -320,7 +331,17 @@ export async function executeWorkflow(
               error: "Credential id not found",
               completedAt: new Date()
             }
-          })
+          });
+
+          await emitLiveEvent({
+            type: "NODE_FINISH",
+            workflowId: data.workflow.id,
+            executionId: workflowExecutionId,
+            nodeId: node.id,
+            status: "Failed",
+            completedAt: new Date().toISOString(),
+            error: "Credential id not found",
+          });
           return;
         }
       }
@@ -361,7 +382,17 @@ export async function executeWorkflow(
             outputData: isPartialFailure ? execute.output : undefined,
             completedAt: new Date()
           }
-        })
+        });
+
+        await emitLiveEvent({
+          type: "NODE_FINISH",
+          workflowId: data.workflow.id,
+          executionId: workflowExecutionId,
+          nodeId: node.id,
+          status: "Failed",
+          completedAt: new Date().toISOString(),
+          error: execute.error,
+        });
         return;
       }
       await prismaClient.nodeExecution.update({
@@ -371,7 +402,16 @@ export async function executeWorkflow(
           outputData: execute.output,
           status: "Completed"
         }
-      })
+      });
+
+      await emitLiveEvent({
+        type: "NODE_FINISH",
+        workflowId: data.workflow.id,
+        executionId: workflowExecutionId,
+        nodeId: node.id,
+        status: "Completed",
+        completedAt: new Date().toISOString(),
+      });
 
       // Store this node's output for variable resolution in subsequent nodes
       executedNodeOutputs.push({
@@ -418,8 +458,36 @@ export async function executeWorkflow(
     });
     console.log(updatedStatus);
 
+    await emitLiveEvent({
+      type: "WORKFLOW_FINISH",
+      workflowId: data.workflow.id,
+      executionId: workflowExecutionId,
+      status: "Completed",
+      completedAt: new Date().toISOString(),
+    });
+
   }
   catch (err: any) {
-    //update workflow with failed message
+    console.error(`Workflow execution failed for ${workflowExecutionId}:`, err);
+    try {
+      await prismaClient.workflowExecution.update({
+        where: { id: workflowExecutionId },
+        data: {
+          status: "Failed",
+          error: err?.message || "Unknown error occurred",
+          completedAt: new Date(),
+        },
+      });
+      await emitLiveEvent({
+        type: "WORKFLOW_FINISH",
+        workflowId: targetWorkflowId || workflowExecutionId,
+        executionId: workflowExecutionId,
+        status: "Failed",
+        completedAt: new Date().toISOString(),
+        error: err?.message || "Workflow execution failed",
+      });
+    } catch (innerErr) {
+      console.error("Failed to update execution error status in catch:", innerErr);
+    }
   }
 }

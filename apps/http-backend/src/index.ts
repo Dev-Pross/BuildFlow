@@ -37,15 +37,31 @@ app.use('/node', sheetRouter)
 app.use('/auth/google', googleAuth) 
 app.use('/execute', execRouter)
 
-const PORT= 3002
+import { initLiveEventsConsumer, shutdownLiveEventsConsumer } from "./services/liveEventsConsumer.js";
+
+const PORT = 3002;
 
 async function startServer() {
-  await NodeRegistry.registerAll()
+  await NodeRegistry.registerAll();
   tokenScheduler.start();
-  ExecutionRegister.initialize()
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-   })
-  }
+  ExecutionRegister.initialize();
+  await initLiveEventsConsumer();
 
-startServer()
+  const server = app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+
+  const handleShutdown = async (signal: string) => {
+    console.log(`[HTTP Backend] Received ${signal}. Shutting down gracefully...`);
+    await shutdownLiveEventsConsumer();
+    server.close(() => {
+      console.log("[HTTP Backend] HTTP server closed.");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+  process.on("SIGINT", () => handleShutdown("SIGINT"));
+}
+
+startServer();

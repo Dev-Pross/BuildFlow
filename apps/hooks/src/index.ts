@@ -1,5 +1,6 @@
 
 import { prismaClient } from "@repo/db/client";
+import { emitLiveEvent } from "@repo/kafka";
 
 import express from "express";
 const app = express();
@@ -45,8 +46,18 @@ app.post("/hooks/catch/:userId/:workflowId/:uniqueId", async (req, res) => {
           workflowExecutionId: workflowExecution.id,
         },
       });
-      return { workflowExecution };
+      return { workflowExecution, webhookPayload };
     });
+
+    // Broadcast real-time webhook event over Kafka for instant ConfigModal testing
+    await emitLiveEvent({
+      type: "TEST_WEBHOOK",
+      workflowId,
+      executionId: result.workflowExecution.id,
+      metadata: result.webhookPayload,
+      timestamp: new Date().toISOString(),
+    });
+
     return res.status(200).json({
       success: true,
       workflowExecutionId: result.workflowExecution.id,

@@ -20,6 +20,6 @@
   "license": "ISC",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "kafkajs": "^2.2.4"
+    "@repo/kafka": "workspace:*"
   }
 }

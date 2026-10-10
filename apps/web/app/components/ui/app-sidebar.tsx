@@ -58,6 +58,12 @@ export function AppSidebar() {
   const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
+    if (reduxWorkflowId) {
+      setSelectedWorkflow(reduxWorkflowId);
+    }
+  }, [reduxWorkflowId]);
+
+  useEffect(() => {
     async function getWorkflows() {
       try {
         const flows = await api.workflows.getAll();
@@ -97,12 +103,12 @@ export function AppSidebar() {
     <>
       <Sidebar collapsible="icon" className="border-r border-[#222429] bg-[#0e0f11] text-white">
         {/* Header */}
-        <SidebarHeader className="flex items-center justify-between p-4 border-b border-[#1e1f23]">
-          <Link href="/dashboard" className="flex items-center gap-3 group">
-            <div className="h-9 w-9 rounded-2xl bg-white text-black flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform shrink-0">
-              <Workflow className="h-4.5 w-4.5 text-black" />
+        <SidebarHeader className="flex items-center justify-between p-3 border-b border-[#1e1f23] group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:justify-center">
+          <Link href="/dashboard" className="flex items-center gap-3 group group-data-[collapsible=icon]:hidden">
+            <div className="h-8 w-8 rounded-xl bg-white text-black flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform shrink-0">
+              <Workflow className="h-4 w-4 text-black" />
             </div>
-            <span className="font-extrabold text-base tracking-tight text-white group-data-[state=collapsed]:hidden">
+            <span className="font-extrabold text-base tracking-tight text-white">
               BuildFlow
             </span>
           </Link>
@@ -110,16 +116,17 @@ export function AppSidebar() {
         </SidebarHeader>
 
         {/* Content */}
-        <SidebarContent className="p-3 space-y-2">
+        <SidebarContent className="p-2 space-y-2 group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:overflow-hidden">
           <SidebarMenu>
             {/* Create workflow action */}
             <SidebarMenuItem>
               <SidebarMenuButton
-                className="w-full justify-center gap-2 py-2.5 px-3 rounded-2xl bg-white text-black font-bold text-xs hover:bg-gray-100 transition-all shadow-sm cursor-pointer"
+                className="w-full justify-center gap-2 py-2.5 px-3 rounded-2xl bg-white text-black font-bold text-xs hover:bg-gray-100 transition-all shadow-sm cursor-pointer group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-xl"
                 onClick={() => setCreateOpen(true)}
+                tooltip="New Flow"
               >
                 <Plus className="h-4 w-4 shrink-0 text-black" />
-                <span className="group-data-[state=collapsed]:hidden">New Flow</span>
+                <span className="group-data-[collapsible=icon]:hidden">New Flow</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
 
@@ -127,26 +134,30 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => router.push('/dashboard')}
-                className="w-full gap-2.5 px-3 py-2.5 rounded-2xl text-[#9ca3af] hover:text-white hover:bg-[#1a1b1f] text-xs font-semibold transition-colors"
+                className="w-full gap-2.5 px-3 py-2.5 rounded-2xl text-[#9ca3af] hover:text-white hover:bg-[#1a1b1f] text-xs font-semibold transition-colors group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-xl"
+                tooltip="Dashboard Hub"
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0 text-white" />
-                <span className="group-data-[state=collapsed]:hidden">Dashboard Hub</span>
+                <span className="group-data-[collapsible=icon]:hidden">Dashboard Hub</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
 
             {/* WORKFLOWS LIST */}
-            <Collapsible defaultOpen className="group/collapsible pt-2">
+            <Collapsible defaultOpen className="group/collapsible pt-2 group-data-[collapsible=icon]:pt-0">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton className="w-full justify-between px-3 py-2 text-xs font-semibold text-[#9ca3af] hover:text-white hover:bg-[#1a1b1f] rounded-2xl transition-colors">
+                  <SidebarMenuButton
+                    className="w-full justify-between px-3 py-2 text-xs font-semibold text-[#9ca3af] hover:text-white hover:bg-[#1a1b1f] rounded-2xl transition-colors group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-xl"
+                    tooltip="Workflows"
+                  >
                     <div className="flex items-center gap-2.5">
-                      <Workflow className="h-4 w-4 text-gray-400" />
-                      <span className="group-data-[state=collapsed]:hidden">Workflows</span>
+                      <Workflow className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="group-data-[collapsible=icon]:hidden">Workflows</span>
                     </div>
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180 group-data-[state=collapsed]:hidden" />
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180 group-data-[collapsible=icon]:hidden" />
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
-                <CollapsibleContent>
+                <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
                   <SidebarMenuSub className="max-h-60 overflow-y-auto cursor-pointer space-y-1 px-1 py-1">
                     {workflows ? (
                       workflows.length === 0 ? (
@@ -184,15 +195,18 @@ export function AppSidebar() {
             <Collapsible className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton className="w-full justify-between px-3 py-2 text-xs font-semibold text-[#9ca3af] hover:text-white hover:bg-[#1a1b1f] rounded-2xl transition-colors">
+                  <SidebarMenuButton
+                    className="w-full justify-between px-3 py-2 text-xs font-semibold text-[#9ca3af] hover:text-white hover:bg-[#1a1b1f] rounded-2xl transition-colors group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-xl"
+                    tooltip="Credentials"
+                  >
                     <div className="flex items-center gap-2.5">
-                      <Key className="h-4 w-4 text-gray-400" />
-                      <span className="group-data-[state=collapsed]:hidden">Credentials</span>
+                      <Key className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="group-data-[collapsible=icon]:hidden">Credentials</span>
                     </div>
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180 group-data-[state=collapsed]:hidden" />
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-180 group-data-[collapsible=icon]:hidden" />
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
-                <CollapsibleContent>
+                <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
                   <SidebarMenuSub className="max-h-36 overflow-y-auto cursor-pointer space-y-1 px-1 py-1">
                     {creds ? (
                       creds.length === 0 ? (
@@ -219,20 +233,24 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* Footer */}
-        <SidebarFooter className="p-3 border-t border-[#1e1f23] mt-auto">
+        <SidebarFooter className="p-2 border-t border-[#1e1f23] mt-auto group-data-[collapsible=icon]:p-2">
           <SidebarMenu>
-            <SidebarMenuItem>
+            <SidebarMenuItem className="flex justify-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton className="h-auto p-2.5 rounded-2xl hover:bg-[#1a1b1f] transition-colors w-full">
-                    <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs shrink-0 shadow-sm">
+                  <SidebarMenuButton
+                    size="lg"
+                    tooltip={user.name || "User Profile"}
+                    className="h-10 data-[state=open]:bg-[#1a1b1f] hover:bg-[#1a1b1f] transition-colors rounded-xl group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                  >
+                    <div className="aspect-square h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs shrink-0 shadow-sm ring-1 ring-white/10">
                       {user.name?.[0]?.toUpperCase() || "U"}
                     </div>
-                    <div className="flex flex-col text-left min-w-0 flex-1 ml-2.5 group-data-[state=collapsed]:hidden">
+                    <div className="flex flex-col text-left min-w-0 flex-1 ml-2.5 group-data-[collapsible=icon]:hidden">
                       <span className="text-xs font-bold text-white truncate">{user.name || "User"}</span>
                       <span className="text-[10px] text-[#9ca3af] truncate">{user.email || "user@build.com"}</span>
                     </div>
-                    <ChevronUp className="h-4 w-4 ml-auto text-gray-500 group-data-[state=collapsed]:hidden" />
+                    <ChevronUp className="h-4 w-4 ml-auto text-gray-500 group-data-[collapsible=icon]:hidden" />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
