@@ -20,6 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@repo/kafka": "workspace:*",
     "@repo/nodes": "workspace:*",
     "@types/axios": "^0.14.4",
     "@types/cookie-parser": "^1.4.10",

@@ -92,7 +92,6 @@ export const googleSheetActionConfig: NodeConfig = {
       name: "mappedColumns",
       type: "column_mapper",
       label: "Map Columns",
-      dependsOn: "mappingMode",
       showForOperation: ["append_rows", "write_rows"],
       description: "Map variables to specific Google Sheet columns"
     },
@@ -101,7 +100,6 @@ export const googleSheetActionConfig: NodeConfig = {
       type: "textarea",
       label: "Data to Write (JSON 2D Array)",
       placeholder: '[["Value 1", "Value 2"], ["Value 3", "Value 4"]]',
-      dependsOn: "mappingMode",
       showForOperation: ["append_rows", "write_rows"],
       description: "Provide a JSON 2D array or an array variable from a previous node"
     },
@@ -111,7 +109,6 @@ export const googleSheetActionConfig: NodeConfig = {
       type: 'checkbox',
       defaultValue: false,
       description: 'When unchecked, preserves Row 1 header titles and clears data starting from Row 2 (A2:Z)',
-      dependsOn: 'clearEntireTable',
       showForOperation: ['clear_rows']
     }
   ],

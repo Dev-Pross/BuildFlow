@@ -43,7 +43,7 @@ export function WorkflowToolbar({
   const isSaved = saveStatus.toLowerCase().includes("saved") && !hasUnsavedChanges;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 p-2 bg-white/95 backdrop-blur-xl border border-gray-200/90 rounded-full shadow-2xl shadow-black/10 select-none">
+    <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 p-2 bg-white/95 backdrop-blur-xl border border-gray-200/90 rounded-full shadow-2xl shadow-black/10 select-none">
       {/* ── Run / Execute Workflow Button (Make.com Style) ── */}
       <button
         type="button"
@@ -90,18 +90,6 @@ export function WorkflowToolbar({
         )}
         <span className="hidden sm:inline">{saveStatus}</span>
       </button>
-
-      {/* ── Export JSON Button ── */}
-      {onExport && (
-        <button
-          type="button"
-          onClick={onExport}
-          className="p-2 rounded-full text-gray-500 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer"
-          title="Export Workflow JSON"
-        >
-          <Download className="w-4 h-4" />
-        </button>
-      )}
 
       {/* ── Zoom Controls ── */}
       {(onZoomIn || onZoomOut || onFitView) && (

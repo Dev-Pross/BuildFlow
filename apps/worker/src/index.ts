@@ -1,22 +1,15 @@
-import { Kafka } from "kafkajs";
+import { createKafkaConsumer, TOPIC_WORKFLOW_EXECUTIONS } from "@repo/kafka";
 import { executeWorkflow } from "./engine/executor.js";
 import { ExecutionRegister } from "@repo/nodes";
-// import { register } from "./engine/registory.js";
-const kafka = new Kafka({
-  // clientId: "Processing App",
-  clientId: "BuildFlow-Worker",
-  brokers: ["localhost:9092"],
-});
-const TOPIC_NAME = "First-Client";
 
-ExecutionRegister.initialize()
+ExecutionRegister.initialize();
 
 async function main() {
-  const consumer = kafka.consumer({ groupId: "test-group" });
+  const consumer = createKafkaConsumer("buildflow-worker-group");
   await consumer.connect();
 
   await consumer.subscribe({
-    topic: TOPIC_NAME,
+    topic: TOPIC_WORKFLOW_EXECUTIONS,
     fromBeginning: true,
   });
   await consumer.run({
@@ -48,7 +41,7 @@ async function main() {
       try {
         await consumer.commitOffsets([
           {
-            topic: TOPIC_NAME,
+            topic: TOPIC_WORKFLOW_EXECUTIONS,
             partition: partition,
 
             offset: (parseInt(message.offset) + 1).toString(),

@@ -18,8 +18,8 @@
   "license": "ISC",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
+    "@repo/kafka": "workspace:*",
     "@types/axios": "^0.14.4",
-    "axios": "^1.13.2",
-    "kafkajs": "^2.2.4"
+    "axios": "^1.13.2"
   }
 }

@@ -1,6 +1,15 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useSidebar } from "@workspace/ui/components/sidebar";
+import {
+  Activity,
+  RefreshCw,
+  ChevronUp,
+  ChevronDown,
+  ArrowLeft,
+  X,
+} from 'lucide-react';
 import { WorkflowExecutionLog, NodeExecutionLog } from '@/app/types/execution.types';
 import {
   formatDate,
@@ -10,9 +19,9 @@ import {
 
 interface ExecutionHistoryFooterProps {
   workflowId: string;
-  onExecutionFetch: (executions: WorkflowExecutionLog[]) => void;
+  onExecutionFetch?: (executions: WorkflowExecutionLog[]) => void;
   isLoading?: boolean;
-  autoRefreshInterval?: number;
+  refreshTrigger?: number;
 }
 
 // ─── Status Badge ───
@@ -194,18 +203,21 @@ export default function ExecutionHistoryFooter({
   workflowId,
   onExecutionFetch,
   isLoading = false,
-  autoRefreshInterval = 5000,
+  refreshTrigger,
 }: ExecutionHistoryFooterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [executions, setExecutions] = useState<WorkflowExecutionLog[]>([]);
   const [selectedExecution, setSelectedExecution] = useState<WorkflowExecutionLog | null>(null);
   const [footerLoading, setFooterLoading] = useState(false);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchRef = useRef<number>(0);
+  const onExecutionFetchRef = useRef(onExecutionFetch);
 
-  // Detect sidebar state via CSS custom property / DOM attribute
-  const [sidebarWidth, setSidebarWidth] = useState(256); // 16rem default
+  useEffect(() => {
+    onExecutionFetchRef.current = onExecutionFetch;
+  }, [onExecutionFetch]);
+
+  // Detect sidebar state reactively via useSidebar
+  const { state: sidebarState } = useSidebar();
+  const sidebarWidth = sidebarState === 'collapsed' ? 48 : 256;
 
   // Drawer height state for vertical resizing
   const [drawerHeight, setDrawerHeight] = useState<number>(450);
@@ -219,7 +231,7 @@ export default function ExecutionHistoryFooter({
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (!isDraggingRef.current) return;
-      const deltaY = startY - moveEvent.clientY; // moving cursor up increases drawer height
+      const deltaY = startY - moveEvent.clientY;
       const maxHeight = typeof window !== 'undefined' ? window.innerHeight - 80 : 800;
       const newH = Math.min(Math.max(startH + deltaY, 200), maxHeight);
       setDrawerHeight(newH);
@@ -235,34 +247,21 @@ export default function ExecutionHistoryFooter({
     window.addEventListener('mouseup', onMouseUp);
   };
 
-  useEffect(() => {
-    const observeSidebar = () => {
-      const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]');
-      if (!wrapper) return;
-      
-      const observer = new MutationObserver(() => {
-        const sidebarEl = document.querySelector('[data-slot="sidebar"]');
-        if (sidebarEl) {
-          const state = sidebarEl.getAttribute('data-state');
-          setSidebarWidth(state === 'collapsed' ? 48 : 256);
-        }
-      });
-      
-      observer.observe(wrapper, { attributes: true, subtree: true, attributeFilter: ['data-state'] });
-      
-      // Initial check
-      const sidebarEl = document.querySelector('[data-slot="sidebar"]');
-      if (sidebarEl) {
-        const state = sidebarEl.getAttribute('data-state');
-        setSidebarWidth(state === 'collapsed' ? 48 : 256);
-      }
-      
-      return () => observer.disconnect();
-    };
-
-    const cleanup = observeSidebar();
-    return () => cleanup?.();
-  }, []);
+  const fetchExecutionLogs = useCallback(async () => {
+    if (!workflowId) return;
+    try {
+      setFooterLoading(true);
+      const { api } = await import('@/app/lib/api');
+      const logs = await api.executions.getWorkflowLogs(workflowId, 0, 20);
+      const executionsList = Array.isArray(logs) ? logs : [];
+      setExecutions(executionsList);
+      onExecutionFetchRef.current?.(executionsList);
+    } catch (error) {
+      console.error('Failed to fetch execution logs:', error);
+    } finally {
+      setFooterLoading(false);
+    }
+  }, [workflowId]);
 
   // Load initial execution history
   useEffect(() => {
@@ -272,55 +271,19 @@ export default function ExecutionHistoryFooter({
     if (savedExpandedState !== null) {
       setIsExpanded(JSON.parse(savedExpandedState));
     }
-  }, [workflowId]);
-
-  // Setup auto-refresh polling
-  useEffect(() => {
-    if (!autoRefreshEnabled) {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-        refreshIntervalRef.current = null;
-      }
-      return;
-    }
-
-    fetchExecutionLogs();
-
-    refreshIntervalRef.current = setInterval(() => {
-      const now = Date.now();
-      if (now - lastFetchRef.current >= autoRefreshInterval) {
-        fetchExecutionLogs();
-      }
-    }, autoRefreshInterval);
-
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-        refreshIntervalRef.current = null;
-      }
-    };
-  }, [autoRefreshEnabled, autoRefreshInterval]);
+  }, [fetchExecutionLogs]);
 
   // Persist expanded state
   useEffect(() => {
     localStorage.setItem('executionFooterExpanded', JSON.stringify(isExpanded));
   }, [isExpanded]);
 
-  const fetchExecutionLogs = useCallback(async () => {
-    try {
-      setFooterLoading(true);
-      const { api } = await import('@/app/lib/api');
-      const logs = await api.executions.getWorkflowLogs(workflowId, 0, 20);
-      const executionsList = Array.isArray(logs) ? logs : [];
-      setExecutions(executionsList);
-      onExecutionFetch(executionsList);
-      lastFetchRef.current = Date.now();
-    } catch (error) {
-      console.error('Failed to fetch execution logs:', error);
-    } finally {
-      setFooterLoading(false);
+  // Immediately refresh execution logs when an SSE event fires
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      fetchExecutionLogs();
     }
-  }, [workflowId, onExecutionFetch]);
+  }, [refreshTrigger, fetchExecutionLogs]);
 
   const hasAnyTest = (exec: WorkflowExecutionLog) => {
     return exec.nodeExecutions?.some(ne => ne.isTest) || false;
@@ -345,15 +308,16 @@ export default function ExecutionHistoryFooter({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 16px',
+          padding: '0 64px 0 16px',
           transition: 'left 0.2s ease',
           backdropFilter: 'blur(12px)',
         }}
       >
         {/* Left */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            📊 Executions
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '7px' }}>
+            <Activity style={{ width: '15px', height: '15px', color: '#818cf8', flexShrink: 0 }} />
+            <span>Executions</span>
           </span>
           <span style={{ fontSize: '11px', color: '#64748b' }}>
             Last: <StatusBadge status={lastStatus} />
@@ -378,25 +342,19 @@ export default function ExecutionHistoryFooter({
               borderRadius: '6px',
               cursor: footerLoading ? 'wait' : 'pointer',
               transition: 'all 0.15s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            {footerLoading ? '⟳' : '↻ Refresh'}
-          </button>
-          <button
-            onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-            style={{
-              padding: '4px 10px',
-              fontSize: '11px',
-              fontWeight: 600,
-              background: autoRefreshEnabled ? 'rgba(99, 102, 241, 0.2)' : '#18191c',
-              color: autoRefreshEnabled ? '#a5b4fc' : '#9ca3af',
-              border: autoRefreshEnabled ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid #27282d',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {autoRefreshEnabled ? '● Live' : '○ Paused'}
+            <RefreshCw
+              style={{
+                width: '12px',
+                height: '12px',
+                animation: footerLoading ? 'spin 1s linear infinite' : 'none',
+              }}
+            />
+            <span>Refresh</span>
           </button>
           <button
             onClick={() => {
@@ -404,7 +362,7 @@ export default function ExecutionHistoryFooter({
               if (!isExpanded) setSelectedExecution(null);
             }}
             style={{
-              padding: '4px 14px',
+              padding: '4px 12px',
               fontSize: '11px',
               fontWeight: 600,
               background: isExpanded ? '#18191c' : '#ffffff',
@@ -413,9 +371,22 @@ export default function ExecutionHistoryFooter({
               borderRadius: '6px',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
             }}
           >
-            {isExpanded ? '▼ Collapse' : '▲ Expand'}
+            {isExpanded ? (
+              <>
+                <ChevronDown style={{ width: '13px', height: '13px' }} />
+                <span>Collapse</span>
+              </>
+            ) : (
+              <>
+                <ChevronUp style={{ width: '13px', height: '13px' }} />
+                <span>Expand</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -490,9 +461,13 @@ export default function ExecutionHistoryFooter({
                       cursor: 'pointer',
                       fontSize: '11px',
                       fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
                   >
-                    ← Back
+                    <ArrowLeft style={{ width: '12px', height: '12px' }} />
+                    <span>Back</span>
                   </button>
                   <span>Node Executions</span>
                   <span style={{ fontSize: '10px', color: '#64748b', fontFamily: 'monospace' }}>
@@ -516,13 +491,12 @@ export default function ExecutionHistoryFooter({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '14px',
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.borderColor = '#6366f1'; }}
               onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#334155'; }}
             >
-              ✕
+              <X style={{ width: '14px', height: '14px' }} />
             </button>
           </div>
 

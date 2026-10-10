@@ -17,6 +17,7 @@ interface BaseNodeProps {
     nodeType?: "trigger" | "action";
     isConfigured?: boolean;
     status?: "idle" | "running" | "success" | "error";
+    executionStatus?: "running" | "completed" | "failed" | null;
     onConfigure?: () => void;
     onTest?: () => void;
     onAddChild?: (sourceHandleId?: string) => void;
@@ -108,10 +109,21 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
     onDelete,
     onReplace,
     isConfigured,
+    executionStatus,
   } = data;
 
   const isTrigger = nodeType === "trigger";
   const theme = getNodeTheme(label, isTrigger);
+
+  const currentStatus = executionStatus || data.status;
+  const statusRing =
+    currentStatus === "running"
+      ? "ring-4 ring-blue-500/80 shadow-[0_0_20px_rgba(59,130,246,0.6)] animate-pulse"
+      : currentStatus === "completed" || currentStatus === "success"
+      ? "ring-4 ring-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+      : currentStatus === "failed" || currentStatus === "error"
+      ? "ring-4 ring-rose-500/80 shadow-[0_0_15px_rgba(244,63,94,0.6)]"
+      : "";
 
   // ── Placeholder Node (Make.com Style) ──
   if (isPlaceholder) {
@@ -161,7 +173,7 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
   // ── Configured Visual Node Card (Make.com Style) ──
   return (
     <div
-      className={`min-w-[190px] max-w-[240px] rounded-3xl border-2 p-4 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 relative group select-none ${theme.cardBg}`}
+      className={`min-w-[190px] max-w-[240px] rounded-3xl border-2 p-4 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 relative group select-none ${theme.cardBg} ${statusRing}`}
     >
       <div className="flex flex-col items-center text-center">
         {/* Node Icon Container */}

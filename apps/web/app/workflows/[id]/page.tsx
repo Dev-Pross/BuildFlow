@@ -35,6 +35,7 @@ import { resolveConfigVariables } from "@repo/common/zod";
 import { SidebarProvider } from "@workspace/ui/components/sidebar";
 import { AppSidebar } from "@/app/components/ui/app-sidebar";
 import ExecutionHistoryFooter from "@/app/components/ExecutionHistoryFooter";
+import { useWorkflowEvents } from "@/app/hooks/useWorkflowEvents";
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
@@ -196,6 +197,53 @@ export default function WorkflowCanvas() {
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
+
+  // Real-time canvas telemetry via Kafka + SSE
+  useWorkflowEvents({
+    workflowId,
+    onNodeStart: ({ nodeId }) => {
+      setNodes((prev) =>
+        prev.map((node) =>
+          node.id === nodeId
+            ? { ...node, data: { ...node.data, executionStatus: "running" } }
+            : node
+        )
+      );
+    },
+    onNodeFinish: ({ nodeId, status }) => {
+      setNodes((prev) =>
+        prev.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  executionStatus: status === "Completed" ? "completed" : "failed",
+                },
+              }
+            : node
+        )
+      );
+    },
+    onWorkflowFinish: ({ status }) => {
+      setHistoryRefreshTrigger((prev) => prev + 1);
+      // Retain finished status ring for 4 seconds then fade away
+      setTimeout(() => {
+        setNodes((prev) =>
+          prev.map((node) => ({
+            ...node,
+            data: { ...node.data, executionStatus: null },
+          }))
+        );
+      }, 4000);
+      if (status === "Completed") {
+        toast.success("Workflow executed successfully!");
+      } else {
+        toast.error("Workflow execution failed.");
+      }
+    },
+  });
 
   useEffect(() => {
     if (error) {
@@ -289,324 +337,228 @@ export default function WorkflowCanvas() {
   }, [reduxWorkflow.data.nodes, reduxWorkflow.data.trigger])
 
   useEffect(() => {
+    let isCancelled = false;
+
     const loadWorkflows = async () => {
+      if (!workflowId) return;
+
       try {
-        if (reduxWorkflow.data.workflowId === workflowId) {
-          const { trigger, nodes: reduxNodes, edges: reduxEdges } = reduxWorkflow.data
+        // Clear canvas states while switching workflows
+        setNodes([]);
+        setEdges([]);
 
-          if (!trigger) {
-            setNodes([{
-              id: "trigger-placeholder",
-              type: "customNode",
-              position: { x: 250, y: 50 },
-              data: {
-                label: "Add Trigger",
-                icon: "➕",
-                isPlaceholder: true,
-                nodeType: "trigger",
-                onConfigure: () => setTriggerOpen(true),
-              },
-            }]);
-            setEdges([]);
-            setError(null);
-            return;
-          }
-          const triggerPosition = ensurePosition(trigger.position, DEFAULT_TRIGGER_POSITION)
-          const triggerNode = {
-            id: trigger.TriggerId,
+        const response = await api.workflows.get(workflowId);
+        if (isCancelled) return;
+
+        const backendData = response?.data?.Data;
+        if (!backendData) return;
+
+        // Populate Redux store
+        dispatch(
+          workflowActions.setWorkflowFromBackend({
+            workflowId,
+            data: backendData,
+          })
+        );
+
+        // Build Trigger Node
+        const backendTrigger = backendData.Trigger;
+        let triggerNode: any;
+        let triggerPosition = DEFAULT_TRIGGER_POSITION;
+
+        if (!backendTrigger) {
+          triggerNode = {
+            id: "trigger-placeholder",
             type: "customNode",
-            deletable: false,
-            position: triggerPosition,
+            position: DEFAULT_TRIGGER_POSITION,
             data: {
-              label: trigger.name || "Trigger",
-              icon: trigger.icon || "⚡", // add icon field in redux and db 
-              nodeType: "trigger",
-              config: trigger.Config || {},
-              isConfigured: checkIsConfigure(trigger.name, trigger.Config),
-              onConfigure: () =>
-                handleNodeConfigure({
-                  id: trigger.TriggerId,
-                  name: trigger.name,
-                  icon: trigger.icon
-                }),
-              // onTest: (trigger.name.toLowerCase().includes('webhook') ? undefined : () => testNodeFromCanvas(trigger.TriggerId, trigger.name, "trigger")),
-              onAddChild: (sourceHandleId?: string) => {
-                setBranchSourceNodeId(trigger.TriggerId);
-                setBranchSourceHandleId(sourceHandleId || null);
-                setActionOpen(true);
-              },
-              onReplace: () => handleRequestReplaceTrigger(trigger.TriggerId)
-            },
-          };
-
-          console.log(JSON.stringify(reduxNodes), "from 236")
-          const transformedNodes = reduxNodes.map((node) => ({
-            id: node.NodeId,
-            type: "customNode",
-            position: ensurePosition(node.position, {
-              x: triggerPosition.x + 350,
-              y: triggerPosition.y + 150,
-            }),
-            data: {
-              label: node.name || "Unknown",
-              icon: node.icon || "⚙️",
-              nodeType: "action",
-              config: node.Config || {},
-              isConfigured: checkIsConfigure(node.name, node.Config),
-              onConfigure: () =>
-                handleNodeConfigure({
-                  id: node.NodeId,
-                  name: node.name,
-                  type: "action",
-                  actionType: node.AvailableNodeID,
-                  icon: node.icon
-                }),
-              // onTest: () => testNodeFromCanvas(node.NodeId, node.name, "action"),
-              onAddChild: (sourceHandleId?: string) => {
-                setBranchSourceNodeId(node.NodeId);
-                setBranchSourceHandleId(sourceHandleId || null);
-                setActionOpen(true);
-              },
-              onDelete: () => {
-                dispatch(workflowActions.deleteNode(node.NodeId))
-                dispatch(clearNodeOutput(node.NodeId))
-
-                setNodes(prev => prev.filter(n => n.id !== node.NodeId))
-                setEdges(prev => prev.filter(e => e.source !== node.NodeId && e.target !== node.NodeId))
-              },
-              onReplace: () => {
-                setReplacingNodeId(node.NodeId);
-                setActionOpen(true)
-              }
-            }
-          }))
-
-          const lastNode =
-            transformedNodes.length > 0
-              ? transformedNodes[transformedNodes.length - 1]
-              : triggerNode;
-
-          const lastPosition = ensurePosition(
-            lastNode?.position,
-            transformedNodes.length > 0
-              ? { x: triggerPosition.x + 350, y: triggerPosition.y + 150 }
-              : triggerPosition
-          );
-
-          const placeholderPosition = {
-            x: lastPosition.x + 550,
-            y: lastPosition.y,
-          };
-
-          const actionPlaceholder = {
-            id: `action-placeholder-${Date.now()}`,
-            type: "customNode",
-            position: placeholderPosition,
-            data: {
-              label: "Add Action",
+              label: "Add Trigger",
               icon: "➕",
               isPlaceholder: true,
-              nodeType: "action",
-              onConfigure: () => setActionOpen(true),
+              nodeType: "trigger",
+              onConfigure: () => setTriggerOpen(true),
             },
           };
-
-          // 5. Combine nodes
-          const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
-
-          const lastActionNode = reduxNodes.length > 0 ? reduxNodes[reduxNodes.length - 1] : null;
-          const sourceNodeId = lastActionNode ? lastActionNode.NodeId : trigger.TriggerId
-
-          const cleanReduxEdges = reduxEdges.filter(e => !e.target.startsWith('action-placeholder-'))
-          const healedReduxEdges = cleanReduxEdges.map((e: any) => {
-            const sourceExists = finalNodes.some((n: any) => n.id === e.source);
-            if (!sourceExists && transformedNodes.some((n: any) => n.id === e.target)) {
-              return {
-                ...e,
-                id: `e-${triggerNode.id}-${e.target}`,
-                source: triggerNode.id,
-                sourceHandle: "t-out",
-                targetHandle: e.targetHandle || "a-in",
-              };
-            }
-            return e;
-          }).filter((e: any) => finalNodes.some((n: any) => n.id === e.source) && finalNodes.some((n: any) => n.id === e.target));
-
-          const newEdges = [
-            ...healedReduxEdges,
-            { id: `e-action-${sourceNodeId}-placeholder`, source: sourceNodeId, target: actionPlaceholder.id },
-          ]
-          setNodes(finalNodes)
-          setEdges(newEdges)
-
-          return
+          setNodes([triggerNode]);
+          setEdges([]);
+          return;
         }
 
-
-        else {
-          const workflows = await api.workflows.get(workflowId);
-
-          // Defensive: Default to empty arrays if not present
-          const dbNodes = Array.isArray(workflows?.data?.Data?.nodes)
-            ? workflows.data.Data.nodes
-            : [];
-          console.log("the node data is", dbNodes)
-          const dbEdges = Array.isArray(workflows?.data?.Data?.Edges)
-            ? workflows.data.Data.Edges
-            : [];
-          const Trigger = workflows?.data?.Data?.Trigger;
-
-
-          // store updating
-          dispatch(
-            workflowActions.setWorkflowFromBackend({
-              workflowId,
-              data: workflows.data.Data,
-            })
-          )
-          
-          let triggerNode: any;
-          let triggerPosition = { x: 250, y: 50 };
-          
-          if (!Trigger) {
-            triggerNode = {
-              id: "trigger-placeholder",
-              type: "customNode",
-              position: triggerPosition,
-              data: {
-                label: "Add Trigger",
-                icon: "➕",
-                isPlaceholder: true,
-                nodeType: "trigger",
-                onConfigure: () => setTriggerOpen(true),
-              },
-            };
-          } else {
-            // Ensure trigger position
-            triggerPosition = ensurePosition(
-              Trigger?.Position,
-              DEFAULT_TRIGGER_POSITION
-            );
-
-            triggerNode = {
-              id: Trigger.id,
-              type: "customNode",
-              position: triggerPosition,
-              deletable: false,
-              data: {
-                label: Trigger.name || Trigger.data?.label || "Trigger",
-                icon: Trigger?.icon || "⚡",
-                nodeType: "trigger",
-                config: Trigger.config || {},
-                isConfigured: checkIsConfigure(Trigger.name, Trigger.config || {}),
-                onConfigure: () =>
-                  handleNodeConfigure({
-                    id: Trigger.id,
-                    name: Trigger.name,
-                    icon: Trigger.icon
-                  }),
-                onTest: (Trigger.name.toLowerCase().includes('webhook') ? undefined : () => testNodeFromCanvas(Trigger.id, Trigger.name, "trigger")),
-                onAddChild: (sourceHandleId?: string) => {
-                  setBranchSourceNodeId(Trigger.id);
-                  setBranchSourceHandleId(sourceHandleId || null);
-                  setActionOpen(true);
-                },
-                onReplace: () => handleRequestReplaceTrigger(Trigger.id)
-              },
-            };
-          }
-
-          // 3. Transform action nodes, ensuring position property is always valid
-          const transformedNodes = dbNodes.map((node: any) => ({
-            id: node.id,
-            type: "customNode",
-            position: ensurePosition(node?.position, {
-              x: triggerPosition.x + 350,
-              y: triggerPosition.y + 150,
-            }),
-            data: {
-              label: node.data?.label || node.name || "Unknown",
-              icon: node.icon || "⚙️",
-              nodeType: "action",
-              config: node.config || {},
-              isConfigured: checkIsConfigure(node.name || node.data?.label, node.config || {}),
-              onConfigure: () =>
-                handleNodeConfigure({
-                  id: node.id,
-                  name: node.data?.label || node.name,
-                  type: "action",
-                  icon: node.icon,
-                  actionType: node.AvailableNodeId,
-                }),
-              onTest: () => testNodeFromCanvas(node.id, node.name, "action"),
-              onAddChild: (sourceHandleId?: string) => {
-                setBranchSourceNodeId(node.id);
-                setBranchSourceHandleId(sourceHandleId || null);
-                setActionOpen(true);
-              },
-              onDelete: () => {
-                dispatch(workflowActions.deleteNode(node.id));
-                dispatch(clearNodeOutput(node.id));
-
-                setNodes(prev => prev.filter(n => n.id !== node.id));
-                setEdges(prev => prev.filter(e => e.source !== node.id && e.target !== node.id));
-              },
-              onReplace: () => {
-                setReplacingNodeId(node.id);
-                setActionOpen(true);
-              }
-            },
-          }));
-
-          // 4. Combine nodes
-          const finalNodes = [triggerNode, ...transformedNodes];
-
-          // 5. Manage edges
-          let finalEdges = Array.isArray(dbEdges) ? [...dbEdges] : [];
-
-          // Auto-heal any edge whose source was a replaced trigger
-          finalEdges = finalEdges.map((e: any) => {
-            const sourceExists = finalNodes.some((n: any) => n.id === e.source);
-            if (!sourceExists && transformedNodes.some((n: any) => n.id === e.target)) {
-              return {
-                ...e,
-                id: `e-${triggerNode.id}-${e.target}`,
-                source: triggerNode.id,
-                sourceHandle: "t-out",
-                targetHandle: e.targetHandle || "a-in",
-              };
-            }
-            return e;
-          }).filter((e: any) => finalNodes.some((n: any) => n.id === e.source) && finalNodes.some((n: any) => n.id === e.target));
-
-          if (finalEdges.length === 0 && transformedNodes.length > 0) {
-            const triggerEdge = {
-              id: `e-${triggerNode.id}-${transformedNodes[0].id}`,
-              source: triggerNode.id,
-              target: transformedNodes[0].id,
-              sourceHandle: "t-out",
-              targetHandle: "a-in",
-              type: "default",
-            };
-            finalEdges.push(triggerEdge);
-          }
-
-          setNodes(finalNodes);
-          setEdges(finalEdges);
-          dispatch(workflowActions.setEdge(finalEdges));
-        }
-      } catch (err: any) {
-        console.error("Failed to load workflow:", err);
-        toast.error(
-          err?.message ??
-          "Failed to load workflow. Please check your connection or reload the page."
+        triggerPosition = ensurePosition(
+          backendTrigger.Position,
+          DEFAULT_TRIGGER_POSITION
         );
+
+        triggerNode = {
+          id: backendTrigger.id,
+          type: "customNode",
+          deletable: false,
+          position: triggerPosition,
+          data: {
+            label: backendTrigger.name || "Trigger",
+            icon: backendTrigger.icon || "⚡",
+            nodeType: "trigger",
+            config: backendTrigger.config || {},
+            isConfigured: checkIsConfigure(
+              backendTrigger.name,
+              backendTrigger.config || {}
+            ),
+            onConfigure: () =>
+              handleNodeConfigure({
+                id: backendTrigger.id,
+                name: backendTrigger.name,
+                icon: backendTrigger.icon,
+              }),
+            onAddChild: (sourceHandleId?: string) => {
+              setBranchSourceNodeId(backendTrigger.id);
+              setBranchSourceHandleId(sourceHandleId || null);
+              setActionOpen(true);
+            },
+            onReplace: () => handleRequestReplaceTrigger(backendTrigger.id),
+          },
+        };
+
+        // Build Action Nodes
+        const backendNodes = Array.isArray(backendData.nodes)
+          ? backendData.nodes
+          : [];
+
+        const transformedNodes = backendNodes.map((node: any) => ({
+          id: node.id,
+          type: "customNode",
+          position: ensurePosition(node.position, {
+            x: triggerPosition.x + 350,
+            y: triggerPosition.y + 150,
+          }),
+          data: {
+            label: node.name || "Unknown",
+            icon: node.icon || "⚙️",
+            nodeType: "action",
+            config: node.config || {},
+            isConfigured: checkIsConfigure(node.name, node.config || {}),
+            onConfigure: () =>
+              handleNodeConfigure({
+                id: node.id,
+                name: node.name,
+                type: "action",
+                actionType: node.AvailableNodeId,
+                icon: node.icon,
+              }),
+            onTest: () => testNodeFromCanvas(node.id, node.name, "action"),
+            onAddChild: (sourceHandleId?: string) => {
+              setBranchSourceNodeId(node.id);
+              setBranchSourceHandleId(sourceHandleId || null);
+              setActionOpen(true);
+            },
+            onDelete: () => {
+              dispatch(workflowActions.deleteNode(node.id));
+              dispatch(clearNodeOutput(node.id));
+              setNodes((prev) => prev.filter((n) => n.id !== node.id));
+              setEdges((prev) =>
+                prev.filter((e) => e.source !== node.id && e.target !== node.id)
+              );
+            },
+            onReplace: () => {
+              setReplacingNodeId(node.id);
+              setActionOpen(true);
+            },
+          },
+        }));
+
+        // Action Placeholder
+        const lastNode =
+          transformedNodes.length > 0
+            ? transformedNodes[transformedNodes.length - 1]
+            : triggerNode;
+
+        const lastPosition = ensurePosition(
+          lastNode?.position,
+          transformedNodes.length > 0
+            ? { x: triggerPosition.x + 350, y: triggerPosition.y + 150 }
+            : triggerPosition
+        );
+
+        const placeholderPosition = {
+          x: lastPosition.x + 550,
+          y: lastPosition.y,
+        };
+
+        const actionPlaceholder = {
+          id: `action-placeholder-${Date.now()}`,
+          type: "customNode",
+          position: placeholderPosition,
+          data: {
+            label: "Add Action",
+            icon: "➕",
+            isPlaceholder: true,
+            nodeType: "action",
+            onConfigure: () => setActionOpen(true),
+          },
+        };
+
+        const finalNodes = [triggerNode, ...transformedNodes, actionPlaceholder];
+
+        // Manage Edges
+        const dbEdges = Array.isArray(backendData.Edges) ? backendData.Edges : [];
+        const cleanEdges = dbEdges.filter(
+          (e: any) =>
+            !e.target?.startsWith?.("action-placeholder-") &&
+            e.target !== "action-holder"
+        );
+
+        const healedEdges = cleanEdges
+          .map((e: any) => {
+            const sourceExists = finalNodes.some((n: any) => n.id === e.source);
+            if (!sourceExists && transformedNodes.some((n: any) => n.id === e.target)) {
+              return {
+                ...e,
+                id: `e-${triggerNode.id}-${e.target}`,
+                source: triggerNode.id,
+                sourceHandle: "t-out",
+                targetHandle: e.targetHandle || "a-in",
+              };
+            }
+            return e;
+          })
+          .filter(
+            (e: any) =>
+              finalNodes.some((n: any) => n.id === e.source) &&
+              finalNodes.some((n: any) => n.id === e.target)
+          );
+
+        const sourceNodeId =
+          transformedNodes.length > 0
+            ? transformedNodes[transformedNodes.length - 1].id
+            : triggerNode.id;
+
+        const finalEdges = [
+          ...healedEdges,
+          {
+            id: `e-action-${sourceNodeId}-placeholder`,
+            source: sourceNodeId,
+            target: actionPlaceholder.id,
+          },
+        ];
+
+        setNodes(finalNodes);
+        setEdges(finalEdges);
+        dispatch(workflowActions.setEdge(finalEdges));
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.error("Failed to load workflow:", err);
+          toast.error(
+            err?.message ??
+              "Failed to load workflow. Please check your connection or reload the page."
+          );
+        }
       }
     };
 
     loadWorkflows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowId]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [workflowId, dispatch]);
 
   const handleNodeConfigure = (node: any) => {
     setSelectedNode(node);
@@ -998,33 +950,28 @@ export default function WorkflowCanvas() {
   // console.log("THis log from page.tsx about the nodeConfig", selectedNode)
 
   return (
-    <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "row" }}>
-      {/* Floating auto-clearing non-blocking error notification */}
-      {error && (
-        <div className="fixed top-5 right-5 z-[9999] pointer-events-none flex flex-col items-end animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="pointer-events-auto flex items-start gap-3 bg-red-950/90 text-white border border-red-700/50 backdrop-blur-md px-4 py-3 rounded-xl shadow-2xl max-w-md w-full">
-            <span className="text-red-400 mt-0.5 text-base">⚠️</span>
-            <div className="flex-1 text-xs font-medium leading-relaxed text-red-100">
-              {error}
+    <SidebarProvider defaultOpen={false}>
+      <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "row", overflow: "hidden" }}>
+        {/* Floating auto-clearing non-blocking error notification */}
+        {error && (
+          <div className="fixed top-5 right-5 z-[9999] pointer-events-none flex flex-col items-end animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="pointer-events-auto flex items-start gap-3 bg-red-950/90 text-white border border-red-700/50 backdrop-blur-md px-4 py-3 rounded-xl shadow-2xl max-w-md w-full">
+              <span className="text-red-400 mt-0.5 text-base">⚠️</span>
+              <div className="flex-1 text-xs font-medium leading-relaxed text-red-100">
+                {error}
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-400 hover:text-white p-1 rounded transition-colors text-sm leading-none cursor-pointer"
+                title="Dismiss error"
+              >
+                ×
+              </button>
             </div>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-400 hover:text-white p-1 rounded transition-colors text-sm leading-none cursor-pointer"
-              title="Dismiss error"
-            >
-              ×
-            </button>
           </div>
-        </div>
-      )}
-      <div className="w-auto h-full text-[#f0f0e8] bg-[#0d120d]">
-        <SidebarProvider>
-          <AppSidebar />
-
-          {/* {children} */}
-        </SidebarProvider>
-      </div>
-      <ReactFlow
+        )}
+        <AppSidebar />
+        <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
@@ -1054,7 +1001,7 @@ export default function WorkflowCanvas() {
           gap={24}
           size={1.5}
         />
-        <Controls className="!bg-white !border-gray-200 !rounded-2xl !shadow-xl [&>button]:!bg-white [&>button]:!text-gray-700 [&>button]:!border-gray-100 [&>button:hover]:!bg-gray-100" />
+        <Controls position="top-left" style={{ top: 16, left: 16 }} className="!bg-white !border-gray-200 !rounded-2xl !shadow-xl [&>button]:!bg-white [&>button]:!text-gray-700 [&>button]:!border-gray-100 [&>button:hover]:!bg-gray-100" />
 
         <WorkflowToolbar
           onExecute={handleExecute}
@@ -1066,20 +1013,6 @@ export default function WorkflowCanvas() {
             reduxWorkflow.isChanged.trigger ||
             reduxWorkflow.isChanged.edges
           }
-          onExport={() => {
-            const flowJson = JSON.stringify(
-              { workflow: reduxWorkflow.data, nodes, edges },
-              null,
-              2
-            );
-            const blob = new Blob([flowJson], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${reduxWorkflow.data.name || "workflow"}.json`;
-            a.click();
-            toast.success("Workflow exported successfully!");
-          }}
         />
       </ReactFlow>
 
@@ -1159,8 +1092,9 @@ export default function WorkflowCanvas() {
 
       <ExecutionHistoryFooter
         workflowId={workflowId}
-        onExecutionFetch={() => { }}
+        refreshTrigger={historyRefreshTrigger}
       />
     </div>
+  </SidebarProvider>
   );
 }

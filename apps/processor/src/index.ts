@@ -1,22 +1,10 @@
 import { prismaClient } from "@repo/db/client";
 
-import { Kafka } from "kafkajs";
+import { getKafkaProducer, TOPIC_WORKFLOW_EXECUTIONS } from "@repo/kafka";
 import { retryLogic } from "./lib/retry.js";
 
-const TOPIC_NAME = "First-Client";
-
-
-const kafka = new Kafka({
-  brokers: ["localhost:9092"],
-  clientId: "Processing App",
-});
 async function main() {
-  const producer = kafka.producer();
-  
-  await retryLogic(async () => {
-    await producer.connect();
-    console.log("Producer connected to kafka successfully");
-  }, 3);
+  let producer = await getKafkaProducer();
 
   while (true) {
     try {
@@ -26,7 +14,7 @@ async function main() {
       });
       if (pendingRows.length > 0) {
         await producer.send({
-          topic: TOPIC_NAME,
+          topic: TOPIC_WORKFLOW_EXECUTIONS,
           
           messages: pendingRows.map((r) => ({
             value: r.workflowExecutionId,

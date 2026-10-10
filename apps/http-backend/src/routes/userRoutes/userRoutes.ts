@@ -20,6 +20,7 @@ import {
 } from "@repo/common/zod";
 import { GoogleOAuthService, GoogleSheetsNodeExecutor } from "@repo/nodes";
 import axios from "axios";
+import { sseManager } from "../../services/sseManager.js";
 const router: Router = Router();
 
 const DASHBOARD_RANGE_DAYS = {
@@ -1029,6 +1030,64 @@ router.get("/workflow/latest-webhook/:workflowId", userMiddleware, async (req: A
     return res.status(statusCodes.OK).json({ success: false, message: "No new webhook received yet" });
   } catch (error: any) {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({ message: "Internal Server Error" });
+  }
+});
+
+router.get("/workflow/events/:workflowId", userMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const workflowId = req.params.workflowId;
+    if (!workflowId) {
+      return res.status(statusCodes.BAD_REQUEST).json({ message: "Invalid workflow ID" });
+    }
+
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      return res.status(statusCodes.UNAUTHORIZED).json({ message: "User unauthorized" });
+    }
+
+    // Verify workflow exists and belongs to the authenticated user
+    const workflow = await prismaClient.workflow.findFirst({
+      where: { id: workflowId, userId },
+    });
+
+    if (!workflow) {
+      return res.status(statusCodes.FORBIDDEN).json({ message: "Workflow not found or access denied" });
+    }
+
+    // Configure SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    // Initial handshake packet
+    res.write(`event: connected\ndata: ${JSON.stringify({ workflowId })}\n\n`);
+
+    // Register into in-memory manager
+    sseManager.addClient(workflowId, res);
+
+    // 20-second heartbeat to prevent proxy timeouts
+    const heartbeatInterval = setInterval(() => {
+      try {
+        res.write(": ping\n\n");
+      } catch (err) {
+        clearInterval(heartbeatInterval);
+        sseManager.removeClient(workflowId, res);
+      }
+    }, 20000);
+
+    // Socket disconnection cleanup
+    req.on("close", () => {
+      clearInterval(heartbeatInterval);
+      sseManager.removeClient(workflowId, res);
+    });
+  } catch (error: any) {
+    console.error(`[SSE Route Error] workflow ${req.params.workflowId}:`, error);
+    if (!res.headersSent) {
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({ message: "Failed to establish event stream" });
+    }
+    res.end();
   }
 });
 

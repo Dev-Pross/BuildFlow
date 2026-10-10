@@ -33,7 +33,7 @@ const fadeInUp = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const }
   }
 };
 
@@ -53,7 +53,7 @@ const scaleIn = {
   visible: {
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const }
   }
 };
 
@@ -187,7 +187,7 @@ export default function HomePage() {
         <motion.h1
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] as const }}
           className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white max-w-5xl mx-auto leading-[1.12]"
         >
           Automate <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-indigo-300">Everything</span>.<br />
@@ -198,7 +198,7 @@ export default function HomePage() {
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] as const }}
           className="mt-8 text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed"
         >
           Connect webhooks, spreadsheets, APIs, and microservices on an infinite interactive canvas.
@@ -265,7 +265,7 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }}
           className="mt-20 relative max-w-5xl mx-auto"
         >
           {/* Card Outer Frame */}
@@ -633,7 +633,7 @@ export default function HomePage() {
           initial={{ opacity: 0, scale: 0.96 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] as const }}
           className="relative rounded-3xl bg-gradient-to-br from-[#141518] to-[#18191c] border border-[#222429] p-12 sm:p-16 text-center overflow-hidden shadow-2xl"
         >
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
