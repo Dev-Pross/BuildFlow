@@ -3,7 +3,16 @@ import axios from "axios";
 import { BACKEND_URL, NodeSchema, WorkflowSyncSchema, NodeUpdateSchema, workflowUpdateSchema } from "@repo/common/zod";
 import { TriggerUpdateSchema } from "@repo/common/zod";
 import z from "zod";
+import { getSession } from "next-auth/react";
 // Wrap all API calls in async functions and make sure to set withCredentials: true and add Content-Type header.
+
+axios.interceptors.request.use(async (config) => {
+  const session = await getSession();
+  if ((session as any)?.accessToken) {
+    config.headers.Authorization = `Bearer ${(session as any).accessToken}`;
+  }
+  return config;
+});
 export const api = {
   user: {
     get: async () => {
@@ -15,10 +24,10 @@ export const api = {
     }
   },
   workflows: {
-    create: async (name: string, Config: any) =>
+    create: async (name: string, Config: any, description?: string) =>
       await axios.post(
         `${BACKEND_URL}/user/create/workflow`,
-        { Name: name, Config: Config },
+        { Name: name, Config: Config, description },
         {
           withCredentials: true,
           headers: { "Content-Type": "application/json" },

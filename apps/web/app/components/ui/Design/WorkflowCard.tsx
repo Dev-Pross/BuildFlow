@@ -26,7 +26,7 @@ export function CardDemo({ onClose }: CardDemoProps) {
     setError("");
     try {
       setLoading(true);
-      const create = await api.workflows.create(name.trim(), []);
+      const create = await api.workflows.create(name.trim(), [], description.trim() || undefined);
       const id = create.data.Data.id;
 
       if (onClose) onClose();

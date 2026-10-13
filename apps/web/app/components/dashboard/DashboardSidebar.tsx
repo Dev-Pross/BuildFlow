@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { DashboardTab } from "@/app/types/dashboard.types";
 
+import { useSession } from "next-auth/react";
+
 interface SidebarProps {
   activeTab: DashboardTab;
   onTabChange: (tab: DashboardTab) => void;
@@ -26,18 +28,20 @@ const NAV_ITEMS: { id: DashboardTab; label: string; icon: any }[] = [
 ];
 
 export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProps) {
+  const { data: session } = useSession();
+
   return (
     <aside className="w-60 min-w-[240px] max-w-[240px] shrink-0 flex-shrink-0 h-full flex flex-col justify-between pt-6 pb-5 bg-[#0c0d0e] relative z-20 select-none overflow-hidden">
       <div>
-        {/* Brand Header matching photo: Green/emerald rounded square with letter + name */}
+        {/* Brand Header: BuildFlow application brand with 'B' logo */}
         <div className="px-5 mb-7 flex items-center gap-3">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-2xl bg-[#22c55e] text-white font-black text-xl flex items-center justify-center shadow-lg shadow-green-500/25 group-hover:scale-105 transition-transform shrink-0">
-              E
+              B
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xl font-bold tracking-tight text-white font-sans leading-tight">
-                EduTer
+                BuildFlow
               </span>
             </div>
           </Link>

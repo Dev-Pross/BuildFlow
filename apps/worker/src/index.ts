@@ -1,15 +1,19 @@
 import { createKafkaConsumer, TOPIC_WORKFLOW_EXECUTIONS } from "@repo/kafka";
 import { executeWorkflow } from "./engine/executor.js";
 import { ExecutionRegister } from "@repo/nodes";
+import { tokenScheduler } from "./scheduler/token-scheduler.js";
 
 ExecutionRegister.initialize();
 
 async function main() {
+  tokenScheduler.start();
+
   const consumer = createKafkaConsumer("buildflow-worker-group");
   await consumer.connect();
 
   const handleShutdown = async () => {
     console.log("[Worker] Shutting down gracefully...");
+    tokenScheduler.stop();
     await consumer.disconnect();
     process.exit(0);
   };
