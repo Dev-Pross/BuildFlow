@@ -37,8 +37,8 @@ jobs:
             echo "📦 [Deploy] Installing monorepo dependencies..."
             pnpm install --frozen-lockfile
 
-            echo "⚙️ [Deploy] Generating Prisma Client..."
-            pnpm --filter @repo/db generate
+            echo "⚙️ [Deploy] Generating Prisma Client & compiling db package..."
+            pnpm --filter @repo/db build
 
             echo "🔨 [Deploy] Building background engines..."
             pnpm --filter @repo/processor build
