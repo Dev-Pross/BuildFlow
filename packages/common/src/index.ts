@@ -4,9 +4,13 @@ import z from "zod";
 export * from "./interpolation";
 
 export const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3002";
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "http://localhost:3002";
 export const HOOKS_URL =
-  process.env.NEXT_PUBLIC_HOOKS_URL || "http://localhost:3003";
+  process.env.HOOKS_URL ||
+  process.env.NEXT_PUBLIC_HOOKS_URL ||
+  "http://localhost:3003";
 
 export const AvailableTriggers = z.object({
   Name: z.string(),

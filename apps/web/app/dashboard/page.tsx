@@ -32,7 +32,8 @@ import {
   Cpu,
   LayoutGrid,
   Boxes,
-  Clock
+  Clock,
+  Menu
 } from "lucide-react";
 import { api } from "@/app/lib/api";
 import { BACKEND_URL } from "@repo/common/zod";
@@ -85,6 +86,7 @@ export default function DashboardPage() {
   const [credsLoading, setCredsLoading] = useState(false);
   const [enableCreateButton, setEnableCreateButton] = useState(false);
   const [geo, setGeo] = useState<{ city: string; country: string; provider: string } | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/geo")
@@ -171,7 +173,7 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col gap-8 pb-4">
         {/* Welcome & Quick Actions Hero */}
-        <section className="relative rounded-[32px] overflow-hidden bg-zinc-950 p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
+        <section className="relative rounded-[28px] sm:rounded-[32px] overflow-hidden bg-zinc-950 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 sm:gap-8 shadow-xl">
           {/* Background Ambient Glow */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute -left-[10%] top-0 w-[500px] h-[500px] bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.15)_0%,transparent_60%)] blur-2xl" />
@@ -179,40 +181,40 @@ export default function DashboardPage() {
           </div>
 
           <div className="relative z-10 max-w-xl">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-3">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight mb-2 sm:mb-3">
               Welcome to Build<span className="text-indigo-400">Flow</span>
             </h2>
-            <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+            <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed mb-6 sm:mb-8">
               Your centralized command center for visual automations. Build multi-step workflows, connect your favorite apps, and monitor live execution metrics in real-time.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <button
                 onClick={() => setEnableCreateButton(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-black font-bold hover:bg-zinc-100 transition-colors shadow-lg cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-white text-black text-xs sm:text-sm font-bold hover:bg-zinc-100 transition-colors shadow-lg cursor-pointer"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 sm:h-5 w-4 sm:w-5" />
                 <span>Create Workflow</span>
               </button>
               <button
                 onClick={() => setTab("integrations")}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-zinc-800/80 text-white font-semibold hover:bg-zinc-800 transition-colors border border-zinc-700/50 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-zinc-800/80 text-white text-xs sm:text-sm font-semibold hover:bg-zinc-800 transition-colors border border-zinc-700/50 cursor-pointer"
               >
-                <Boxes className="h-5 w-5 text-indigo-400" />
+                <Boxes className="h-4 sm:h-5 w-4 sm:w-5 text-indigo-400" />
                 <span>Connect Apps</span>
               </button>
             </div>
           </div>
 
           {/* Quick Stats Grid inside Hero */}
-          <div className="relative z-10 grid grid-cols-2 gap-4 w-full md:w-auto shrink-0">
-            <div className="bg-zinc-900/50 border border-zinc-800 backdrop-blur-md p-5 rounded-2xl flex flex-col items-center justify-center text-center w-36">
-              <Activity className="h-6 w-6 text-emerald-400 mb-2" />
-              <div className="text-2xl font-black text-white">{overview ? overview.workflowCount : "3"}</div>
+          <div className="relative z-10 grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto shrink-0">
+            <div className="bg-zinc-900/50 border border-zinc-800 backdrop-blur-md p-4 sm:p-5 rounded-2xl flex flex-col items-center justify-center text-center w-full sm:w-36">
+              <Activity className="h-5 sm:h-6 w-5 sm:w-6 text-emerald-400 mb-2" />
+              <div className="text-xl sm:text-2xl font-black text-white">{overview ? overview.workflowCount : "3"}</div>
               <div className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold mt-1">Active Flows</div>
             </div>
-            <div className="bg-zinc-900/50 border border-zinc-800 backdrop-blur-md p-5 rounded-2xl flex flex-col items-center justify-center text-center w-36">
-              <Zap className="h-6 w-6 text-amber-400 mb-2" />
-              <div className="text-2xl font-black text-white">{overview ? overview.executionCount : "1.2k"}</div>
+            <div className="bg-zinc-900/50 border border-zinc-800 backdrop-blur-md p-4 sm:p-5 rounded-2xl flex flex-col items-center justify-center text-center w-full sm:w-36">
+              <Zap className="h-5 sm:h-6 w-5 sm:w-6 text-amber-400 mb-2" />
+              <div className="text-xl sm:text-2xl font-black text-white">{overview ? overview.executionCount : "1.2k"}</div>
               <div className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold mt-1">Executions</div>
             </div>
           </div>
@@ -588,18 +590,34 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070809] text-white flex items-center justify-center p-2 sm:p-4 lg:p-6 antialiased font-sans">
+    <div className="min-h-screen bg-[#070809] text-white flex items-center justify-center p-0 sm:p-3 lg:p-6 antialiased font-sans">
       {/* ── Giant Unified Container (matching EduTer photo_2026-10-06_20-55-04.jpg) ── */}
-      <div className="w-full max-w-[1640px] h-[calc(100vh-24px)] min-h-[820px] bg-[#0c0d0e] rounded-[44px] shadow-2xl flex flex-row overflow-hidden border border-zinc-800/40 relative">
-        {/* Left Column: Fixed Dark Sidebar with Blended Concave Tab */}
-        <DashboardSidebar activeTab={activeTab} onTabChange={setTab} onRefresh={handleRefresh} />
+      <div className="w-full max-w-[1640px] h-screen sm:h-[calc(100vh-24px)] min-h-0 lg:min-h-[820px] bg-[#0c0d0e] rounded-none sm:rounded-3xl lg:rounded-[44px] shadow-2xl flex flex-col lg:flex-row overflow-hidden border-0 sm:border border-zinc-800/40 relative">
+        {/* Left Column: Fixed Dark Sidebar on Desktop / Drawer on Mobile */}
+        <DashboardSidebar
+          activeTab={activeTab}
+          onTabChange={setTab}
+          onRefresh={handleRefresh}
+          isOpenMobile={mobileMenuOpen}
+          onCloseMobile={() => setMobileMenuOpen(false)}
+        />
 
         {/* Right Column: Seamless White Panel */}
-        <main className="flex-1 min-w-0 bg-white text-zinc-900 rounded-[38px] my-3 mr-3 p-5 sm:p-6 lg:p-8 flex flex-col overflow-y-auto shadow-2xl relative z-10">
-          {/* Top Bar matching photo: Pill search input + profile + action buttons */}
-          <div className="flex items-center justify-between gap-4 mb-8 shrink-0">
+        <main className="flex-1 min-w-0 bg-white text-zinc-900 rounded-none sm:rounded-2xl lg:rounded-[38px] my-0 mr-0 sm:my-2 sm:mr-2 lg:my-3 lg:mr-3 p-4 sm:p-6 lg:p-8 flex flex-col overflow-y-auto shadow-2xl relative z-10">
+          {/* Top Bar matching photo: Hamburger + Pill search input + profile + action buttons */}
+          <div className="flex items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 shrink-0">
+            {/* Mobile Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden w-10 h-10 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 flex items-center justify-center transition-colors shadow-xs cursor-pointer shrink-0"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
             {/* Search Input Container */}
-            <div className="flex-1 max-w-xl flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-[#f4f4f5] border border-transparent focus-within:border-zinc-300 transition-all">
+            <div className="flex-1 max-w-xl flex items-center gap-2.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-[#f4f4f5] border border-transparent focus-within:border-zinc-300 transition-all">
               <Search className="h-4 w-4 text-zinc-400 shrink-0" />
               <input
                 type="text"
@@ -611,19 +629,19 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Action Icons */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {geo && (
                 <div
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-semibold text-zinc-700 shadow-xs"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-semibold text-zinc-700 shadow-xs"
                   title={`Detected via ${geo.provider}`}
                 >
                   <span className="text-xs">📍</span>
-                  <span>{geo.city}, {geo.country}</span>
+                  <span className="max-w-[120px] truncate">{geo.city}, {geo.country}</span>
                 </div>
               )}
               <button
                 onClick={() => setTab("profile")}
-                className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 transition-colors shadow-sm cursor-pointer overflow-hidden border border-zinc-200"
+                className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 transition-colors shadow-sm cursor-pointer overflow-hidden border border-zinc-200 shrink-0"
                 title="Profile"
                 type="button"
               >
@@ -640,7 +658,7 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setEnableCreateButton(true)}
-                className="w-10 h-10 rounded-2xl bg-zinc-950 hover:bg-zinc-800 text-white flex items-center justify-center transition-colors shadow-md cursor-pointer"
+                className="w-10 h-10 rounded-2xl bg-zinc-950 hover:bg-zinc-800 text-white flex items-center justify-center transition-colors shadow-md cursor-pointer shrink-0"
                 title="New Action"
                 type="button"
               >

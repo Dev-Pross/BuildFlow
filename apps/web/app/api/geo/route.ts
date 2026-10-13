@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { AuthOptions } from "@/app/api/auth/utils/auth";
+import { prismaClient } from "@repo/db/client";
 
 export async function GET(req: NextRequest) {
   const headers = req.headers;
@@ -22,10 +25,38 @@ export async function GET(req: NextRequest) {
   const ip = cfIp || headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
 
   const isLocal = !cfCountry && !vercelCountry;
+  const resolvedCity = city || (isLocal ? "Local Workspace" : "Unknown City");
+  const resolvedCountry = country || (isLocal ? "Localhost" : "Global");
+
+  try {
+    const session = await getServerSession(AuthOptions);
+    const userId = (session?.user as any)?.id;
+    const userEmail = (session?.user as any)?.email;
+
+    if (userId || userEmail) {
+      if (userId) {
+        await prismaClient.$executeRawUnsafe(
+          `UPDATE "User" SET "city" = $1, "country" = $2 WHERE "id" = $3`,
+          resolvedCity,
+          resolvedCountry,
+          userId
+        );
+      } else if (userEmail) {
+        await prismaClient.$executeRawUnsafe(
+          `UPDATE "User" SET "city" = $1, "country" = $2 WHERE "email" = $3`,
+          resolvedCity,
+          resolvedCountry,
+          userEmail
+        );
+      }
+    }
+  } catch (err) {
+    console.error("Geo persistence error:", err);
+  }
 
   return NextResponse.json({
-    city: city || (isLocal ? "Local Workspace" : "Unknown City"),
-    country: country || (isLocal ? "Localhost" : "Global"),
+    city: resolvedCity,
+    country: resolvedCountry,
     region: region || "",
     ip,
     provider: cfCountry ? "Cloudflare Edge" : vercelCountry ? "Vercel Edge" : "Local Environment",

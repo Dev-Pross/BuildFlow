@@ -8,16 +8,18 @@ import {
   BarChart2,
   Boxes,
   Settings,
-  LogOut
+  LogOut,
+  X
 } from "lucide-react";
 import { DashboardTab } from "@/app/types/dashboard.types";
-
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 
 interface SidebarProps {
   activeTab: DashboardTab;
   onTabChange: (tab: DashboardTab) => void;
   onRefresh?: () => void;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const NAV_ITEMS: { id: DashboardTab; label: string; icon: any }[] = [
@@ -28,15 +30,28 @@ const NAV_ITEMS: { id: DashboardTab; label: string; icon: any }[] = [
   { id: "profile", label: "Settings", icon: Settings },
 ];
 
-export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProps) {
-  const { data: session } = useSession();
+export default function DashboardSidebar({
+  activeTab,
+  onTabChange,
+  isOpenMobile = false,
+  onCloseMobile
+}: SidebarProps) {
+  const handleSelectTab = (tab: DashboardTab) => {
+    onTabChange(tab);
+    if (onCloseMobile) onCloseMobile();
+  };
 
-  return (
-    <aside className="w-60 min-w-[240px] max-w-[240px] shrink-0 flex-shrink-0 h-full flex flex-col justify-between pt-6 pb-5 bg-[#0c0d0e] relative z-20 select-none overflow-hidden">
+  const handleSignOut = () => {
+    if (onCloseMobile) onCloseMobile();
+    signOut({ callbackUrl: "/login" });
+  };
+
+  const sidebarContent = (
+    <div className="h-full flex flex-col justify-between pt-6 pb-5 select-none overflow-hidden">
       <div>
-        {/* Brand Header: BuildFlow application brand with 'B' logo */}
-        <div className="px-5 mb-7 flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3 group">
+        {/* Brand Header */}
+        <div className="px-5 mb-7 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group" onClick={onCloseMobile}>
             <div className="w-10 h-10 rounded-2xl bg-[#22c55e] text-white font-black text-xl flex items-center justify-center shadow-lg shadow-green-500/25 group-hover:scale-105 transition-transform shrink-0">
               B
             </div>
@@ -46,9 +61,21 @@ export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProp
               </span>
             </div>
           </Link>
+
+          {/* Mobile Close Button */}
+          {onCloseMobile && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              className="lg:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="Close Sidebar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
-        {/* Navigation List with blended active tab */}
+        {/* Navigation List */}
         <nav className="space-y-1 relative">
           {NAV_ITEMS.map((item) => {
             const isActive = activeTab === item.id;
@@ -57,7 +84,7 @@ export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProp
               <div key={item.id} className="relative">
                 <button
                   type="button"
-                  onClick={() => onTabChange(item.id)}
+                  onClick={() => handleSelectTab(item.id)}
                   className={`w-full flex items-center gap-3 text-sm transition-all duration-150 ${
                     isActive
                       ? "bg-white text-zinc-950 font-bold ml-4 pl-4 pr-3 py-3 rounded-l-[28px] relative z-20 cursor-default shadow-sm"
@@ -72,7 +99,6 @@ export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProp
                 {/* Blended Concave Corners (Quarter-Circle Bezier Fillets) */}
                 {isActive && (
                   <>
-                    {/* Top Concave Fillet */}
                     <svg
                       className="absolute -top-6 right-[-1px] w-6 h-6 pointer-events-none z-20"
                       viewBox="0 0 24 24"
@@ -80,8 +106,6 @@ export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProp
                     >
                       <path d="M0 24 C13.25 24 24 13.25 24 0 L24 24 Z" fill="#ffffff" />
                     </svg>
-
-                    {/* Bottom Concave Fillet */}
                     <svg
                       className="absolute -bottom-6 right-[-1px] w-6 h-6 pointer-events-none z-20"
                       viewBox="0 0 24 24"
@@ -101,13 +125,39 @@ export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProp
       <div className="px-4 pt-4 border-t border-white/5">
         <button
           type="button"
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 text-sm font-medium transition-colors cursor-pointer group"
         >
           <LogOut className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-rose-400 transition-colors" />
           <span className="tracking-tight">Sign Out</span>
         </button>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Fixed Docked Sidebar */}
+      <aside className="hidden lg:flex w-60 min-w-[240px] max-w-[240px] shrink-0 flex-shrink-0 h-full flex-col justify-between bg-[#0c0d0e] relative z-20">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Slide-Over Backdrop */}
+      {isOpenMobile && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 lg:hidden transition-opacity"
+          onClick={onCloseMobile}
+        />
+      )}
+
+      {/* Mobile Slide-Over Drawer */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#0c0d0e] border-r border-zinc-800 shadow-2xl flex flex-col lg:hidden transition-transform duration-300 ease-in-out ${
+          isOpenMobile ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }
