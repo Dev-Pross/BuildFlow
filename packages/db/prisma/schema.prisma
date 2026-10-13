@@ -12,7 +12,8 @@ model User {
   id          String       @id @default(uuid())
   name        String?
   email       String       @unique
-  password    String
+  image       String?      
+  password    String?      
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   credentials Credential[]

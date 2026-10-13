@@ -4,6 +4,7 @@ dotenv.config();
 import { Request, Response, NextFunction } from "express";
 import { JwtPayload } from "jsonwebtoken";
 import { getToken } from "next-auth/jwt";
+import jwt from "jsonwebtoken";
 
 export interface AuthRequest extends Request {
   user?: JwtPayload;
@@ -22,15 +23,21 @@ export async function userMiddleware(
 ) {
   try {
     // console.log(req.cookies);
-    const payload = await getToken({ req, secret: SECRET });
+    const authHeader = req.headers.authorization;
+    let payload: JwtPayload | null = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      payload = jwt.verify(token!, SECRET!) as JwtPayload;
+    } else {
+      payload = (await getToken({ req, secret: SECRET })) as JwtPayload | null;
+    }
 
     if (!payload) {
       return res.status(statusCodes.BAD_REQUEST).json({
         message: "Token not provided or invalid",
       });
     }
-
-    // console.log("Decoded User:", payload);
 
     req.user = payload;
     return next();

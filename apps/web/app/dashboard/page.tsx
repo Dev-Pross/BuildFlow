@@ -52,6 +52,8 @@ import IntegrationStatus from "../components/dashboard/IntegrationStatus";
 import RecentWorkflows from "../components/dashboard/RecentWorkflows";
 import { CardDemo } from "../components/ui/Design/WorkflowCard";
 
+import { useSession } from "next-auth/react";
+
 const DASHBOARD_TABS: DashboardTab[] = [
   "dashboard",
   "automations",
@@ -69,6 +71,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAppSelector((state) => state.user);
+  const { data: session } = useSession();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRange, setSelectedRange] = useState<DashboardRange>("7d");
@@ -81,16 +84,31 @@ export default function DashboardPage() {
   const [credentials, setCredentials] = useState<any[]>([]);
   const [credsLoading, setCredsLoading] = useState(false);
   const [enableCreateButton, setEnableCreateButton] = useState(false);
+  const [geo, setGeo] = useState<{ city: string; country: string; provider: string } | null>(null);
 
-  const activeTab: DashboardTab = useMemo(() => {
+  useEffect(() => {
+    fetch("/api/geo")
+      .then((res) => res.json())
+      .then((data) => setGeo(data))
+      .catch(() => {});
+  }, []);
+
+  const initialTab = useMemo(() => {
     const p = searchParams.get("tab");
     return isDashboardTab(p) ? p : "dashboard";
   }, [searchParams]);
 
+  const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const setTab = (tab: DashboardTab) => {
+    setActiveTab(tab); // ⚡ Instant 0ms visual update!
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
-    router.replace(`/dashboard?${params.toString()}`);
+    router.replace(`/dashboard?${params.toString()}`, { scroll: false });
   };
 
   const fetchOverview = async () => {
@@ -395,7 +413,11 @@ export default function DashboardPage() {
         description: "Append rows, update spreadsheets, and read tables automatically.",
         icon: "/google_sheet.svg",
         color: "text-emerald-500",
-        connected: credentials.some((c) => c.provider === "googleSheets" || c.name?.includes("Sheets")),
+        connected: credentials.some((c: any) =>
+          c.type === "gsheet_oauth" ||
+          c.type === "googleSheets" ||
+          c.type?.toLowerCase().includes("sheet")
+        ),
       },
       {
         id: "gmail",
@@ -403,23 +425,11 @@ export default function DashboardPage() {
         description: "Send automated transactional emails and trigger flows on inbox alerts.",
         icon: "/gmail.svg",
         color: "text-rose-500",
-        connected: credentials.some((c) => c.provider === "gmail" || c.name?.includes("Gmail")),
-      },
-      {
-        id: "webhook",
-        name: "Catch Webhooks",
-        description: "Receive incoming HTTP JSON payloads from Stripe, Shopify, or GitHub.",
-        icon: "/webhook.svg",
-        color: "text-amber-500",
-        connected: true,
-      },
-      {
-        id: "http",
-        name: "Custom REST APIs",
-        description: "Call external APIs with custom authorization headers and query payloads.",
-        icon: "/globe.png",
-        color: "text-cyan-500",
-        connected: true,
+        connected: credentials.some((c: any) =>
+          c.type === "gmail_oauth" ||
+          c.type === "gmail" ||
+          c.type?.toLowerCase().includes("gmail")
+        ),
       },
     ];
 
@@ -502,22 +512,30 @@ export default function DashboardPage() {
 
       <div className="p-6 rounded-3xl bg-zinc-50 border border-zinc-200 space-y-5 shadow-sm">
         <div className="flex items-center gap-4 pb-5 border-b border-zinc-200">
-          <div className="w-16 h-16 rounded-full bg-zinc-900 text-white font-black text-xl flex items-center justify-center shadow-md">
-            {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+          <div className="w-16 h-16 rounded-full bg-zinc-900 text-white font-black text-xl flex items-center justify-center shadow-md overflow-hidden border border-zinc-200">
+            {session?.user?.image ? (
+              <img
+                src={session.user.image}
+                alt={session.user.name || user.name || "User Avatar"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              (session?.user?.name || user.name)?.charAt(0).toUpperCase() || "U"
+            )}
           </div>
           <div>
-            <h3 className="font-bold text-base text-zinc-900">{user.name || "Workspace Builder"}</h3>
-            <p className="text-xs text-zinc-500">{user.email || "builder@buildflow.dev"}</p>
+            <h3 className="font-bold text-base text-zinc-900">{session?.user?.name || user.name || "Workspace Builder"}</h3>
+            <p className="text-xs text-zinc-500">{session?.user?.email || user.email || "builder@buildflow.dev"}</p>
             <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
               ● Active Account
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div>
             <label className="text-zinc-500 font-medium">User ID</label>
-            <div className="p-2.5 rounded-xl bg-white border border-zinc-200 font-mono text-zinc-800 mt-1">
+            <div className="p-2.5 rounded-xl bg-white border border-zinc-200 font-mono text-zinc-800 mt-1 truncate">
               {user.userId || "usr_demo_8829"}
             </div>
           </div>
@@ -525,6 +543,16 @@ export default function DashboardPage() {
             <label className="text-zinc-500 font-medium">Auth Status</label>
             <div className="p-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-800 mt-1">
               {user.status || "Authenticated"}
+            </div>
+          </div>
+          <div>
+            <label className="text-zinc-500 font-medium flex items-center justify-between">
+              <span>Edge Geolocation</span>
+              <span className="text-[10px] text-zinc-400 font-normal">{geo?.provider || "Edge"}</span>
+            </label>
+            <div className="p-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-800 mt-1 font-semibold flex items-center gap-1.5">
+              <span>📍</span>
+              <span className="truncate">{geo ? `${geo.city}, ${geo.country}` : "Detecting..."}</span>
             </div>
           </div>
         </div>
@@ -584,13 +612,30 @@ export default function DashboardPage() {
 
             {/* Right Action Icons */}
             <div className="flex items-center gap-3">
+              {geo && (
+                <div
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-semibold text-zinc-700 shadow-xs"
+                  title={`Detected via ${geo.provider}`}
+                >
+                  <span className="text-xs">📍</span>
+                  <span>{geo.city}, {geo.country}</span>
+                </div>
+              )}
               <button
                 onClick={() => setTab("profile")}
-                className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 transition-colors shadow-sm cursor-pointer"
+                className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 transition-colors shadow-sm cursor-pointer overflow-hidden border border-zinc-200"
                 title="Profile"
                 type="button"
               >
-                <User className="h-4 w-4" />
+                {session?.user?.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={session.user.name || "User Avatar"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="h-4 w-4" />
+                )}
               </button>
 
               <button

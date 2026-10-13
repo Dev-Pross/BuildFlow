@@ -18,7 +18,6 @@ import { userRouter } from "./routes/userRoutes/userRoutes.js";
 import cors from "cors"
 import { sheetRouter } from "./routes/sheet.routes.js";
 import { googleAuth } from "./routes/google_callback.js";
-import { tokenScheduler } from "./scheduler/token-scheduler.js";
 import { execRouter } from "./routes/userRoutes/executionRoutes.js";
 
 const app = express()
@@ -47,7 +46,6 @@ const PORT = process.env.PORT || 3002;
 
 async function startServer() {
   await NodeRegistry.registerAll();
-  tokenScheduler.start();
   ExecutionRegister.initialize();
   await initLiveEventsConsumer();
 
