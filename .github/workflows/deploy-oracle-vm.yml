@@ -1,0 +1,54 @@
+name: CD - Deploy Oracle VM (Processor & Worker)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/processor/**'
+      - 'apps/worker/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-oracle-vm.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Services to Oracle VM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Oracle Cloud VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_VM_HOST }}
+          username: ${{ secrets.ORACLE_VM_USER || 'ubuntu' }}
+          key: ${{ secrets.ORACLE_VM_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -e
+            echo "🚀 [Deploy] Connected to Oracle Cloud VM"
+            cd /home/ubuntu/BuildFlow
+
+            echo "📥 [Deploy] Pulling latest commits from main..."
+            git checkout main
+            git pull origin main
+
+            echo "📦 [Deploy] Installing monorepo dependencies..."
+            pnpm install --frozen-lockfile
+
+            echo "⚙️ [Deploy] Generating Prisma Client..."
+            pnpm --filter @repo/db generate
+
+            echo "🔨 [Deploy] Building background engines..."
+            pnpm --filter @repo/processor build
+            pnpm --filter @repo/worker build
+
+            echo "🔄 [Deploy] Restarting systemd services..."
+            sudo systemctl restart buildflow-processor.service buildflow-worker.service
+
+            echo "🔍 [Deploy] Checking service status..."
+            sudo systemctl is-active --quiet buildflow-processor.service && echo "  - buildflow-processor: RUNNING"
+            sudo systemctl is-active --quiet buildflow-worker.service && echo "  - buildflow-worker: RUNNING"
+
+            echo "🎉 [Deploy] Continuous Deployment finished successfully!"
