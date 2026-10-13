@@ -52,7 +52,7 @@ import IntegrationStatus from "../components/dashboard/IntegrationStatus";
 import RecentWorkflows from "../components/dashboard/RecentWorkflows";
 import { CardDemo } from "../components/ui/Design/WorkflowCard";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 const DASHBOARD_TABS: DashboardTab[] = [
   "dashboard",
@@ -560,7 +560,7 @@ export default function DashboardPage() {
         <div className="pt-4 border-t border-zinc-200 flex items-center justify-between">
           <span className="text-xs text-zinc-500">Need to sign out from this device?</span>
           <button
-            onClick={() => router.push("/login")}
+            onClick={() => signOut({ callbackUrl: "/login" })}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
           >
             Log Out

@@ -7,11 +7,12 @@ import {
   Workflow,
   BarChart2,
   Boxes,
-  Settings
+  Settings,
+  LogOut
 } from "lucide-react";
 import { DashboardTab } from "@/app/types/dashboard.types";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 interface SidebarProps {
   activeTab: DashboardTab;
@@ -96,7 +97,17 @@ export default function DashboardSidebar({ activeTab, onTabChange }: SidebarProp
         </nav>
       </div>
 
-
+      {/* Bottom Footer: Sign Out Button */}
+      <div className="px-4 pt-4 border-t border-white/5">
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 text-sm font-medium transition-colors cursor-pointer group"
+        >
+          <LogOut className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-rose-400 transition-colors" />
+          <span className="tracking-tight">Sign Out</span>
+        </button>
+      </div>
     </aside>
   );
 }
