@@ -56,7 +56,7 @@ export const AuthOptions: NextAuthOptions = {
     async signIn({ user }) {
       if (!user.email) return false;
       try {
-        const dbUser = await prismaClient.user.upsert({
+        const dbUser = await (prismaClient.user as any).upsert({
           where: { email: user.email },
           update: { name: user.name ?? undefined, image: user.image ?? undefined },
           create: {
