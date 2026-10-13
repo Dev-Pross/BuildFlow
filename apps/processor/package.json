@@ -6,13 +6,15 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc -b",
-    "dev": "npm run build &&  node dist/index.js"
+    "dev": "npm run build &&  node dist/index.js",
+    "start": "node --max-old-space-size=150 dist/index.js"
   },
   "devDependencies": {
     "@repo/db": "workspace:*",
+    "@types/pg": "^8.23.1",
     "@workspace/typescript-config": "workspace:*"
   },
-  "type" : "module",
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -20,6 +22,8 @@
   "dependencies": {
     "@repo/kafka": "workspace:*",
     "@types/axios": "^0.14.4",
-    "axios": "^1.13.2"
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "pg": "^8.23.1"
   }
 }

@@ -96,6 +96,7 @@ class NodeRegistry {
       description: 'Triggers when an HTTP webhook is received.',
       config: {},
       requireAuth: false,
+      icon: "/webhook.svg"
     });
   }
 }

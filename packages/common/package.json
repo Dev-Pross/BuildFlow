@@ -6,15 +6,16 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build" : "tsc -b",
-    "dev" : "npm run build && node dist/index.js"
+    "build": "tsc -b",
+    "dev": "npm run build && node dist/index.js"
   },
   "keywords": [],
   "devDependencies": {
+    "@types/node": "^20.19.9",
     "@workspace/typescript-config": "workspace:*"
   },
-  "exports" : {
-    "./zod" : {
+  "exports": {
+    "./zod": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }

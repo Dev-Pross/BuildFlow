@@ -8,6 +8,13 @@ async function main() {
   const consumer = createKafkaConsumer("buildflow-worker-group");
   await consumer.connect();
 
+  const handleShutdown = async () => {
+    console.log("[Worker] Shutting down gracefully...");
+    await consumer.disconnect();
+    process.exit(0);
+  };
+  process.on("SIGTERM", handleShutdown);
+  process.on("SIGINT", handleShutdown);
   await consumer.subscribe({
     topic: TOPIC_WORKFLOW_EXECUTIONS,
     fromBeginning: true,
@@ -24,7 +31,7 @@ async function main() {
       });
       if (!workflowExecutionId) {
         console.warn("message not found  skipping");
-        return ;
+        return;
       }
       console.log(`Recieved workflowExecutionId ${workflowExecutionId}`);
       console.log("The value we get from processor", message.value);
@@ -32,8 +39,8 @@ async function main() {
         "The value we get from processor to make it string",
         message.value?.toString()
       );
-     const result =  await executeWorkflow(workflowExecutionId)
-     console.log("This is the result fo the execuitng" , result)
+      const result = await executeWorkflow(workflowExecutionId)
+      console.log("This is the result fo the execuitng", result)
       // await new Promise((r) => setTimeout(r, 5000));
 
       console.log("Processing Job Done");

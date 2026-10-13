@@ -22,8 +22,12 @@ import { tokenScheduler } from "./scheduler/token-scheduler.js";
 import { execRouter } from "./routes/userRoutes/executionRoutes.js";
 
 const app = express()
+const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const envOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean)
+  : [];
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
@@ -32,14 +36,14 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser());
 
-app.use("/user" , userRouter)
+app.use("/user", userRouter)
 app.use('/node', sheetRouter)
-app.use('/auth/google', googleAuth) 
+app.use('/auth/google', googleAuth)
 app.use('/execute', execRouter)
 
 import { initLiveEventsConsumer, shutdownLiveEventsConsumer } from "./services/liveEventsConsumer.js";
 
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 
 async function startServer() {
   await NodeRegistry.registerAll();
