@@ -3,8 +3,11 @@ import z from "zod";
 // Export interpolation utilities
 export * from "./interpolation";
 
-export const BACKEND_URL = "http://localhost:3002";
-export const HOOKS_URL = "http://localhost:3003";
+export const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3002";
+export const HOOKS_URL =
+  process.env.NEXT_PUBLIC_HOOKS_URL || "http://localhost:3003";
+
 export const AvailableTriggers = z.object({
   Name: z.string(),
   AvailableTriggerID: z.string().optional(),

@@ -35,6 +35,7 @@ import {
   Clock
 } from "lucide-react";
 import { api } from "@/app/lib/api";
+import { BACKEND_URL } from "@repo/common/zod";
 import { useAppSelector } from "@/app/hooks/redux";
 import {
   DashboardExecutionTrend,
@@ -471,7 +472,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => {
                       if (!item.connected && item.id.includes("google")) {
-                        window.location.href = `${api.workflows ? "http://localhost:3002" : ""}/auth/google/initiate`;
+                        window.location.href = `${BACKEND_URL}/auth/google/initiate`;
                       }
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
