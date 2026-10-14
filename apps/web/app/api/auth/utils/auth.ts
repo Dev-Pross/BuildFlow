@@ -8,6 +8,10 @@ import { headers } from "next/headers";
 const SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 export const AuthOptions: NextAuthOptions = {
   debug: true,
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -16,9 +20,7 @@ export const AuthOptions: NextAuthOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_CLIENT_ID || "",
       clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
-      authorization: {
-        params: { scope: "read:user user:email" },
-      },
+
       async profile(profile, tokens) {
         let email = profile.email;
         if (!email && tokens.access_token) {
@@ -49,6 +51,8 @@ export const AuthOptions: NextAuthOptions = {
         };
       },
     }),
+
+
   ],
   session: {
     strategy: "jwt" as SessionStrategy, // Typed correctly to fit AuthOptions interface
@@ -134,6 +138,7 @@ export const AuthOptions: NextAuthOptions = {
       }
       return session;
     },
+
   },
   secret: SECRET,
 };

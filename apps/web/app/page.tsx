@@ -63,53 +63,13 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#000000] text-[#f9fafb] overflow-x-hidden selection:bg-indigo-500/20 selection:text-indigo-300 relative">
-      {/* ── Vibe Coded Animated Background ── */}
+      {/* ── High-Performance Ambient Glow Background ── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#000000]">
         {/* Subtle grid overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
         
-        {/* Noise texture for grain (vibe-coded aesthetic) */}
-        <div className="absolute inset-0 opacity-[0.04] mix-blend-screen" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }} />
-
-        {/* Animated Aurora Orbs */}
-        <motion.div 
-          animate={{ 
-            x: ["0%", "-10%", "10%", "0%"],
-            y: ["0%", "10%", "-10%", "0%"],
-            scale: [1, 1.1, 0.9, 1]
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[10%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/20 blur-[120px] mix-blend-screen"
-        />
-        
-        <motion.div 
-          animate={{ 
-            x: ["0%", "15%", "-5%", "0%"],
-            y: ["0%", "-15%", "5%", "0%"],
-            scale: [1, 1.2, 0.8, 1]
-          }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute top-[20%] -right-[10%] w-[40vw] h-[40vw] rounded-full bg-purple-600/20 blur-[120px] mix-blend-screen"
-        />
-        
-        <motion.div 
-          animate={{ 
-            x: ["0%", "-5%", "15%", "0%"],
-            y: ["0%", "5%", "-15%", "0%"],
-            scale: [1, 0.9, 1.1, 1]
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-          className="absolute -bottom-[10%] left-[15%] w-[60vw] h-[60vw] rounded-full bg-emerald-600/10 blur-[120px] mix-blend-screen"
-        />
-
-        <motion.div 
-          animate={{ 
-            opacity: [0.3, 0.6, 0.3],
-            scale: [1, 1.05, 1]
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[40%] left-[30%] w-[30vw] h-[30vw] rounded-full bg-blue-600/10 blur-[100px] mix-blend-screen"
-        />
+        {/* Static Hardware-Accelerated Multi-Stop Ambient Nebula Glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_15%_10%,rgba(99,102,241,0.18),transparent_70%),radial-gradient(ellipse_50%_50%_at_85%_25%,rgba(147,51,234,0.16),transparent_70%),radial-gradient(ellipse_60%_60%_at_25%_85%,rgba(16,185,129,0.10),transparent_70%),radial-gradient(ellipse_40%_40%_at_50%_45%,rgba(59,130,246,0.08),transparent_70%)]" />
       </div>
 
       {/* ── Navigation Bar ── */}
@@ -117,7 +77,7 @@ export default function HomePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative z-50 border-b border-[#222429] bg-[#0f1012]/80 backdrop-blur-xl sticky top-0"
+        className="relative z-50 border-b border-[#222429] bg-[#0f1012]/90 backdrop-blur-md sticky top-0"
       >
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
@@ -269,7 +229,7 @@ export default function HomePage() {
           className="mt-20 relative max-w-5xl mx-auto"
         >
           {/* Card Outer Frame */}
-          <div className="rounded-3xl border border-[#222429] bg-[#141518]/95 p-3 sm:p-5 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+          <div className="rounded-3xl border border-[#222429] bg-[#141518] p-3 sm:p-5 shadow-2xl relative overflow-hidden">
             {/* Window controls bar */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-[#222429] mb-4">
               <div className="flex items-center gap-2">
@@ -291,11 +251,7 @@ export default function HomePage() {
               {/* Floating Canvas Elements */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 w-full max-w-4xl relative z-10">
                 {/* Node 1: Webhook Trigger (Make.com Pastel Rose/Pink Card) */}
-                <motion.div
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-60 p-4 rounded-2xl bg-[#fdf2f8] border-2 border-pink-300 shadow-xl shadow-pink-100/50 flex flex-col gap-3 relative cursor-grab active:cursor-grabbing hover:shadow-2xl transition-shadow"
-                >
+                <div className="w-60 p-4 rounded-2xl bg-[#fdf2f8] border-2 border-pink-300 shadow-xl shadow-pink-100/50 flex flex-col gap-3 relative cursor-grab active:cursor-grabbing hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-white shadow-sm border border-pink-200 flex items-center justify-center text-pink-600">
                       <Zap className="h-5 w-5" />
@@ -309,7 +265,7 @@ export default function HomePage() {
                     <span className="text-pink-700 font-bold">✓ Active Trigger</span>
                     <span className="text-gray-500 font-mono">200 OK</span>
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Animated Connection Line 1 */}
                 <div className="hidden sm:flex items-center justify-center text-indigo-500">
@@ -318,11 +274,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Node 2: Logic / Filter (Make.com Pastel Purple Card) */}
-                <motion.div
-                  animate={{ y: [0, 8, 0] }}
-                  transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                  className="w-60 p-4 rounded-2xl bg-[#faf5ff] border-2 border-purple-300 shadow-xl shadow-purple-100/50 flex flex-col gap-3 relative cursor-grab active:cursor-grabbing hover:shadow-2xl transition-shadow"
-                >
+                <div className="w-60 p-4 rounded-2xl bg-[#faf5ff] border-2 border-purple-300 shadow-xl shadow-purple-100/50 flex flex-col gap-3 relative cursor-grab active:cursor-grabbing hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-white shadow-sm border border-purple-200 flex items-center justify-center text-purple-600">
                       <Sliders className="h-5 w-5" />
@@ -336,7 +288,7 @@ export default function HomePage() {
                     <span className="text-purple-700 font-bold">2 Branches</span>
                     <span className="text-gray-500 font-mono">Passed (True)</span>
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Animated Connection Line 2 */}
                 <div className="hidden sm:flex items-center justify-center text-emerald-500">
@@ -345,11 +297,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Node 3: Google Sheets Action (Make.com Pastel Mint Card) */}
-                <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                  className="w-60 p-4 rounded-2xl bg-[#ecfdf5] border-2 border-emerald-300 shadow-xl shadow-emerald-100/50 flex flex-col gap-3 relative cursor-grab active:cursor-grabbing hover:shadow-2xl transition-shadow"
-                >
+                <div className="w-60 p-4 rounded-2xl bg-[#ecfdf5] border-2 border-emerald-300 shadow-xl shadow-emerald-100/50 flex flex-col gap-3 relative cursor-grab active:cursor-grabbing hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-white shadow-sm border border-emerald-200 flex items-center justify-center text-emerald-600">
                       <FileSpreadsheet className="h-5 w-5" />
@@ -363,7 +311,7 @@ export default function HomePage() {
                     <span className="text-emerald-700 font-bold">✓ Synced</span>
                     <span className="text-gray-500 font-mono">14ms</span>
                   </div>
-                </motion.div>
+                </div>
               </div>
 
               {/* Make.com Floating Bottom Toolbar Pill */}
@@ -419,8 +367,7 @@ export default function HomePage() {
           {/* Feature 1 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-indigo-500/40 transition-colors group shadow-lg"
+            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all duration-200 group shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-5 group-hover:scale-110 transition-transform">
               <Layers className="h-6 w-6" />
@@ -434,8 +381,7 @@ export default function HomePage() {
           {/* Feature 2 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-purple-500/40 transition-colors group shadow-lg"
+            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-purple-500/40 hover:-translate-y-1.5 transition-all duration-200 group shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-5 group-hover:scale-110 transition-transform">
               <GitBranch className="h-6 w-6" />
@@ -449,8 +395,7 @@ export default function HomePage() {
           {/* Feature 3 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-emerald-500/40 transition-colors group shadow-lg"
+            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-emerald-500/40 hover:-translate-y-1.5 transition-all duration-200 group shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-5 group-hover:scale-110 transition-transform">
               <Play className="h-6 w-6" />
@@ -464,8 +409,7 @@ export default function HomePage() {
           {/* Feature 4 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-sky-500/40 transition-colors group shadow-lg"
+            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-sky-500/40 hover:-translate-y-1.5 transition-all duration-200 group shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-400 mb-5 group-hover:scale-110 transition-transform">
               <Globe className="h-6 w-6" />
@@ -479,8 +423,7 @@ export default function HomePage() {
           {/* Feature 5 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-amber-500/40 transition-colors group shadow-lg"
+            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-amber-500/40 hover:-translate-y-1.5 transition-all duration-200 group shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 mb-5 group-hover:scale-110 transition-transform">
               <Activity className="h-6 w-6" />
@@ -494,8 +437,7 @@ export default function HomePage() {
           {/* Feature 6 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-rose-500/40 transition-colors group shadow-lg"
+            className="p-7 rounded-3xl bg-[#141518] border border-[#222429] hover:border-rose-500/40 hover:-translate-y-1.5 transition-all duration-200 group shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400 mb-5 group-hover:scale-110 transition-transform">
               <ShieldCheck className="h-6 w-6" />
@@ -533,8 +475,7 @@ export default function HomePage() {
           {/* Step 1 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-8 rounded-3xl bg-[#141518] border border-[#222429] flex flex-col items-center text-center shadow-lg"
+            className="p-8 rounded-3xl bg-[#141518] border border-[#222429] hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all duration-200 flex flex-col items-center text-center shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-indigo-400 font-extrabold text-xl flex items-center justify-center mb-6">
               1
@@ -548,8 +489,7 @@ export default function HomePage() {
           {/* Step 2 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-8 rounded-3xl bg-[#141518] border border-[#222429] flex flex-col items-center text-center shadow-lg"
+            className="p-8 rounded-3xl bg-[#141518] border border-[#222429] hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all duration-200 flex flex-col items-center text-center shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-indigo-400 font-extrabold text-xl flex items-center justify-center mb-6">
               2
@@ -563,8 +503,7 @@ export default function HomePage() {
           {/* Step 3 */}
           <motion.div
             variants={fadeInUp}
-            whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-8 rounded-3xl bg-[#141518] border border-[#222429] flex flex-col items-center text-center shadow-lg"
+            className="p-8 rounded-3xl bg-[#141518] border border-[#222429] hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all duration-200 flex flex-col items-center text-center shadow-lg"
           >
             <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-indigo-400 font-extrabold text-xl flex items-center justify-center mb-6">
               3
@@ -616,8 +555,7 @@ export default function HomePage() {
               <motion.div
                 key={item.name}
                 variants={scaleIn}
-                whileHover={{ scale: 1.05 }}
-                className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-[#141518] border border-[#222429] hover:border-indigo-500/40 transition-colors shadow-sm"
+                className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-[#141518] border border-[#222429] hover:border-indigo-500/40 hover:scale-105 transition-all duration-200 shadow-sm"
               >
                 <Icon className={`h-5 w-5 ${item.color}`} />
                 <span className="text-sm font-semibold text-white">{item.name}</span>

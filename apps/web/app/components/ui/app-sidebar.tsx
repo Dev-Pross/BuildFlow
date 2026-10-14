@@ -42,6 +42,7 @@ import { userAction } from '@/store/slices/userSlice';
 import { workflowActions } from '@/store/slices/workflowSlice';
 import { toast } from 'sonner';
 import { signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/app/lib/api';
 import { CardDemo } from './Design/WorkflowCard';
@@ -56,6 +57,11 @@ export function AppSidebar() {
   const [workflows, setWorkflows] = useState<WorkflowSummary[] | undefined>();
   const [creds, setCreds] = useState<Array<any>>();
   const [createOpen, setCreateOpen] = useState(false);
+
+  const { data: session } = useSession()
+  const useAvatar = session?.user?.image;
+  const displayName = session?.user?.name || "User"
+  const displayEmail = session?.user?.email || "user@buildflow.com";
 
   useEffect(() => {
     if (reduxWorkflowId) {
@@ -171,11 +177,10 @@ export function AppSidebar() {
                             <SidebarMenuSubItem onClick={() => workflowHandler(i)} key={i.id}>
                               <SidebarMenuSubButton
                                 isActive={isActive}
-                                className={`text-xs px-3 py-2 rounded-xl truncate transition-colors ${
-                                  isActive
+                                className={`text-xs px-3 py-2 rounded-xl truncate transition-colors ${isActive
                                     ? "bg-white text-black font-bold shadow-xs"
                                     : "text-[#9ca3af] hover:text-white hover:bg-[#1a1b1f]"
-                                }`}
+                                  }`}
                               >
                                 <span className="truncate">{i.name}</span>
                               </SidebarMenuSubButton>
@@ -243,8 +248,8 @@ export function AppSidebar() {
                     tooltip={user.name || "User Profile"}
                     className="h-10 data-[state=open]:bg-[#1a1b1f] hover:bg-[#1a1b1f] transition-colors rounded-xl group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
                   >
-                    <div className="aspect-square h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs shrink-0 shadow-sm ring-1 ring-white/10">
-                      {user.name?.[0]?.toUpperCase() || "U"}
+                    <div className="aspect-square h-8 w-8 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs shrink-0 shadow-sm ring-1 ring-white/10">
+                      {useAvatar ? <img src={useAvatar} alt={displayName} className='w-full h-full object-cover rounded-full' /> : displayName[0]?.toUpperCase() || "U"}
                     </div>
                     <div className="flex flex-col text-left min-w-0 flex-1 ml-2.5 group-data-[collapsible=icon]:hidden">
                       <span className="text-xs font-bold text-white truncate">{user.name || "User"}</span>
