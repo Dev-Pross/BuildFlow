@@ -14,6 +14,10 @@ COPY packages/typescript-config ./packages/typescript-config
 COPY apps/hooks ./apps/hooks
 
 RUN pnpm --filter hooks... install
+
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
 RUN pnpm --filter hooks... build
 
 FROM node:22-alpine as runner
