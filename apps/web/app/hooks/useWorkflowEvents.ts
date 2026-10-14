@@ -2,13 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { BACKEND_URL } from "@repo/common/zod";
+import { useSession } from "next-auth/react";
 
 export interface WorkflowLiveEventCallbacks {
   workflowId: string | null | undefined;
   onConnected?: () => void;
   onTestWebhook?: (payload: any) => void;
   onNodeStart?: (data: { nodeId: string; executionId: string; startedAt: string }) => void;
-  onNodeFinish?: (data: { nodeId: string; executionId: string; status: "Completed" | "Failed"; error?: string }) => void;
+  onNodeFinish?: (data: { nodeId: string; executionId: string; status: "Completed" | "Failed" | "Skipped"; error?: string }) => void;
   onWorkflowFinish?: (data: { executionId: string; status: "Completed" | "Failed"; error?: string }) => void;
 }
 
@@ -29,6 +30,9 @@ export function useWorkflowEvents({
     onWorkflowFinish,
   });
 
+  const { data: session } = useSession();
+  const token = (session as any)?.accessToken;
+
   useEffect(() => {
     callbacksRef.current = {
       onConnected,
@@ -40,13 +44,13 @@ export function useWorkflowEvents({
   });
 
   useEffect(() => {
-    if (!workflowId) return;
+    if (!workflowId || !token) return;
 
     let eventSource: EventSource | null = null;
     let isCleanedUp = false;
 
     try {
-      const url = `${BACKEND_URL}/user/workflow/events/${workflowId}`;
+      const url = `${BACKEND_URL}/user/workflow/events/${workflowId}?token=${encodeURIComponent(token)}`;
       eventSource = new EventSource(url, { withCredentials: true });
 
       eventSource.addEventListener("connected", () => {
@@ -110,5 +114,5 @@ export function useWorkflowEvents({
         eventSource = null;
       }
     };
-  }, [workflowId]);
+  }, [workflowId, token]);
 }

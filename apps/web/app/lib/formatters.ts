@@ -151,6 +151,8 @@ export const getStatusIcon = (status: string): string => {
       return '↻';
     case 'Start':
       return '●';
+    case 'Skipped':
+      return '⊘';
     default:
       return '○';
   }

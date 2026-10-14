@@ -38,7 +38,7 @@ export interface NodeFinishLiveEvent {
   workflowId: string;
   executionId: string;
   nodeId: string;
-  status: "Completed" | "Failed";
+  status: "Completed" | "Failed" | "Skipped";
   completedAt: string;
   durationMs?: number;
   error?: string;
@@ -48,7 +48,7 @@ export interface WorkflowFinishLiveEvent {
   type: "WORKFLOW_FINISH";
   workflowId: string;
   executionId: string;
-  status: "Completed" | "Failed";
+  status: "Completed" | "Failed" | "Skipped";
   completedAt: string;
   error?: string;
 }
@@ -79,15 +79,15 @@ const kafkaConfig: KafkaConfig = {
   requestTimeout: 30000,
   ...(isSaslEnabled
     ? {
-        ssl: {
-          rejectUnauthorized: process.env.KAFKA_SSL_REJECT_UNAUTHORIZED === "true",
-        },
-        sasl: {
-          mechanism,
-          username: username!,
-          password: password!,
-        } as SASLOptions,
-      }
+      ssl: {
+        rejectUnauthorized: process.env.KAFKA_SSL_REJECT_UNAUTHORIZED === "true",
+      },
+      sasl: {
+        mechanism,
+        username: username!,
+        password: password!,
+      } as SASLOptions,
+    }
     : {}),
 };
 

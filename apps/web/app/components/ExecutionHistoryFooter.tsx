@@ -33,6 +33,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     Pending: 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);',
     Start: 'background:rgba(148,163,184,0.15);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);',
     ReConnecting: 'background:rgba(249,115,22,0.15);color:#fb923c;border:1px solid rgba(249,115,22,0.3);',
+    Skipped: 'background:rgba(100,116,139,0.15);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);',
   };
   return (
     <span

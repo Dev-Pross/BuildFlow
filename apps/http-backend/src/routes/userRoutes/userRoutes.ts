@@ -1107,7 +1107,10 @@ router.get("/workflow/logs/:workflowId", userMiddleware, async (req: AuthRequest
     const executions = await prismaClient.workflowExecution.findMany({
       where: { workflowId: workflowId },
       include: {
-        nodeExecutions: { include: { node: true } },
+        nodeExecutions: {
+          include: { node: true },
+          orderBy: { startedAt: "asc" },
+        },
       },
       orderBy: { startAt: "desc" },
     })

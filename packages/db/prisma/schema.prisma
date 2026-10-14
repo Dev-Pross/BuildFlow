@@ -144,4 +144,5 @@ enum WorkflowStatus {
   ReConnecting
   Failed
   Completed
+  Skipped
 }

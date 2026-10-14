@@ -219,7 +219,7 @@ export default function WorkflowCanvas() {
                 ...node,
                 data: {
                   ...node.data,
-                  executionStatus: status === "Completed" ? "completed" : "failed",
+                  executionStatus: status === "Completed" ? "completed" : status === "Skipped" ? "skipped" : "failed",
                 },
               }
             : node
@@ -542,7 +542,7 @@ export default function WorkflowCanvas() {
 
         setNodes(finalNodes);
         setEdges(finalEdges);
-        dispatch(workflowActions.setEdge(finalEdges));
+        dispatch(workflowActions.setEdge(healedEdges));
       } catch (err: any) {
         if (!isCancelled) {
           console.error("Failed to load workflow:", err);
