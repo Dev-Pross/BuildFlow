@@ -41,8 +41,8 @@ jobs:
             pnpm --filter @repo/db build
 
             echo "🔨 [Deploy] Building background engines..."
-            pnpm --filter @repo/processor build
-            pnpm --filter @repo/worker build
+            pnpm --filter @repo/processor... build
+            pnpm --filter @repo/worker... build
 
             echo "🔄 [Deploy] Restarting systemd services..."
             sudo systemctl restart buildflow-processor.service buildflow-worker.service
