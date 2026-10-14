@@ -17,7 +17,7 @@ interface BaseNodeProps {
     nodeType?: "trigger" | "action";
     isConfigured?: boolean;
     status?: "idle" | "running" | "success" | "error";
-    executionStatus?: "running" | "completed" | "failed" | null;
+    executionStatus?: "running" | "completed" | "failed" | "skipped" | null;
     onConfigure?: () => void;
     onTest?: () => void;
     onAddChild?: (sourceHandleId?: string) => void;
@@ -120,10 +120,11 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
     currentStatus === "running"
       ? "ring-4 ring-blue-500/80 shadow-[0_0_20px_rgba(59,130,246,0.6)] animate-pulse"
       : currentStatus === "completed" || currentStatus === "success"
-      ? "ring-4 ring-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
-      : currentStatus === "failed" || currentStatus === "error"
-      ? "ring-4 ring-rose-500/80 shadow-[0_0_15px_rgba(244,63,94,0.6)]"
-      : "";
+        ? "ring-4 ring-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+        : currentStatus === "failed" || currentStatus === "error"
+          ? "ring-4 ring-rose-500/80 shadow-[0_0_15px_rgba(244,63,94,0.6)]"
+          : currentStatus === "skipped" ? "ring-2 ring-slate-400/40 opacity-50 grayscale-[40%]"
+            : "";
 
   // ── Placeholder Node (Make.com Style) ──
   if (isPlaceholder) {
@@ -310,11 +311,10 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
                     position={Position.Right}
                     id={output.id}
                     style={{ top: topPosition }}
-                    className={`!w-5 !h-5 flex items-center justify-center !border-2 !border-white transition-all cursor-crosshair shadow-md z-20 ${
-                      isAlternative
+                    className={`!w-5 !h-5 flex items-center justify-center !border-2 !border-white transition-all cursor-crosshair shadow-md z-20 ${isAlternative
                         ? "!bg-rose-500 !text-white"
                         : "!bg-[#18181b] !text-white"
-                    }`}
+                      }`}
                     title={`${output.label} (${output.id})`}
                   >
                     {onAddChild && (
@@ -343,11 +343,10 @@ export default function BaseNode({ id, type, data }: BaseNodeProps) {
                     }}
                   >
                     <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shadow-xs whitespace-nowrap opacity-80 group-hover/handle:opacity-100 transition-opacity ${
-                        isAlternative
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shadow-xs whitespace-nowrap opacity-80 group-hover/handle:opacity-100 transition-opacity ${isAlternative
                           ? "bg-rose-50 text-rose-700 border-rose-200"
                           : "bg-white text-gray-800 border-gray-200"
-                      }`}
+                        }`}
                     >
                       {output.label}
                     </span>

@@ -86,107 +86,7 @@ export async function executeWorkflow(
     const nodes = data?.workflow.nodes;
 
     console.log(`Total nodes - ${nodes.length}`);
-    // for (const node of nodes) {
-    //   console.log(`${node.name}, ${node.stage}, ${node.id}th - started Execution`);
-    //   const nodeExecution = await prismaClient.nodeExecution.create({
-    //     data: {
-    //       nodeId: node.id,
-    //       workflowExecId: workflowExecutionId,
-    //       status: "Start",
-    //       inputData: currentInputData ? currentInputData : {},
-    //       startedAt: new Date()
-    //     }
-    //   })
-    //   const nodeType = node.AvailableNode.type;
 
-    //   // Create mutable copy of config
-    //   let nodeConfig = { ...(node.config as Record<string, any>) };
-
-    //   // Build interpolation context from all previously executed nodes
-    //   const interpolationContext = buildInterpolationContext(executedNodeOutputs);
-    //   for (const out of executedNodeOutputs) {
-    //     if (out.nodeId) interpolationContext[out.nodeId] = out.outputData;
-    //   }
-    //   console.log(`[Interpolation] Before: ${JSON.stringify(interpolationContext)}`);
-    //   // Resolve any {{variable}} references in the config
-    //   console.log(`[nodeConfig] Before: ${JSON.stringify(nodeConfig)}`);
-    //   nodeConfig = resolveConfigVariables(nodeConfig, interpolationContext);
-    //   console.log(`[Interpolation] After: ${JSON.stringify(nodeConfig)}`);
-
-    //   // NOTE: Removed legacy body concatenation that appended raw JSON to email body.
-    //   // Variables should be resolved via the {{interpolation}} system instead.
-    //   if (!node.CredentialsID) {
-    //     await prismaClient.workflowExecution.update({
-    //       where: { id: workflowExecutionId },
-    //       data: {
-    //         status: "Failed",
-    //         error: "Credential id not found",
-    //         completedAt: new Date(),
-    //       },
-    //     });
-
-    //     await prismaClient.nodeExecution.update({
-    //       where: { id: nodeExecution.id },
-    //       data: {
-    //         status: "Failed",
-    //         error: "Credential id not found",
-    //         completedAt: new Date()
-    //       }
-    //     })
-    //     return;
-    //   }
-
-    //   // Check if we need to loop (inputData is spreadsheet + config has column variables)
-
-
-    //   let execute: { success: boolean; output?: any; error?: string };
-
-
-    //   if (!execute.success) {
-    //     // Check if it's a partial loop failure (some rows succeeded)
-    //     const isPartialFailure = execute.output?.successful > 0 && execute.output?.failed > 0;
-
-    //     await prismaClient.workflowExecution.update({
-    //       where: { id: workflowExecutionId },
-    //       data: {
-    //         status: "Failed",
-    //         error: execute.error,
-    //         completedAt: new Date(),
-    //       }
-    //     });
-
-    //     await prismaClient.nodeExecution.update({
-    //       where: { id: nodeExecution.id },
-    //       data: {
-    //         status: "Failed",
-    //         error: execute.error,
-    //         outputData: isPartialFailure ? execute.output : undefined,
-    //         completedAt: new Date()
-    //       }
-    //     })
-    //     return;
-    //   }
-    //   await prismaClient.nodeExecution.update({
-    //     where: { id: nodeExecution.id },
-    //     data: {
-    //       completedAt: new Date(),
-    //       outputData: execute.output,
-    //       status: "Completed"
-    //     }
-    //   })
-
-    //   // Store this node's output for variable resolution in subsequent nodes
-    //   executedNodeOutputs.push({
-    //     nodeName: node.name,
-    //     nodeId: node.id,
-    //     outputData: execute.output
-    //   });
-    //   console.log(`[Interpolation] Added ${node.name} output to context. Total nodes in context: ${executedNodeOutputs.length}`);
-
-    //   currentInputData = execute.output;
-
-    //   console.log("output: ", JSON.stringify(execute));
-    // }
     const allEdges = (data.workflow.Edges as any[]) || [];
     const triggerId = data.workflow.Trigger?.id;
     const triggerOutgoingEdges = triggerId ? allEdges.filter(e => e.source === triggerId) : [];
@@ -235,7 +135,7 @@ export async function executeWorkflow(
     while (queue.length > 0) {
       const currentTask = queue.shift()
       if (!currentTask || !currentTask.nodeId) continue;
-      
+
       // Prevent infinite loops or multiple executions of the same node
       if (executedNodeIds.has(currentTask.nodeId)) {
         console.log(`Node ${currentTask.nodeId} already executed, skipping...`);
@@ -295,6 +195,45 @@ export async function executeWorkflow(
         itemsToProcess = currentInputData ? [{ json: currentInputData }] : []
       }
 
+      if (itemsToProcess.length === 0) {
+        await prismaClient.nodeExecution.update({
+          where: {
+            id: nodeExecution.id
+          },
+          data: {
+            completedAt: new Date(),
+            status: "Skipped",
+            outputData: []
+          }
+        });
+
+        await emitLiveEvent({
+          type: "NODE_FINISH",
+          workflowId: data.workflow.id,
+          executionId: workflowExecutionId,
+          nodeId: node.id,
+          status: "Skipped",
+          completedAt: new Date().toISOString(),
+        });
+
+        // Cascade skip to child nodes
+        const allEdges = (data.workflow.Edges as any[]) || [];
+        const outgoingEdges = allEdges.filter(
+          (edge) =>
+            edge.source === node.id &&
+            !edge.target?.startsWith?.("action-placeholder-") &&
+            data.workflow.nodes.some((n) => n.id === edge.target)
+        );
+
+        for (const edge of outgoingEdges) {
+          queue.push({
+            nodeId: edge.target,
+            inputData: []
+          });
+        }
+
+        continue;
+      }
 
       // Build interpolation context from all previously executed nodes
       const interpolationContext = buildInterpolationContext(executedNodeOutputs);
@@ -423,10 +362,13 @@ export async function executeWorkflow(
       console.log(`[Interpolation] Added ${node.name} output to context. Total nodes in context: ${executedNodeOutputs.length}`);
       console.log("output: ", JSON.stringify(execute));
 
-      const allEdges = (data.workflow.Edges as any[]) || []
+      const allEdges = (data.workflow.Edges as any[]) || [];
       const outgoingEdges = allEdges.filter(
-        (edge) => edge.source === node.id
-      )
+        (edge) =>
+          edge.source === node.id &&
+          !edge.target?.startsWith?.("action-placeholder-") &&
+          data.workflow.nodes.some((n) => n.id === edge.target)
+      );
 
       for (const edge of outgoingEdges) {
         // Resolve pin index from sourceHandle (e.g. "out-0", "out-1", "a-out" -> 0)

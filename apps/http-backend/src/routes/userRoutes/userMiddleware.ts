@@ -24,12 +24,17 @@ export async function userMiddleware(
   try {
     // console.log(req.cookies);
     const authHeader = req.headers.authorization;
+    const auth = req.query.token
+
     let payload: JwtPayload | null = null;
 
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
       payload = jwt.verify(token!, SECRET!) as JwtPayload;
-    } else {
+    } else if (auth) {
+      payload = jwt.verify(auth as string, SECRET!) as JwtPayload
+    }
+    else {
       payload = (await getToken({ req, secret: SECRET })) as JwtPayload | null;
     }
 
