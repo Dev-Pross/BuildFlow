@@ -20,36 +20,7 @@ export const AuthOptions: NextAuthOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_CLIENT_ID || "",
       clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
-
-      async profile(profile, tokens) {
-        let email = profile.email;
-        if (!email && tokens.access_token) {
-          try {
-            const res = await fetch("https://api.github.com/user/emails", {
-              headers: {
-                Authorization: `Bearer ${tokens.access_token}`,
-                "User-Agent": "BuildFlow",
-              },
-            });
-            if (res.ok) {
-              const emails = await res.json();
-              const primaryEmail = emails.find(
-                (item: any) => item.primary && item.verified
-              );
-              email = primaryEmail ? primaryEmail.email : emails[0]?.email;
-            }
-          } catch (err) {
-            console.error("Failed to fetch GitHub private email:", err);
-          }
-        }
-
-        return {
-          id: profile.id.toString(),
-          name: profile.name || profile.login,
-          email: email,
-          image: profile.avatar_url,
-        };
-      },
+      issuer: "https://github.com/login/oauth"
     }),
 
 
@@ -119,6 +90,13 @@ export const AuthOptions: NextAuthOptions = {
         token.city = (user as any).city;
         token.country = (user as any).country;
       }
+      if (!token.accessToken && token.id) {
+        token.accessToken = jwt.sign(
+          { id: token.id, sub: token.id, email: token.email },
+          SECRET,
+          { expiresIn: "7d" }
+        );
+      }
       return token;
     },
     async session({ session, token }) {
@@ -130,11 +108,7 @@ export const AuthOptions: NextAuthOptions = {
         (session.user as any).city = (token.city as string) || null;
         (session.user as any).country = (token.country as string) || null;
 
-        (session as any).accessToken = jwt.sign(
-          { id: token.id, sub: token.id, email: token.email },
-          SECRET,
-          { expiresIn: "7d" }
-        );
+        (session as any).accessToken = token.accessToken;
       }
       return session;
     },
