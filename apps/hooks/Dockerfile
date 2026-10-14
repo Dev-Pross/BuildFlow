@@ -1,4 +1,4 @@
-FROM node:20-alpine as builder
+FROM node:22-alpine as builder
 RUN apk add --no-cache openssl
 
 
@@ -13,10 +13,10 @@ COPY packages/kafka ./packages/kafka
 COPY packages/typescript-config ./packages/typescript-config
 COPY apps/hooks ./apps/hooks
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm --filter hooks... install
 RUN pnpm --filter hooks... build
 
-FROM node:20-alpine as runner
+FROM node:22-alpine as runner
 RUN apk add --no-cache openssl
 
 WORKDIR /app
