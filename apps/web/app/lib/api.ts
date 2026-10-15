@@ -173,6 +173,28 @@ export const api = {
         }
       );
       return res.data.headers
+    },
+    createDocument: async (payload: { credentialId: string; title: string; tabName?: string; headers?: string[] }) => {
+      const res = await axios.post(
+        `${BACKEND_URL}/node/createDocument`,
+        payload,
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+      return res.data.data;
+    },
+    createTab: async (payload: { credentialId: string; spreadsheetId: string; tabName: string; headers?: string[] }) => {
+      const res = await axios.post(
+        `${BACKEND_URL}/node/createTab`,
+        payload,
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+      return res.data.data;
     }
   },
   execute: {

@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import { GoogleOAuthService } from "../common/google-oauth-service.js";
-import { GoogleSheetsService, GoogleSheetsCredentials } from "./google-sheets.service.js";
+import { GoogleSheetsService, GoogleSheetsCredentials, createSpreadsheetParams, CreateSheetTabParams } from "./google-sheets.service.js";
 import { ExecuteItem } from "@repo/common/zod";
 
 
@@ -88,6 +88,48 @@ class GoogleSheetsNodeExecutor {
             return {
                 success: false,
                 error: e instanceof Error ? e.message : 'Failed to load sheet tabs'
+            };
+        }
+    }
+
+    async createSpreadsheet(context: SheetAuthContext, params: createSpreadsheetParams) {
+        const init = await this.ensureSheetService(context);
+        if ('success' in init) return init;
+        const sheetService = this.sheetService;
+        if (!sheetService) {
+            return {
+                success: false,
+                error: 'Sheet service not initialized'
+            };
+        }
+
+        try {
+            return await sheetService.createSpreadsheet(params);
+        } catch (e) {
+            return {
+                success: false,
+                error: e instanceof Error ? e.message : 'Failed to create spreadsheet'
+            };
+        }
+    }
+
+    async createSheetTab(context: SheetAuthContext, params: CreateSheetTabParams) {
+        const init = await this.ensureSheetService(context);
+        if ('success' in init) return init;
+        const sheetService = this.sheetService;
+        if (!sheetService) {
+            return {
+                success: false,
+                error: 'Sheet service not initialized'
+            };
+        }
+
+        try {
+            return await sheetService.createSheetTab(params);
+        } catch (e) {
+            return {
+                success: false,
+                error: e instanceof Error ? e.message : 'Failed to create sheet tab'
             };
         }
     }

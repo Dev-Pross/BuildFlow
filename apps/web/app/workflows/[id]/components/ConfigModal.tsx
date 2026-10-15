@@ -75,6 +75,36 @@ export default function ConfigModal({
   const [webhookCountdown, setWebhookCountdown] = useState(0);
   const webhookListenStartTime = useRef<number>(0);
 
+  // Responsive layout state
+  const [isDesktop, setIsDesktop] = useState(true);
+  const [mobileTab, setMobileTab] = useState<"variables" | "config" | "test">("config");
+
+  useEffect(() => {
+    const checkWidth = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkWidth();
+    window.addEventListener("resize", checkWidth);
+    return () => window.removeEventListener("resize", checkWidth);
+  }, []);
+
+  // Google Sheets Create Document / Tab state
+  const [createSheetModal, setCreateSheetModal] = useState<{
+    open: boolean;
+    type: "document" | "tab";
+    title: string;
+    tabName: string;
+    headers: string;
+    isSubmitting: boolean;
+  }>({
+    open: false,
+    type: "document",
+    title: "",
+    tabName: "",
+    headers: "",
+    isSubmitting: false,
+  });
+
   // Reset test result when switching to a different node
   useEffect(() => {
     setTestResult(null);
@@ -105,9 +135,31 @@ export default function ConfigModal({
   );
 
   const fetchOptionsMap: Record<string, (params: any) => Promise<any>> = {
-    "google.getDocuments": ({ credentialId }) => api.google.getDocuments(credentialId),
-    "google.getSheets": ({ spreadsheetId, credentialId }) => api.google.getSheets(spreadsheetId, credentialId)
-  }
+    "google.getDocuments": async ({ credentialId }) => {
+      if (!credentialId) return [];
+      try {
+        const docs = await api.google.getDocuments(credentialId);
+        return [
+          { id: "__create_new__", name: "➕ Create New Spreadsheet..." },
+          ...(docs || [])
+        ];
+      } catch (err) {
+        return [{ id: "__create_new__", name: "➕ Create New Spreadsheet..." }];
+      }
+    },
+    "google.getSheets": async ({ spreadsheetId, credentialId }) => {
+      if (!spreadsheetId || !credentialId || spreadsheetId === "__create_new__") return [];
+      try {
+        const sheets = await api.google.getSheets(spreadsheetId, credentialId);
+        return [
+          { id: "__create_new_tab__", name: "➕ Create New Tab..." },
+          ...(sheets || [])
+        ];
+      } catch (err) {
+        return [{ id: "__create_new_tab__", name: "➕ Create New Tab..." }];
+      }
+    }
+  };
 
   const dispatchConfig = (newConfig: Record<string, any>) => {
     if (!selectedNode) return;
@@ -116,6 +168,101 @@ export default function ConfigModal({
       dispatch(workflowActions.updateTriggerConfig({ config: newConfig }));
     } else {
       dispatch(workflowActions.updateNodeConfig({ nodeId: selectedNode.id, config: newConfig }));
+    }
+  };
+
+  const handleCreateSheetSubmit = async () => {
+    if (!config.credentialId) {
+      toast.error("Please select a Google Account first");
+      return;
+    }
+    setCreateSheetModal(prev => ({ ...prev, isSubmitting: true }));
+    try {
+      const headersList = createSheetModal.headers
+        ? createSheetModal.headers.split(",").map(h => h.trim()).filter(Boolean)
+        : undefined;
+
+      if (createSheetModal.type === "document") {
+        const res = await api.google.createDocument({
+          credentialId: config.credentialId,
+          title: createSheetModal.title.trim(),
+          tabName: createSheetModal.tabName.trim() || undefined,
+          headers: headersList
+        });
+
+        const docs = await api.google.getDocuments(config.credentialId);
+        const docOptions = [
+          { id: "__create_new__", name: "➕ Create New Spreadsheet..." },
+          ...(docs || [])
+        ];
+        setDynamicOptions(prev => ({ ...prev, spreadsheetId: docOptions }));
+
+        const targetTab = res?.tabName || createSheetModal.tabName.trim() || "Sheet1";
+        const newSpreadsheetId = res?.spreadsheetId;
+        const updatedConfig = {
+          ...config,
+          spreadsheetId: newSpreadsheetId,
+          sheetName: targetTab,
+          operation: "append_rows",
+          _isNewSheet: true,
+        };
+        setConfig(updatedConfig);
+        dispatchConfig(updatedConfig);
+
+        if (newSpreadsheetId) {
+          const tabs = await api.google.getSheets(newSpreadsheetId, config.credentialId);
+          setDynamicOptions(prev => ({
+            ...prev,
+            sheetName: [
+              { id: "__create_new_tab__", name: "➕ Create New Tab..." },
+              ...(tabs || [])
+            ]
+          }));
+        }
+
+        if (headersList && headersList.length > 0) {
+          setSheetHeaders(headersList);
+        }
+
+        toast.success(`Spreadsheet "${createSheetModal.title}" created successfully!`);
+      } else {
+        const res = await api.google.createTab({
+          credentialId: config.credentialId,
+          spreadsheetId: config.spreadsheetId,
+          tabName: createSheetModal.tabName.trim(),
+          headers: headersList
+        });
+
+        const tabs = await api.google.getSheets(config.spreadsheetId, config.credentialId);
+        setDynamicOptions(prev => ({
+          ...prev,
+          sheetName: [
+            { id: "__create_new_tab__", name: "➕ Create New Tab..." },
+            ...(tabs || [])
+          ]
+        }));
+
+        const updatedConfig = {
+          ...config,
+          sheetName: res?.tabName || createSheetModal.tabName.trim(),
+          operation: "append_rows",
+          _isNewSheet: true,
+        };
+        setConfig(updatedConfig);
+        dispatchConfig(updatedConfig);
+
+        if (headersList && headersList.length > 0) {
+          setSheetHeaders(headersList);
+        }
+
+        toast.success(`Sheet tab "${createSheetModal.tabName}" created successfully!`);
+      }
+
+      setCreateSheetModal({ open: false, type: "document", title: "", tabName: "", headers: "", isSubmitting: false });
+    } catch (e: any) {
+      console.error("Failed to create sheet/tab:", e);
+      toast.error(e?.response?.data?.message || e.message || "Failed to create sheet");
+      setCreateSheetModal(prev => ({ ...prev, isSubmitting: false }));
     }
   };
 
@@ -512,8 +659,36 @@ export default function ConfigModal({
 
 
   const handleFieldChange = async (fieldName: string, value: string, nodeConfig: any) => {
+    // Intercept Google Sheets creation actions
+    if (fieldName === "spreadsheetId" && value === "__create_new__") {
+      setCreateSheetModal({
+        open: true,
+        type: "document",
+        title: "",
+        tabName: "Sheet1",
+        headers: "",
+        isSubmitting: false,
+      });
+      return;
+    }
+
+    if (fieldName === "sheetName" && value === "__create_new_tab__") {
+      setCreateSheetModal({
+        open: true,
+        type: "tab",
+        title: "",
+        tabName: "",
+        headers: "",
+        isSubmitting: false,
+      });
+      return;
+    }
+
     // Update config with new value
-    const updatedConfig = ({ ...config, [fieldName]: value })
+    const updatedConfig = ({ ...config, [fieldName]: value });
+    if (fieldName === "spreadsheetId") {
+      updatedConfig._isNewSheet = false;
+    }
 
     if (fieldName === "operation") {
       const fieldDef = nodeConfig.fields?.find((f: any) => f.name === fieldName);
@@ -824,13 +999,30 @@ export default function ConfigModal({
 
     if (field.type === "dropdown") {
       // Use dynamicOptions if available, otherwise fall back to field.options
-      const options = dynamicOptions[field.name] || field.options || [];
+      let options = dynamicOptions[field.name] || field.options || [];
+
+      // For Google Sheets: If a new sheet/tab was selected/created, only allow write_rows and append_rows
+      const isSheetNode = selectedNode?.actionType === "google_sheet" || selectedNode?.name?.toLowerCase().includes("sheet");
+      if (isSheetNode && field.name === "operation" && config._isNewSheet) {
+        options = options.filter((opt: any) => {
+          const val = opt.value || (opt.id !== undefined ? opt.id : opt);
+          return val === "append_rows" || val === "write_rows";
+        });
+      }
+
       return (
         <div key={field.name} className="form-group">
-          <label className="block text-sm font-medium text-white mb-1">
-            {field.label}
-            {field.required && <span className="text-red-400">*</span>}
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-white">
+              {field.label}
+              {field.required && <span className="text-red-400">*</span>}
+            </label>
+            {isSheetNode && field.name === "operation" && config._isNewSheet && (
+              <span className="text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 font-medium">
+                ✨ Blank sheet: Append &amp; Update only
+              </span>
+            )}
+          </div>
           <select
             value={fieldValue}
             onFocus={() => setActiveField(field.name)}
@@ -1771,34 +1963,25 @@ export default function ConfigModal({
     // );
   };
 
-  return (
-    <div className="fixed inset-0 z-40">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+  const renderVariablePanel = () => (
+    <div className="w-full h-full min-h-0 rounded-2xl overflow-hidden border border-[#27282d] shadow-xl bg-[#18191c] flex flex-col">
+      <VariablePanel
+        previousNodes={previousNodes}
+        onInsert={handleVariableInsert}
+        activeField={activeField}
+        onTestNode={handleTestPreviousNode}
+      />
+    </div>
+  );
 
-      {/* Main container */}
-      <div className="fixed inset-0 m-3 p-2 rounded-3xl z-50 bg-[#0f1012] border border-[#27282d] shadow-2xl shadow-black/80 overflow-hidden flex flex-col">
-        <Group orientation="horizontal" id="buildflow-node-config-panels" className="w-full h-full flex items-stretch gap-0">
-          {/* Left Panel: Variable / Data Mapping */}
-          <Panel id="variable-panel" defaultSize="30%" minSize="20%" maxSize="45%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-            <div className="w-full h-full min-h-0 rounded-2xl overflow-hidden border border-[#27282d] shadow-xl bg-[#18191c] flex flex-col">
-              <VariablePanel
-                previousNodes={previousNodes}
-                onInsert={handleVariableInsert}
-                activeField={activeField}
-                onTestNode={handleTestPreviousNode}
-              />
-            </div>
-          </Panel>
+  const renderTestPanel = () => (
+    <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#222429] shadow-xl bg-[#141518] flex flex-col">
+      <TestPanel testResult={testResult} metadata={nodeTestOutput?.metadata} nodeName={selectedNode?.name} nodeIcon={selectedNode?.icon} />
+    </div>
+  );
 
-          {/* Drag Handle 1 */}
-          <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
-            <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
-          </Separator>
-
-          {/* Center Panel: Node Configuration Form */}
-          <Panel id="form-panel" defaultSize="35%" minSize="25%" maxSize="50%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-            <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#141518] border border-[#222429] shadow-xl">
+  const renderFormPanel = () => (
+    <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#141518] border border-[#222429] shadow-xl">
               {/* Header */}
               <div className="p-4 border-b border-[#222429] flex items-center justify-between flex-shrink-0 bg-[#18191c]">
                 <h2 className="text-base font-semibold flex items-center gap-3 text-[#f0f0e8]">
@@ -1941,21 +2124,174 @@ export default function ConfigModal({
                 </div>
               </div>
             </div>
-          </Panel>
+  );
 
-          {/* Drag Handle 2 */}
-          <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
-            <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
-          </Separator>
+  return (
+    <div className="fixed inset-0 z-40">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-          {/* Right Panel: Test Output */}
-          <Panel id="test-panel" defaultSize="35%" minSize="20%" maxSize="65%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-            <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#222429] shadow-xl bg-[#141518] flex flex-col">
-              <TestPanel testResult={testResult} metadata={nodeTestOutput?.metadata} nodeName={selectedNode?.name} nodeIcon={selectedNode?.icon} />
-            </div>
-          </Panel>
-        </Group>
+      {/* Main container: full screen on mobile, floating on larger screens */}
+      <div className="fixed inset-0 sm:m-3 p-1 sm:p-2 sm:rounded-3xl z-50 bg-[#0f1012] border border-[#27282d] shadow-2xl shadow-black/80 overflow-hidden flex flex-col">
+        {/* Mobile / Tablet Tab Switcher */}
+        {!isDesktop && (
+          <div className="flex items-center gap-1.5 p-2 bg-[#141518] border-b border-[#222429] flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setMobileTab("variables")}
+              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                mobileTab === "variables"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+              }`}
+            >
+              <span>📊</span>
+              <span>Variables</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab("config")}
+              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                mobileTab === "config"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+              }`}
+            >
+              <span>⚙️</span>
+              <span>Configure</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab("test")}
+              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                mobileTab === "test"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+              }`}
+            >
+              <span>🧪</span>
+              <span>Test Output</span>
+            </button>
+          </div>
+        )}
+
+        {isDesktop ? (
+          <Group orientation="horizontal" id="buildflow-node-config-panels" className="w-full h-full flex items-stretch gap-0">
+            {/* Left Panel: Variable / Data Mapping */}
+            <Panel id="variable-panel" defaultSize="30%" minSize="20%" maxSize="45%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
+              {renderVariablePanel()}
+            </Panel>
+
+            {/* Drag Handle 1 */}
+            <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
+              <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
+            </Separator>
+
+            {/* Center Panel: Node Configuration Form */}
+            <Panel id="form-panel" defaultSize="35%" minSize="25%" maxSize="50%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
+              {renderFormPanel()}
+            </Panel>
+
+            {/* Drag Handle 2 */}
+            <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
+              <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
+            </Separator>
+
+            {/* Right Panel: Test Output */}
+            <Panel id="test-panel" defaultSize="35%" minSize="20%" maxSize="65%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
+              {renderTestPanel()}
+            </Panel>
+          </Group>
+        ) : (
+          <div className="w-full flex-1 min-h-0 p-1 sm:p-2 overflow-hidden flex flex-col">
+            {mobileTab === "variables" && renderVariablePanel()}
+            {mobileTab === "config" && renderFormPanel()}
+            {mobileTab === "test" && renderTestPanel()}
+          </div>
+        )}
       </div>
+
+      {/* Google Sheets Create Document / Tab Modal */}
+      {createSheetModal.open && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-[#18191c] border border-[#27282d] rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-[#27282d]">
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <span>{createSheetModal.type === "document" ? "📊 Create New Spreadsheet" : "📑 Create New Sheet Tab"}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCreateSheetModal(prev => ({ ...prev, open: false }))}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {createSheetModal.type === "document" && (
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1">Spreadsheet Title *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Q4 Marketing Leads"
+                  value={createSheetModal.title}
+                  onChange={(e) => setCreateSheetModal(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full p-2.5 border border-[#27282d] bg-[#0f1012] text-white rounded-lg text-sm outline-none focus:border-indigo-500"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-gray-300 mb-1">
+                {createSheetModal.type === "document" ? "Initial Tab Name (Optional, defaults to Sheet1)" : "Tab Name *"}
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Leads"
+                value={createSheetModal.tabName}
+                onChange={(e) => setCreateSheetModal(prev => ({ ...prev, tabName: e.target.value }))}
+                className="w-full p-2.5 border border-[#27282d] bg-[#0f1012] text-white rounded-lg text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-300 mb-1">Initial Column Headers (Optional, comma-separated)</label>
+              <input
+                type="text"
+                placeholder="e.g. Name, Email, Phone, Company"
+                value={createSheetModal.headers}
+                onChange={(e) => setCreateSheetModal(prev => ({ ...prev, headers: e.target.value }))}
+                className="w-full p-2.5 border border-[#27282d] bg-[#0f1012] text-white rounded-lg text-sm outline-none focus:border-indigo-500"
+              />
+              <p className="text-[11px] text-gray-500 mt-1">These will be written to Row 1 (A1:...) so you can immediately map columns.</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#27282d]">
+              <button
+                type="button"
+                onClick={() => setCreateSheetModal(prev => ({ ...prev, open: false }))}
+                className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  createSheetModal.isSubmitting ||
+                  (createSheetModal.type === "document"
+                    ? !createSheetModal.title.trim()
+                    : !createSheetModal.tabName.trim())
+                }
+                onClick={handleCreateSheetSubmit}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+              >
+                {createSheetModal.isSubmitting ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

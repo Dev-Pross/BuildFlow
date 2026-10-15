@@ -144,4 +144,93 @@ sheetRouter.get(
       });
     }
   }
-)
+);
+
+sheetRouter.post(
+  "/createDocument",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        return res
+          .status(statusCodes.UNAUTHORIZED)
+          .json({ message: "User is not logged in / not authorized" });
+      }
+
+      const { credentialId, title, tabName, headers } = req.body;
+      if (!credentialId || !title) {
+        return res
+          .status(statusCodes.BAD_REQUEST)
+          .json({ message: "credentialId and title are required" });
+      }
+
+      const result = await sheetExecutor.createSpreadsheet(
+        { userId, credentialId, authType: "gsheet_oauth" },
+        { title, tabName, headers }
+      );
+
+      if ((result as any)?.success === false) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: (result as any)?.error || "Failed to create spreadsheet",
+          result,
+        });
+      }
+
+      return res.status(statusCodes.OK).json({
+        message: "Spreadsheet created successfully",
+        data: result,
+      });
+    } catch (e) {
+      console.error("Error creating spreadsheet:", e);
+      return res
+        .status(statusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error creating spreadsheet" });
+    }
+  }
+);
+
+sheetRouter.post(
+  "/createTab",
+  userMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        return res
+          .status(statusCodes.UNAUTHORIZED)
+          .json({ message: "User is not logged in / not authorized" });
+      }
+
+      const { credentialId, spreadsheetId, tabName, headers } = req.body;
+      if (!credentialId || !spreadsheetId || !tabName) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message:
+            "credentialId, spreadsheetId, and tabName are required",
+        });
+      }
+
+      const result = await sheetExecutor.createSheetTab(
+        { userId, credentialId, authType: "gsheet_oauth" },
+        { spreadsheetId, tabName, headers }
+      );
+
+      if ((result as any)?.success === false) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: (result as any)?.error || "Failed to create sheet tab",
+          result,
+        });
+      }
+
+      return res.status(statusCodes.OK).json({
+        message: "Sheet tab created successfully",
+        data: result,
+      });
+    } catch (e) {
+      console.error("Error creating sheet tab:", e);
+      return res
+        .status(statusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error creating sheet tab" });
+    }
+  }
+);

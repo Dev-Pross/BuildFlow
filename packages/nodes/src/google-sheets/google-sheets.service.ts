@@ -20,6 +20,18 @@ interface AppendRowsParams {
     values: any[][]
 }
 
+interface createSpreadsheetParams {
+    title: string;
+    headers?: string[]
+    tabName?: string;
+}
+
+interface CreateSheetTabParams {
+    spreadsheetId: string;
+    tabName: string;
+    headers?: string[]
+}
+
 interface WriteRowsParams {
     spreadsheetId: string,
     range: string,
@@ -101,6 +113,8 @@ class GoogleSheetsService {
         }
     }
 
+
+
     async readRows(params: ReadRowsParams_ClearRows): Promise<any[][]> {
         try {
             const response = await this.sheets.spreadsheets.values.get({
@@ -162,8 +176,85 @@ class GoogleSheetsService {
         }
     }
 
+    async createSpreadsheet(params: createSpreadsheetParams): Promise<any> {
+        try {
+            const response = await this.sheets.spreadsheets.create({
+                requestBody: {
+                    properties: {
+                        title: params.title
+                    },
+                    sheets: params.tabName ? [
+                        {
+                            properties: {
+                                title: params.tabName
+                            }
+                        }
+                    ] : undefined
+                }
+            })
+
+            const sheetId = response.data.spreadsheetId;
+            const activeTab = params.tabName || 'Sheet1';
+            const range = `'${activeTab}'!A1`;
+
+            if (params.headers && params.headers.length > 0) {
+                await this.writeRows({
+                    spreadsheetId: sheetId!,
+                    range,
+                    values: [params.headers]
+                })
+            }
+
+            return {
+                success: true,
+                spreadsheetId: sheetId,
+                spreadsheetUrl: response.data.spreadsheetUrl,
+                tabName: activeTab
+            }
+        } catch (e: any) {
+            throw new Error("Failed to create spreadsheet: " + e.message);
+        }
+    }
+
+    async createSheetTab(params: CreateSheetTabParams): Promise<any> {
+        try {
+            const response = await this.sheets.spreadsheets.batchUpdate({
+                spreadsheetId: params.spreadsheetId,
+                requestBody: {
+                    requests: [
+                        {
+                            addSheet: {
+                                properties: {
+                                    title: params.tabName
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+
+            const addedSheet = response.data.replies?.[0]?.addSheet?.properties;
+            const range = `'${params.tabName}'!A1`;
+
+            if (params.headers && params.headers.length > 0) {
+                await this.writeRows({
+                    spreadsheetId: params.spreadsheetId,
+                    range,
+                    values: [params.headers]
+                });
+            }
+
+            return {
+                success: true,
+                sheetId: addedSheet?.sheetId,
+                tabName: params.tabName
+            };
+        } catch (error: any) {
+            throw new Error(`Failed to create sheet tab: ${error.message}`);
+        }
+    }
 
 }
 
 export { GoogleSheetsService }
-export type { GoogleSheetsCredentials, ReadRowsParams_ClearRows, AppendRowsParams, WriteRowsParams }
+export type { GoogleSheetsCredentials, ReadRowsParams_ClearRows, AppendRowsParams, WriteRowsParams, createSpreadsheetParams, CreateSheetTabParams }
