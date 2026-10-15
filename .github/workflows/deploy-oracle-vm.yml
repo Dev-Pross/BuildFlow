@@ -34,8 +34,26 @@ jobs:
             git checkout main
             git pull origin main
 
+            echo "💾 [Deploy] Verifying swap memory..."
+            if [ $(swapon --show | wc -l) -le 1 ]; then
+              echo "⚠️ Swap not active! Enabling swap..."
+              if [ -f /swapfile ]; then
+                sudo swapon /swapfile || true
+              else
+                echo "Creating 2GB swapfile..."
+                sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+                sudo chmod 600 /swapfile
+                sudo mkswap /swapfile
+                sudo swapon /swapfile
+              fi
+            fi
+            free -h
+
             echo "📦 [Deploy] Installing monorepo dependencies..."
             pnpm install --frozen-lockfile
+
+            # Give Node/tsc enough heap memory to compile large type definitions (googleapis)
+            export NODE_OPTIONS="--max-old-space-size=3072"
 
             echo "⚙️ [Deploy] Generating Prisma Client & compiling db package..."
             pnpm --filter @repo/db build
