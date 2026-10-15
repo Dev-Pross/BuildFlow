@@ -4,7 +4,9 @@ import { emitLiveEvent } from "@repo/kafka";
 
 import express from "express";
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
 
 app.post("/hooks/catch/:userId/:workflowId/:uniqueId", async (req, res) => {
   try {
