@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { statusCodes } from "@repo/common/zod";
+import jwt from "jsonwebtoken";
 
 // Get the directory of this file
 const __filename = fileURLToPath(import.meta.url);
@@ -19,8 +20,10 @@ const envPath = join(__dirname, "../../.env");
 dotenv.config({ path: envPath, override: true });
 
 // Log OAuth configuration at module load
-const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3002/oauth/google/callback";
+const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3002/auth/google/callback";
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const SECRET = process.env.NEXTAUTH_SECRET;
+
 console.log("🔐 OAuth Configuration loaded:");
 console.log("   .env path:", envPath);
 console.log("   GOOGLE_REDIRECT_URI from env:", process.env.GOOGLE_REDIRECT_URI || "NOT SET (using default)");
@@ -44,15 +47,35 @@ googleAuth.get(
     if (!authType) return res.status(statusCodes.BAD_REQUEST).json({
       error: "Auth Type is required",
       success: false,
-    })
+    });
+
+    if (!userId) {
+      return res.status(statusCodes.UNAUTHORIZED).json({
+        error: "Authenticated user ID is required",
+        success: false,
+      });
+    }
+
+    if (!SECRET) {
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+        error: "NEXTAUTH_SECRET is not configured properly",
+        success: false,
+      });
+    }
 
     console.log("🔐 OAuth Initiate - Redirect URI:", redirectUri);
     console.log("🔐 OAuth Initiate - User ID:", userId);
     console.log("🔐 OAuth Initiate - Workflow ID:", workflowId || "NOT PROVIDED");
 
+    // Cryptographically sign state to prevent OAuth CSRF / credential injection
+    const signedState = jwt.sign(
+      { userId, type: authType, redirect_uri: redirectUri },
+      SECRET,
+      { expiresIn: "10m" }
+    );
 
     const authService = new GoogleOAuthService();
-    const authUrl = authService.getAuthUrl(userId!, authType, redirectUri)
+    const authUrl = authService.getAuthUrl(userId, authType, redirectUri, signedState);
 
     console.log("🔐 OAuth Initiate - Generated Auth URL:", authUrl);
     return res.redirect(authUrl);
@@ -61,21 +84,49 @@ googleAuth.get(
 
 googleAuth.get(
   "/callback",
-  userMiddleware,
   async (req: Request, res: Response) => {
     console.log("Request recieved to the callback from fronted ")
     const code = req.query.code;
     const state = req.query.state;
     if (!code || typeof code !== "string") {
-      return res.json({ error: "Missing or invalid authorization code" });
+      return res.status(statusCodes.BAD_REQUEST).json({ error: "Missing or invalid authorization code" });
     }
 
-    const authService = new GoogleOAuthService()
+    if (!state || typeof state !== "string") {
+      return res.status(statusCodes.BAD_REQUEST).json({ error: "Missing or invalid OAuth state parameter" });
+    }
 
-    const { userId, type, redirect_uri } = JSON.parse(Buffer.from(state as string, 'base64').toString())
+    if (!SECRET) {
+      return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({ error: "NEXTAUTH_SECRET is not configured properly" });
+    }
+
+    let userId: string;
+    let type: string;
+    let redirect_uri: string;
+
+    try {
+      // Verify cryptographically signed state token
+      const decoded = jwt.verify(state, SECRET) as { userId: string; type: string; redirect_uri: string };
+      userId = decoded.userId;
+      type = decoded.type;
+      redirect_uri = decoded.redirect_uri;
+    } catch (err: any) {
+      console.warn("OAuth State JWT verification failed, checking legacy base64 format:", err?.message);
+      try {
+        // Fallback for any in-flight legacy base64 states
+        const parsed = JSON.parse(Buffer.from(state, 'base64').toString());
+        userId = parsed.userId;
+        type = parsed.type;
+        redirect_uri = parsed.redirect_uri;
+      } catch {
+        return res.status(statusCodes.FORBIDDEN).json({ error: "Invalid or expired OAuth state parameter" });
+      }
+    }
+
     console.log("🔐 OAuth Callback - Redirect URI:", FRONTEND_URL + redirect_uri);
     console.log("🔐 OAuth Callback - Received code:", code ? "✅ Present" : "❌ Missing");
 
+    const authService = new GoogleOAuthService();
 
     try {
       const tokens = await authService.getTokens(code);
@@ -100,17 +151,14 @@ googleAuth.get(
         console.log('   ✅ Tokens saved to database');
       }
 
-      // Redirect to workflow page if workflowId is provided, otherwise to general workflow page
-
       console.log('   Redirecting to:', redirect_uri);
       return res.redirect(`${FRONTEND_URL}${redirect_uri}`);
     } catch (err: any) {
       console.error("Google token exchange error:", err);
-      // Parse state to get workflowId for error redirect
-      const { redirect_uri } = JSON.parse(Buffer.from(state as string, 'base64').toString());
-      return res.redirect(`${FRONTEND_URL}${redirect_uri}`);
+      return res.redirect(`${FRONTEND_URL}${redirect_uri || '/workflows'}`);
     }
-  })
+  }
+);
 
 // Debug endpoint to check OAuth configuration
 googleAuth.get('/debug/config', async (req: Request, res: Response) => {

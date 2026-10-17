@@ -1,0 +1,56 @@
+name: CD - Deploy GCP VM (Http-Backend)
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "apps/http-backend/**"
+            - "packages/**"
+            - 'pnpm-lock.yaml'
+            - '.github/workflows/deploy-gcp-vm-http-backend.yml'
+    workflow_dispatch:
+
+
+jobs:
+    deploy:
+        name: Deploy Service to GCP VM
+        runs-on: ubuntu-latest
+        steps:
+            - name: Deploy to GCP Cloud VM via SSH
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                host: ${{ secrets.GCP_VM_HOST }}
+                username: ${{ secrets.GCP_VM_USER || 'tejabudumuru3' }}
+                key: ${{ secrets.GCP_SSH_KEY }}
+                port: 22
+                script_stop: true
+                script: |
+                    set -e
+                    echo " [DEPLOY] Connected to GCP VM"
+                    cd /home/tejabudumuru3/BuildFlow/
+
+                    echo "📥 [Deploy] Pulling latest commits from main..."
+                    git checkout main
+                    git pull origin main
+
+                    echo "📦 [Deploy] Installing monorepo dependencies..."
+                    pnpm install --frozen-lockfile
+
+                    echo "⚙️ [Deploy] Generating Prisma Client & compiling db package..."
+                    pnpm --filter @repo/db build
+
+                    echo "🔨 [Deploy] Building background engines..."
+                    export NODE_OPTIONS="--max-old-space-size=2048"
+
+                    pnpm --filter @repo/kafka build
+                    pnpm --filter @repo/db build
+                    pnpm --filter @repo/nodes build
+                    pnpm --filter http-backend build
+
+
+                    echo "🔄 [Deploy] Restarting services..."
+                    pm2 reload buildflow-backend || pm2 restart buildflow-backend
+                    pm2 status
+
+                    echo "🎉 [Deploy] Continuous Deployment finished successfully!"

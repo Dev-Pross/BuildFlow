@@ -483,8 +483,11 @@ export default function DashboardPage() {
                   </span>
                   <button
                     onClick={() => {
-                      if (!item.connected && item.id.includes("google")) {
-                        window.location.href = `${BACKEND_URL}/auth/google/initiate`;
+                      if (!item.connected && (item.id.toLowerCase().includes("google") || item.id === "gmail")) {
+                        const authType = item.id === "googleSheets" ? "gsheet_oauth" : (item.id === "gmail" ? "gmail_oauth" : item.id);
+                        const token = (session as any)?.accessToken;
+                        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+                        window.location.href = `${BACKEND_URL}/auth/google/initiate?authType=${encodeURIComponent(authType)}&redirect_url=${encodeURIComponent("/dashboard")}${tokenParam}`;
                       }
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${

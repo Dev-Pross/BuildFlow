@@ -59,6 +59,7 @@ jobs:
             pnpm --filter @repo/db build
 
             echo "🔨 [Deploy] Building background engines..."
+            export NODE_OPTIONS="--max-old-space-size=2048"
             pnpm --filter @repo/processor... build
             pnpm --filter @repo/worker... build
 

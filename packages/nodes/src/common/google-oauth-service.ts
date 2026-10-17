@@ -17,7 +17,7 @@ class GoogleOAuthService {
   constructor() {
     this.prisma = prismaClient;
     // Ensure redirect URI has a fallback to match backend configuration
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3002/oauth/google/callback";
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3002/auth/google/callback";
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -25,7 +25,7 @@ class GoogleOAuthService {
     );
   }
 
-  getAuthUrl(userId: string, type: string, redirect_uri?: string): string {
+  getAuthUrl(userId: string, type: string, redirect_uri?: string, customState?: string): string {
     const sheetScope = [
       "https://www.googleapis.com/auth/spreadsheets",
       "https://www.googleapis.com/auth/drive.readonly",
@@ -47,7 +47,7 @@ class GoogleOAuthService {
     return this.oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: scopes,
-      state: Buffer.from(JSON.stringify(state)).toString('base64'),
+      state: customState || Buffer.from(JSON.stringify(state)).toString('base64'),
       prompt: "consent",
     });
   }
