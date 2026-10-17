@@ -25,6 +25,7 @@ jobs:
                 key: ${{ secrets.GCP_SSH_KEY }}
                 port: 22
                 script_stop: true
+                command_timeout: 30m
                 script: |
                     set -e
                     echo " [DEPLOY] Connected to GCP VM"
@@ -38,13 +39,12 @@ jobs:
                     pnpm install --frozen-lockfile
 
                     echo "⚙️ [Deploy] Generating Prisma Client & compiling db package..."
-                    pnpm --filter @repo/db build
-
+                    
                     echo "🔨 [Deploy] Building background engines..."
                     export NODE_OPTIONS="--max-old-space-size=2048"
-
-                    pnpm --filter @repo/kafka build
+                    
                     pnpm --filter @repo/db build
+                    pnpm --filter @repo/kafka build
                     pnpm --filter @repo/nodes build
                     pnpm --filter http-backend build
 
