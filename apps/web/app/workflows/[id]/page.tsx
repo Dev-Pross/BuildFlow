@@ -299,7 +299,19 @@ export default function WorkflowCanvas() {
     if (nodeName === "webhook") return true; // Webhooks have no user inputs
     const nodeConfig = getNodeConfig(nodeName);
     if (!nodeConfig || !nodeConfig.fields) return true;
-    const requiredFields = nodeConfig.fields.filter((f: any) => f.required);
+
+    const isRequired = (f: any) => {
+      if (f.required) return true;
+      const op = config?.operation;
+      if (nodeConfig.id === "google_sheet" && f.name === "range" && op === "write_rows") return true;
+      if (nodeConfig.id === "filter") {
+        if ((op === "new_data_only" || op === "existing_data_only") && ["referenceData", "sourceKey", "referenceKey"].includes(f.name)) return true;
+        if (op === "group_by" && f.name === "sourceKey") return true;
+      }
+      return false;
+    };
+
+    const requiredFields = nodeConfig.fields.filter(isRequired);
     if (requiredFields.length === 0) return true;
     return requiredFields.every((f: any) => config?.[f.name] !== undefined && config?.[f.name] !== '');
   }

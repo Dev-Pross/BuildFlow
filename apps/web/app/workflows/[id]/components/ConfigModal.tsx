@@ -392,9 +392,95 @@ export default function ConfigModal({
     setWebhookCountdown(60); // Listen for 60 seconds
   };
 
+  const isFieldVisible = (field: ConfigField, formData: any) => {
+    const currentOps = formData.operation || formData.method || "read_rows";
+
+    // 1. Operation check: if field specifies showForOperation, check against active operation / method
+    if (field.showForOperation && !field.showForOperation.includes(currentOps)) {
+      return false;
+    }
+
+    // 2. HTTP method dependency check (e.g. body depends on method)
+    if (field.dependsOn === "method" && field.showForOperation && !field.showForOperation.includes(formData.method ?? "GET")) {
+      return false;
+    }
+
+    // 3. Mapping mode switches for Google Sheets
+    if (field.name === 'mappedColumns') {
+      return (formData.mappingMode ?? 'visual') === 'visual';
+    }
+
+    if (field.name === 'bulkValues') {
+      return formData.mappingMode === 'bulk';
+    }
+
+    // 4. Custom range visibility
+    if (field.name === 'range') {
+      if (currentOps === 'read_rows' && (formData.fetchEntireTable ?? true))
+        return false;
+      if (currentOps === 'clear_rows' && (formData.clearEntireTable ?? true))
+        return false;
+      if (currentOps === 'write_rows')
+        return true;
+    }
+
+    // 5. Clear header row checkbox visibility
+    if (field.name === 'includeHeaderRow') {
+      if (currentOps === 'clear_rows' && !(formData.clearEntireTable ?? true))
+        return false;
+    }
+
+    return true;
+  };
+
+  const isFieldRequired = (field: ConfigField, formData: any, targetNodeConfig?: any): boolean => {
+    if (field.required) return true;
+
+    const nodeType = targetNodeConfig?.id || selectedNode?.actionType;
+    const currentOps = formData?.operation || formData?.method;
+
+    // Google Sheets: Range is required for write_rows
+    if (nodeType === "google_sheet" && field.name === "range" && currentOps === "write_rows") {
+      return true;
+    }
+
+    // Filter node: Operation-dependent required fields
+    if (nodeType === "filter") {
+      const op = currentOps || "unique_rows";
+      if (op === "new_data_only" || op === "existing_data_only") {
+        if (field.name === "referenceData" || field.name === "sourceKey" || field.name === "referenceKey") {
+          return true;
+        }
+      }
+      if (op === "group_by") {
+        if (field.name === "sourceKey") {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
   // Test the current node and store output in Redux
   const handleTestNode = async () => {
     if (!selectedNode) return;
+
+    // Validate visible required fields before executing test
+    const targetNodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
+    if (targetNodeConfig?.fields) {
+      const visibleFields = targetNodeConfig.fields.filter((f) => isFieldVisible(f, config));
+      for (const field of visibleFields) {
+        if (isFieldRequired(field, config, targetNodeConfig)) {
+          const val = config[field.name];
+          const isEmpty = val === undefined || val === null || (typeof val === 'string' && val.trim() === "");
+          if (isEmpty) {
+            toast.error(`Please provide required field: "${field.label}"`);
+            return;
+          }
+        }
+      }
+    }
 
     console.log('[ConfigModal] Testing node:', selectedNode.id, selectedNode.name);
     dispatch(setNodeLoading({ nodeId: selectedNode.id, loading: true }));
@@ -804,47 +890,6 @@ export default function ConfigModal({
   //   }
   // };
 
-  const isFieldVisible = (field: ConfigField, formData: any) => {
-    const currentOps = formData.operation || formData.method || "read_rows";
-
-    // 1. Operation check: if field specifies showForOperation, check against active operation / method
-    if (field.showForOperation && !field.showForOperation.includes(currentOps)) {
-      return false;
-    }
-
-    // 2. HTTP method dependency check (e.g. body depends on method)
-    if (field.dependsOn === "method" && field.showForOperation && !field.showForOperation.includes(formData.method ?? "GET")) {
-      return false;
-    }
-
-    // 3. Mapping mode switches for Google Sheets
-    if (field.name === 'mappedColumns') {
-      return (formData.mappingMode ?? 'visual') === 'visual';
-    }
-
-    if (field.name === 'bulkValues') {
-      return formData.mappingMode === 'bulk';
-    }
-
-    // 4. Custom range visibility
-    if (field.name === 'range') {
-      if (currentOps === 'read_rows' && (formData.fetchEntireTable ?? true))
-        return false;
-      if (currentOps === 'clear_rows' && (formData.clearEntireTable ?? true))
-        return false;
-      if (currentOps === 'write_rows')
-        return true;
-    }
-
-    // 5. Clear header row checkbox visibility
-    if (field.name === 'includeHeaderRow') {
-      if (currentOps === 'clear_rows' && !(formData.clearEntireTable ?? true))
-        return false;
-    }
-
-    return true;
-  };
-
   const extractSchemaKeys = (data: any): string[] => {
     if (!Array.isArray(data)) return ["Invalid Data (Expected an Array)"];
     if (data.length === 0) return ["(Array is Empty - No Keys Found)"];
@@ -875,7 +920,7 @@ export default function ConfigModal({
 
   const renderField = (field: ConfigField, nodeConfig: any) => {
     const fieldValue = config[field.name] ?? field.defaultValue ?? "";
-    const isRequired = field.required || (field.name === "range" && config.operation === "write_rows");
+    const isRequired = isFieldRequired(field, config, nodeConfig);
 
     if (field.type === "dynamic_schema_dropdown") {
       let options: string[] = ["(No Data Mapped)"];
@@ -899,7 +944,7 @@ export default function ConfigModal({
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">
             {field.label}
-            {field.required && <span className="text-red-400">*</span>}
+            {isRequired && <span className="text-red-400 ml-0.5">*</span>}
           </label>
           <select
             value={fieldValue}
@@ -910,7 +955,7 @@ export default function ConfigModal({
               dispatchConfig(newConfig);
             }}
             className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
-            required={field.required}
+            required={isRequired}
           >
             <option value="">Select {field.label.toLowerCase()}</option>
             {options.map((opt) => {
@@ -935,7 +980,7 @@ export default function ConfigModal({
         <div key={field.name} className="space-y-1.5">
           <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
             {field.label}
-            {field.required && <span className="text-rose-400 ml-0.5">*</span>}
+            {isRequired && <span className="text-rose-400 ml-0.5">*</span>}
           </label>
           {(Array.isArray(credentials) && credentials.length > 0) ? (
             <>
@@ -947,7 +992,7 @@ export default function ConfigModal({
                   console.log(field.name, nodeConfig, e.target.value)
                 }}
                 className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
-                required={field.required}
+                required={isRequired}
               >
                 <option value="">Select Google Account</option>
                 {credentials.map((cred: any) => (
@@ -1015,7 +1060,7 @@ export default function ConfigModal({
           <div className="flex items-center justify-between mb-1">
             <label className="block text-sm font-medium text-white">
               {field.label}
-              {field.required && <span className="text-red-400">*</span>}
+              {isRequired && <span className="text-red-400 ml-0.5">*</span>}
             </label>
             {isSheetNode && field.name === "operation" && config._isNewSheet && (
               <span className="text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 font-medium">
@@ -1031,7 +1076,7 @@ export default function ConfigModal({
               await handleFieldChange(field.name, e.target.value, nodeConfig);
             }}
             className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
-            required={field.required}
+            required={isRequired}
           >
             {/* {console.log(options)} */}
             <option value="">Select {field.label.toLowerCase()}</option>
@@ -1050,7 +1095,7 @@ export default function ConfigModal({
         <div key={field.name} className="form-group">
           <label className="block text-sm font-medium text-white mb-1">
             {field.label}
-            {field.required && <span className="text-red-400">*</span>}
+            {isRequired && <span className="text-red-400 ml-0.5">*</span>}
           </label>
           {/* <textarea
             value={fieldValue}
@@ -1258,7 +1303,7 @@ export default function ConfigModal({
             <div>
               <label className="block text-xs font-semibold text-gray-200 uppercase tracking-wider">
                 {field.label}
-                {field.required && <span className="text-red-400 ml-0.5">*</span>}
+                {isRequired && <span className="text-red-400 ml-0.5">*</span>}
               </label>
               {field.description && (
                 <p className="text-[11px] text-gray-400 mt-0.5">{field.description}</p>
