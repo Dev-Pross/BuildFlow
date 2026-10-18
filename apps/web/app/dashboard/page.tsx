@@ -336,7 +336,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-black text-zinc-900">
-                    {overview ? overview.executionCount : "1.2k"} / {overview ? overview.executionQuota : "10k"}
+                    {overview ? overview.executionCount : 0} / ∞
                   </div>
                 </div>
               </div>
