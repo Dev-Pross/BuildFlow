@@ -13,11 +13,57 @@ on:
 
 
 jobs:
-    deploy:
-        name: Deploy Service to GCP VM
+    build-and-deploy:
+        name: Build & Deploy Service to GCP VM
         runs-on: ubuntu-latest
         steps:
-            - name: Deploy to GCP Cloud VM via SSH
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v3
+              with:
+                version: 11.10.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                node-version: 20
+                cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Compile monorepo packages (Fast build on 16GB Runner)
+              env:
+                DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+              run: |
+                pnpm --filter @repo/common build
+                pnpm --filter @repo/kafka build
+                pnpm --filter @repo/db build
+                pnpm --filter @repo/nodes build
+                pnpm --filter http-backend build
+
+            - name: Bundle compiled dist artifacts
+              run: |
+                tar -czf dist-bundle.tar.gz \
+                  apps/http-backend/dist \
+                  packages/common/dist \
+                  packages/db/dist \
+                  packages/kafka/dist \
+                  packages/nodes/dist
+
+            - name: Ship dist bundle to GCP VM via SCP
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                host: ${{ secrets.GCP_VM_HOST }}
+                username: ${{ secrets.GCP_VM_USER || 'tejabudumuru3' }}
+                key: ${{ secrets.GCP_SSH_KEY }}
+                port: 22
+                source: "dist-bundle.tar.gz"
+                target: "/home/tejabudumuru3/BuildFlow"
+
+            - name: Deploy and Reload on GCP VM via SSH
               uses: appleboy/ssh-action@v1.0.3
               with:
                 host: ${{ secrets.GCP_VM_HOST }}
@@ -25,32 +71,26 @@ jobs:
                 key: ${{ secrets.GCP_SSH_KEY }}
                 port: 22
                 script_stop: true
-                command_timeout: 30m
                 script: |
                     set -e
-                    echo " [DEPLOY] Connected to GCP VM"
+                    echo "🚀 [Deploy] Connected to GCP VM"
                     cd /home/tejabudumuru3/BuildFlow/
 
-                    echo "📥 [Deploy] Pulling latest commits from main..."
+                    echo "📥 [Deploy] Pulling latest git tree..."
                     git checkout main
                     git pull origin main
 
-                    echo "📦 [Deploy] Installing monorepo dependencies..."
+                    echo "📦 [Deploy] Verifying node_modules..."
                     pnpm install --frozen-lockfile
 
-                    echo "⚙️ [Deploy] Generating Prisma Client & compiling db package..."
-                    
-                    echo "🔨 [Deploy] Building background engines..."
-                    export NODE_OPTIONS="--max-old-space-size=2048"
-                    
-                    pnpm --filter @repo/db build
-                    pnpm --filter @repo/kafka build
-                    pnpm --filter @repo/nodes build
-                    pnpm --filter http-backend build
+                    echo "📂 [Deploy] Extracting pre-compiled build artifacts..."
+                    tar -xzf dist-bundle.tar.gz
+                    rm -f dist-bundle.tar.gz
 
-
-                    echo "🔄 [Deploy] Restarting services..."
+                    echo "🔄 [Deploy] Reloading PM2 backend with zero downtime..."
                     pm2 reload buildflow-backend || pm2 restart buildflow-backend
+
+                    echo "📊 [Deploy] Checking PM2 service status..."
                     pm2 status
 
-                    echo "🎉 [Deploy] Continuous Deployment finished successfully!"
+                    echo "🎉 [Deploy] Continuous Deployment finished successfully in seconds!"
