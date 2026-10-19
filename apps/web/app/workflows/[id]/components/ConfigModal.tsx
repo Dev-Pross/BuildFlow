@@ -68,6 +68,7 @@ export default function ConfigModal({
   const [testResult, setTestResult] = useState<any>(null);
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
   const [isLoadingHeaders, setIsLoadingHeaders] = useState(false);
+  const [isLoadingOptions, setIsLoadingOptions] = useState<Record<string, boolean>>({});
   const [customRowKeys, setCustomRowKeys] = useState<Record<string, boolean>>({});
   
   // Webhook Listening State
@@ -105,14 +106,8 @@ export default function ConfigModal({
     isSubmitting: false,
   });
 
-  // Reset test result when switching to a different node
-  useEffect(() => {
-    setTestResult(null);
-  }, [selectedNode?.id]);
-
   // Add a ref to track which sheet's headers are currently loaded
   const loadedSheetRef = useRef<string>("");
-
 
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.user.userId) as string;
@@ -133,6 +128,15 @@ export default function ConfigModal({
   const isTestingNode = useAppSelector((state) =>
     selectedNode ? selectNodeLoading(state, selectedNode.id) : false
   );
+
+  // Initialize test result from Redux if available for this node
+  useEffect(() => {
+    if (selectedNode?.id && nodeTestOutput?.data !== undefined && nodeTestOutput?.data !== null) {
+      setTestResult(nodeTestOutput.data);
+    } else {
+      setTestResult(null);
+    }
+  }, [selectedNode?.id, nodeTestOutput?.data]);
 
   const fetchOptionsMap: Record<string, (params: any) => Promise<any>> = {
     "google.getDocuments": async ({ credentialId }) => {
@@ -575,6 +579,8 @@ export default function ConfigModal({
       }));
 
       toast.error(`Test failed: ${errorMessage}`);
+    } finally {
+      dispatch(setNodeLoading({ nodeId: selectedNode.id, loading: false }));
     }
   };
 
@@ -676,6 +682,8 @@ export default function ConfigModal({
       }));
 
       toast.error(`Test failed for previous node: ${errorMessage}`);
+    } finally {
+      dispatch(setNodeLoading({ nodeId, loading: false }));
     }
   };
 
@@ -797,11 +805,16 @@ export default function ConfigModal({
 
     for (const depField of dependentFields) {
       const fetchFn = depField.fetchOptions ? fetchOptionsMap[depField.fetchOptions] : undefined;
-      console.log(fetchFn, "fecth FN")
       if (fetchFn) {
-        const options = await fetchFn(updatedConfig);
-        // console.log(({ ...config, [depField.name]: options }), "optiops setting")
-        setDynamicOptions((prev) => ({ ...prev, [depField.name]: options }));
+        setIsLoadingOptions((prev) => ({ ...prev, [depField.name]: true }));
+        try {
+          const options = await fetchFn(updatedConfig);
+          setDynamicOptions((prev) => ({ ...prev, [depField.name]: options }));
+        } catch (err) {
+          console.error(`Failed to fetch options for ${depField.name}`, err);
+        } finally {
+          setIsLoadingOptions((prev) => ({ ...prev, [depField.name]: false }));
+        }
       }
     }
 
@@ -1045,6 +1058,7 @@ export default function ConfigModal({
     if (field.type === "dropdown") {
       // Use dynamicOptions if available, otherwise fall back to field.options
       let options = dynamicOptions[field.name] || field.options || [];
+      const isFieldLoading = Boolean(isLoadingOptions[field.name]);
 
       // For Google Sheets: If a new sheet/tab was selected/created, only allow write_rows and append_rows
       const isSheetNode = selectedNode?.actionType === "google_sheet" || selectedNode?.name?.toLowerCase().includes("sheet");
@@ -1058,9 +1072,15 @@ export default function ConfigModal({
       return (
         <div key={field.name} className="form-group">
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium text-white">
-              {field.label}
+            <label className="block text-sm font-medium text-white flex items-center gap-2">
+              <span>{field.label}</span>
               {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+              {isFieldLoading && (
+                <span className="text-[10px] text-indigo-400 font-medium flex items-center gap-1 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                  Loading...
+                </span>
+              )}
             </label>
             {isSheetNode && field.name === "operation" && config._isNewSheet && (
               <span className="text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 font-medium">
@@ -1070,16 +1090,20 @@ export default function ConfigModal({
           </div>
           <select
             value={fieldValue}
+            disabled={isFieldLoading}
             onFocus={() => setActiveField(field.name)}
             onChange={async (e) => {
               console.log("log for options: ", fieldValue)
               await handleFieldChange(field.name, e.target.value, nodeConfig);
             }}
-            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
+            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm disabled:opacity-50"
             required={isRequired}
           >
-            {/* {console.log(options)} */}
-            <option value="">Select {field.label.toLowerCase()}</option>
+            {isFieldLoading ? (
+              <option value="">Loading options from engine...</option>
+            ) : (
+              <option value="">Select {field.label.toLowerCase()}</option>
+            )}
             {options.map((opt: any) => (
               <option key={opt.value || opt.id || opt} value={opt.value || opt.id !== undefined ? opt.id : opt}>
                 {opt.label || opt.name || opt}
@@ -2019,11 +2043,20 @@ export default function ConfigModal({
     </div>
   );
 
-  const renderTestPanel = () => (
-    <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#222429] shadow-xl bg-[#141518] flex flex-col">
-      <TestPanel testResult={testResult} metadata={nodeTestOutput?.metadata} nodeName={selectedNode?.name} nodeIcon={selectedNode?.icon} />
-    </div>
-  );
+  const renderTestPanel = () => {
+    const activeTestResult = testResult ?? nodeTestOutput?.data ?? null;
+    return (
+      <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#222429] shadow-xl bg-[#141518] flex flex-col">
+        <TestPanel
+          testResult={activeTestResult}
+          metadata={nodeTestOutput?.metadata}
+          nodeName={selectedNode?.name}
+          nodeIcon={selectedNode?.icon}
+          isLoading={isTestingNode}
+        />
+      </div>
+    );
+  };
 
   const renderFormPanel = () => (
     <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#141518] border border-[#222429] shadow-xl">

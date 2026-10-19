@@ -427,11 +427,12 @@ class GoogleSheetsNodeExecutor {
     }
 
     private normalizeValues(rawValues: any): any[][] {
-        if (!rawValues) return [];
+        if (rawValues === null || rawValues === undefined) return [];
 
         // If string, attempt JSON.parse first
         if (typeof rawValues === 'string') {
             const trimmed = rawValues.trim();
+            if (!trimmed) return [];
             // Handle single quotes if user typed [['a', 'b']]
             const formattedJson = trimmed.replace(/'/g, '"');
             try {
@@ -442,30 +443,60 @@ class GoogleSheetsNodeExecutor {
             }
         }
 
-        // If Array
-        if (Array.isArray(rawValues) && rawValues.length > 0) {
-            // Case 1: 2D Array of arrays [ [a, b], [c, d] ]
-            if (Array.isArray(rawValues[0])) {
-                return rawValues;
+        // Helper to unwrap ExecuteItem ({ json: ..., sourceRefs: ... }) if present
+        const unwrapItem = (item: any): any => {
+            if (item && typeof item === 'object' && !Array.isArray(item) && 'json' in item) {
+                return item.json;
             }
+            return item;
+        };
 
-            // Case 2: Array of Objects [ { col1: "val1", col2: "val2" }, ... ] (e.g. dragged from previous node)
-            if (typeof rawValues[0] === 'object' && rawValues[0] !== null) {
-                return rawValues.map(item =>
-                    typeof item === 'object' && item !== null ? Object.values(item) : [item]
-                );
+        // Helper to sanitize any cell value into a Google Sheets-supported scalar primitive
+        const sanitizeCell = (cell: any): string | number | boolean => {
+            if (cell === null || cell === undefined) return "";
+            if (typeof cell === 'string' || typeof cell === 'number' || typeof cell === 'boolean') {
+                return cell;
             }
+            // Objects, arrays, or symbols cannot be stored directly as struct_values in Google Sheets
+            try {
+                return JSON.stringify(cell);
+            } catch {
+                return String(cell);
+            }
+        };
 
-            // Case 3: 1D Array of primitives [a, b, c] -> [[a, b, c]]
-            return [rawValues];
+        const unwrappedRaw = unwrapItem(rawValues);
+
+        // Case 1: 1D array of primitives e.g. ["val1", "val2", 123] -> single row with multiple columns
+        if (Array.isArray(unwrappedRaw) && unwrappedRaw.length > 0 && unwrappedRaw.every(i => i === null || typeof i !== 'object')) {
+            return [unwrappedRaw.map(sanitizeCell)];
         }
 
-        // If Single Object { col1: "val1", col2: "val2" } (e.g. single node output)
-        if (typeof rawValues === 'object' && rawValues !== null) {
-            return [Object.values(rawValues)];
+        // Case 2: Array of items (ExecuteItems, objects, or rows)
+        if (Array.isArray(unwrappedRaw)) {
+            if (unwrappedRaw.length === 0) return [];
+
+            return unwrappedRaw.map(rowCandidate => {
+                const unwrappedRow = unwrapItem(rowCandidate);
+
+                if (Array.isArray(unwrappedRow)) {
+                    // Already a row array: sanitize each cell
+                    return unwrappedRow.map(sanitizeCell);
+                } else if (unwrappedRow && typeof unwrappedRow === 'object') {
+                    // Row is an object: map its keys/properties to columns
+                    return Object.values(unwrappedRow).map(sanitizeCell);
+                } else {
+                    return [sanitizeCell(unwrappedRow)];
+                }
+            });
         }
 
-        return [[String(rawValues)]];
+        // Case 3: Single Object { col1: "val1", col2: "val2" } -> single row
+        if (typeof unwrappedRaw === 'object' && unwrappedRaw !== null) {
+            return [Object.values(unwrappedRaw).map(sanitizeCell)];
+        }
+
+        return [[sanitizeCell(unwrappedRaw)]];
     }
 
     async executeWriteRows(sheetService: GoogleSheetsService, context: NodeExecutionContext): Promise<NodeExecutionResult> {
