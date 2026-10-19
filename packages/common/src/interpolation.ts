@@ -120,7 +120,7 @@ export function resolveVariable(variable: string, context: InterpolationContext,
     let relativePath = path;
     const bracketPrefix = `[${wireIndex}].`;
     const dotPrefix = `${wireIndex}.`;
-    
+
     if (relativePath.startsWith(bracketPrefix)) {
       relativePath = relativePath.slice(bracketPrefix.length);
     } else if (relativePath.startsWith(dotPrefix)) {
@@ -129,7 +129,7 @@ export function resolveVariable(variable: string, context: InterpolationContext,
 
     const value = getNestedValue(item?.json, relativePath)
 
-    if (value !== undefined) return value;
+    return value !== undefined ? value : "";
   }
 
   // 2. Detect Explicit Absolute Coordinates (Fallback if relative mapping fails or is absent)
@@ -411,7 +411,7 @@ export function extractVariablesFromOutput(
   } else if (typeof output === 'object') {
     for (const [key, value] of Object.entries(output)) {
       if (key === 'sourceRefs' || key === 'Source Refs') continue;
-      
+
       const path = key; // Use relative path for hierarchical structure
       const name = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
 
@@ -426,12 +426,12 @@ export function extractVariablesFromOutput(
           children: value.length > 0 && typeof value[0] === 'object' ? extractVariablesFromOutput(value[0], "[0]") : undefined
         });
       } else if (typeof value === 'object') {
-        variables.push({ 
-          name, 
-          path, 
-          type: 'object', 
+        variables.push({
+          name,
+          path,
+          type: 'object',
           sampleValue: '{...}',
-          children: extractVariablesFromOutput(value, "") 
+          children: extractVariablesFromOutput(value, "")
         });
       } else {
         variables.push({

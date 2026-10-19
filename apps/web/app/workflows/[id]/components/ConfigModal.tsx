@@ -841,7 +841,7 @@ export default function ConfigModal({
     const nodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
     if (nodeConfig && nodeConfig.credentials) credType = nodeConfig.credentials;
   }
-  const { cred: credentials = [], authUrl } = useCredentials(credType ?? "", workflowId);
+  const { cred: credentials = [], authUrl, isLoading: isLoadingCredentials } = useCredentials(credType ?? "", workflowId);
 
   useEffect(() => {
     if (!selectedNode) {
@@ -988,14 +988,28 @@ export default function ConfigModal({
     }
 
     if (field.type === "dropdown" && field.name === "credentialId") {
-      // Use the values from useCredentials: credentials and authUrl
+      // Use the values from useCredentials: credentials, authUrl, and isLoading
       return (
         <div key={field.name} className="space-y-1.5">
-          <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
-            {field.label}
-            {isRequired && <span className="text-rose-400 ml-0.5">*</span>}
-          </label>
-          {(Array.isArray(credentials) && credentials.length > 0) ? (
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+              {field.label}
+              {isRequired && <span className="text-rose-400 ml-0.5">*</span>}
+            </label>
+            {isLoadingCredentials && (
+              <span className="text-[10px] text-indigo-400 font-medium flex items-center gap-1.5 animate-pulse lowercase font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                loading accounts...
+              </span>
+            )}
+          </div>
+
+          {isLoadingCredentials ? (
+            <div className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] rounded-lg flex items-center justify-center gap-2.5 text-xs text-gray-400 animate-pulse">
+              <span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              <span>Loading Google accounts...</span>
+            </div>
+          ) : (Array.isArray(credentials) && credentials.length > 0) ? (
             <>
               <select
                 value={fieldValue}
@@ -1010,7 +1024,7 @@ export default function ConfigModal({
                 <option value="">Select Google Account</option>
                 {credentials.map((cred: any) => (
                   <option key={cred.id} value={cred.id}>
-                    {cred.config.email || cred.name || "Google Account"}
+                    {cred.config?.email || cred.name || "Google Account"}
                   </option>
                 ))}
               </select>

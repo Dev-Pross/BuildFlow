@@ -34,10 +34,10 @@ export class GmailService {
    * Converts plain text with markdown-like notation to styled HTML for email.
    * Supports: code fences, inline code, bold, italic, links, bullet lists, \n, \t
    */
-  private formatBodyToHtml(body: string): string {
-    if (!body) return '';
+  private formatBodyToHtml(body: any): string {
+    if (body === null || body === undefined) return '';
 
-    let html = body;
+    let html = typeof body === 'string' ? body : String(body);
 
     // 1. Escape HTML entities first (protect raw text)
     html = html

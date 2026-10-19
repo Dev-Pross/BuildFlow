@@ -17,6 +17,16 @@ interface NodeExecutionResult {
   error?: string;
 }
 
+/** Strip undefined values from a flat object so they don't leak into Prisma JSON fields */
+function cleanJson(obj: Record<string, any> | undefined): Record<string, any> {
+  if (!obj || typeof obj !== 'object') return {};
+  const cleaned: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    cleaned[k] = v === undefined ? null : v;
+  }
+  return cleaned;
+}
+
 class GmailExecutor {
   private oauthService: GoogleOAuthService;
   private gmailService: GmailService | null = null;
@@ -69,17 +79,24 @@ class GmailExecutor {
 
       for (let index = 0; index < itemsToProcess.length; index++) {
         const configForThisRow = context.config?.[index] || {};
-        const { to, subject, body } = configForThisRow;
-        const item = itemsToProcess[index]
-        if (!item) continue
-        const result = await this.gmailService.sendEmail(to, subject, body);
+        const { subject, body } = configForThisRow;
+        const item = itemsToProcess[index];
+        if (!item) continue;
+
+        const rawTo = configForThisRow.to ?? item.json?.to ?? item.json?.email ?? "";
+        // Extract a clean string recipient (filtering out undefined, null, or empty elements if an array was passed)
+        const cleanRecipient = Array.isArray(rawTo)
+          ? rawTo.filter((e): e is string => typeof e === 'string' && Boolean(e.trim())).join(', ')
+          : (typeof rawTo === 'string' ? rawTo.trim() : (rawTo !== null && rawTo !== undefined ? String(rawTo) : ''));
+
+        const result = await this.gmailService.sendEmail(cleanRecipient, subject, body);
 
         if (!result.success) {
           failedOutputs.push({
             json: {
-              ...(item.json),
-              email: to,
-              to: to,
+              ...cleanJson(item.json),
+              email: cleanRecipient,
+              to: cleanRecipient,
               sent: false,
               status: "failed",
               success: false,
@@ -95,15 +112,15 @@ class GmailExecutor {
         }
         successOutputs.push({
           json: {
-            ...(item.json),
-            email: to,
-            to: to,
+            ...cleanJson(item.json),
+            email: cleanRecipient,
+            to: cleanRecipient,
             sent: true,
             status: "sent",
             success: true,
-            messageId: result.data?.id,
-            messsageId: result.data?.id,
-            threadId: result.data?.threadId
+            messageId: result.data?.id || null,
+            messsageId: result.data?.id || null,
+            threadId: result.data?.threadId || null
           },
           sourceRefs: {
             ...(item.sourceRefs),
