@@ -7,9 +7,10 @@ interface TestPanelProps {
     metadata?: Record<string, any>;
     nodeName?: string;
     nodeIcon?: string;
+    isLoading?: boolean;
 }
 
-export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPanelProps) {
+export function TestPanel({ testResult, metadata, nodeName, nodeIcon, isLoading = false }: TestPanelProps) {
     const [expandedCells, setExpandedCells] = useState<Record<string, boolean>>({});
     const isHttpOrWebhook = Boolean(
         nodeName?.toLowerCase().includes("http") || 
@@ -549,7 +550,12 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                     )}
                 </div>
 
-                {testResult !== null && testResult !== undefined ? (
+                {isLoading ? (
+                    <div className="mt-2 text-[10px] text-indigo-400 font-medium flex items-center gap-1.5 animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                        Executing on engine...
+                    </div>
+                ) : testResult !== null && testResult !== undefined ? (
                     <div className="mt-2 text-[10px] text-gray-500">
                         {typeof testResult === 'object' && !Array.isArray(testResult) && testResult.status === 'sent'
                             ? 'Email sent successfully'
@@ -569,7 +575,9 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                {testResult !== null && testResult !== undefined ? (
+                {isLoading ? (
+                    <TestingLoadingState nodeName={nodeName} />
+                ) : testResult !== null && testResult !== undefined ? (
                     viewMode === "json" ? (
                         <div className="w-full h-full flex flex-col">
                             <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500 font-mono">
@@ -587,6 +595,28 @@ export function TestPanel({ testResult, metadata, nodeName, nodeIcon }: TestPane
                     <NotTestedState nodeName={nodeName} />
                 )}
             </div>
+        </div>
+    );
+}
+
+// Active loading state when node is executing on backend
+function TestingLoadingState({ nodeName }: { nodeName?: string }) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center p-6">
+            <div className="relative mb-5 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full border-2 border-indigo-500/20 animate-ping absolute" />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/40 flex items-center justify-center shadow-lg shadow-indigo-500/10">
+                    <span className="w-7 h-7 border-2 border-t-indigo-400 border-r-transparent border-b-purple-400 border-l-transparent rounded-full animate-spin" />
+                </div>
+            </div>
+            <p className="text-sm text-gray-200 font-semibold mb-1">Executing Node...</p>
+            <p className="text-xs text-indigo-300 font-medium max-w-[260px] leading-relaxed mb-2">
+                Running {nodeName || 'node'} on execution engine
+            </p>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                Processing on cloud VM...
+            </span>
         </div>
     );
 }

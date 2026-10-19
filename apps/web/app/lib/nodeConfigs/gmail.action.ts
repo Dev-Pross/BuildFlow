@@ -55,8 +55,10 @@ export const gmailActionConfig: NodeConfig = {
 
 
   outputSchema: [
-    { name: "Message ID", path: "messageId", type: "string" },
+    { name: "Recipient Email", path: "email", type: "string" },
+    { name: "Sent Flag", path: "sent", type: "boolean" },
     { name: "Status", path: "status", type: "string" },
+    { name: "Message ID", path: "messageId", type: "string" },
     { name: "Thread ID", path: "threadId", type: "string" },
   ],
 };

@@ -39,10 +39,11 @@ import { useWorkflowEvents } from "@/app/hooks/useWorkflowEvents";
 export default function WorkflowCanvas() {
   const params = useParams();
   const workflowId = params.id as string;
-  const dispatch = useAppDispatch()
-  const reduxWorkflow = useAppSelector(s => s.workflow)
+  const dispatch = useAppDispatch();
+  const reduxWorkflow = useAppSelector(s => s.workflow);
   const allTestedOutputs = useAppSelector(selectAllOutputs);
-  const { batchSave, displayStatus } = useAutoSave(workflowId)
+  const { batchSave, displayStatus } = useAutoSave(workflowId);
+  const [isWorkflowLoading, setIsWorkflowLoading] = useState<boolean>(true);
 
 
   // context rebuilding for test function
@@ -355,6 +356,7 @@ export default function WorkflowCanvas() {
       if (!workflowId) return;
 
       try {
+        setIsWorkflowLoading(true);
         // Clear canvas states while switching workflows
         setNodes([]);
         setEdges([]);
@@ -562,6 +564,10 @@ export default function WorkflowCanvas() {
             err?.message ??
               "Failed to load workflow. Please check your connection or reload the page."
           );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsWorkflowLoading(false);
         }
       }
     };
@@ -963,7 +969,28 @@ export default function WorkflowCanvas() {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "row", overflow: "hidden" }}>
+      <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}>
+        {/* Canvas initial loading screen */}
+        {isWorkflowLoading && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#090d16]/75 backdrop-blur-sm transition-all animate-in fade-in duration-200">
+            <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-[#0f1420]/95 border border-indigo-500/30 shadow-2xl shadow-indigo-950/50 text-center max-w-sm">
+              <div className="relative mb-4 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full border-2 border-indigo-500/20 animate-ping absolute" />
+                <div className="w-14 h-14 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-inner">
+                  <span className="w-6 h-6 border-2 border-t-indigo-400 border-r-transparent border-b-purple-400 border-l-transparent rounded-full animate-spin" />
+                </div>
+              </div>
+              <h3 className="text-sm font-bold text-white mb-1">Connecting to Engine...</h3>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Loading workflow graph, triggers, and node configurations from cloud VM
+              </p>
+              <div className="mt-3 flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 rounded-full border border-indigo-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                <span className="text-[10px] text-indigo-300 font-medium font-mono">Initializing state...</span>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Floating auto-clearing non-blocking error notification */}
         {error && (
           <div className="fixed top-5 right-5 z-[9999] pointer-events-none flex flex-col items-end animate-in fade-in slide-in-from-top-2 duration-200">

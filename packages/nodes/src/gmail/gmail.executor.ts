@@ -78,30 +78,38 @@ class GmailExecutor {
           failedOutputs.push({
             json: {
               ...(item.json),
-              error: result.error,
-              success: result.success
+              email: to,
+              to: to,
+              sent: false,
+              status: "failed",
+              success: false,
+              error: result.error
             },
             sourceRefs: {
               ...(item.sourceRefs),
               [context.nodeId]: { wireIndex: 1, rowIndex: failedOutputs.length }
             }
-          })
+          });
 
           continue;
         }
         successOutputs.push({
           json: {
             ...(item.json),
+            email: to,
+            to: to,
+            sent: true,
             status: "sent",
+            success: true,
+            messageId: result.data?.id,
             messsageId: result.data?.id,
-            success: result.success,
             threadId: result.data?.threadId
           },
           sourceRefs: {
             ...(item.sourceRefs),
             [context.nodeId]: { wireIndex: 0, rowIndex: successOutputs.length }
           }
-        })
+        });
       }
 
       return {
