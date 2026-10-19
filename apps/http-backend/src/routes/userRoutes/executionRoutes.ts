@@ -5,7 +5,23 @@ import { prismaClient } from "@repo/db";
 import { ExecutionRegister } from '@repo/nodes'
 export const execRouter: Router = Router()
 
+function sanitizeForPrismaJson(data: any): any {
+    if (data === undefined) return undefined;
+    try {
+        return JSON.parse(
+            JSON.stringify(data, (_key, value) => (value === undefined ? null : value))
+        );
+    } catch (err) {
+        console.error('[sanitizeForPrismaJson] Failed to sanitize data, returning null:', err);
+        return null;
+    }
+}
+
 execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response) => {
+
+
+    let workflowExecutionId: string | null = null;
+    let nodeExecutionId: string | null = null;
     try {
         if (!req.user?.sub) {
             return res.status(statusCodes.BAD_REQUEST).json({
@@ -26,10 +42,10 @@ execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response)
             }
         })
 
+
         if (nodeData) {
-            const type = nodeData.AvailableNode.type
-            const config = dataSafe.data.Config ? dataSafe.data.Config : nodeData.config // for test api data prefered fist then config in db 
-            // // console.log(`config and type: ${JSON.stringify(config)} & ${type}`)
+            const type = nodeData.AvailableNode.type;
+            const config = dataSafe.data.Config ? dataSafe.data.Config : nodeData.config; // for test api data prefered first then config in db 
 
             const rawItems = dataSafe.data.items || (dataSafe.data.Config && dataSafe.data.Config.items) || [];
             const context = {
@@ -39,89 +55,118 @@ execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response)
                 authType: nodeData.AvailableNode.authType,
                 nodeId: nodeData.id,
                 items: Array.isArray(rawItems) ? rawItems : [rawItems]
-            }
-            const result = await prismaClient.$transaction(async (tx) => {
-                // // console.log(`Execution context: ${JSON.stringify(context)}`)
-                const workflowExecution = await tx.workflowExecution.create({
-                    data: {
-                        workflowId: nodeData.workflowId || "",
-                        status: "Start",
-                        startAt: new Date(),
-                        metadata: { "isTesting": true },
-                    }
-                })
-                const NodeExecution = await tx.nodeExecution.create({
-                    data: {
-                        status: "Start",
-                        nodeId: nodeData.id,
-                        workflowExecId: workflowExecution.id,
-                        startedAt: new Date(),
-                        inputData: context,
-                        isTest: true
-                    }
-                })
-                const executionResult = await ExecutionRegister.execute(type, context)
+            };
 
-
-                // console.log(`Execution result: ${executionResult}`)
-
-                if (executionResult.success) {
-                    await tx.nodeExecution.update({
-                        where: { id: NodeExecution.id },
-                        data: {
-                            status: "Completed",
-                            outputData: executionResult.output,
-                            completedAt: new Date()
-                        }
-                    })
-                    await tx.workflowExecution.update({
-                        where: { id: workflowExecution.id },
-                        data: {
-                            status: "Completed",
-                            completedAt: new Date()
-                        }
-                    })
-                    return { success: true, executionResult }
+            // 1. Create execution records (committed immediately, no long-held transaction)
+            const workflowExecution = await prismaClient.workflowExecution.create({
+                data: {
+                    workflowId: nodeData.workflowId || "",
+                    status: "Start",
+                    startAt: new Date(),
+                    metadata: { "isTesting": true },
                 }
-                await tx.nodeExecution.update({
-                    where: { id: NodeExecution.id },
-                    data: {
-                        status: "Failed",
-                        completedAt: new Date(),
-                        error: executionResult.error
-                    }
-                })
-                await tx.workflowExecution.update({
-                    where: { id: workflowExecution.id },
-                    data: {
-                        status: "Failed",
-                        completedAt: new Date(),
-                        error: executionResult.error
-                    }
-                })
-                return { success: false, executionResult }
-            })
+            });
+            workflowExecutionId = workflowExecution.id;
 
-            if (result.success) {
+            const nodeExecution = await prismaClient.nodeExecution.create({
+                data: {
+                    status: "Start",
+                    nodeId: nodeData.id,
+                    workflowExecId: workflowExecution.id,
+                    startedAt: new Date(),
+                    inputData: sanitizeForPrismaJson(context) ?? {},
+                    isTest: true
+                }
+            });
+            nodeExecutionId = nodeExecution.id;
+
+            // 2. Execute node outside any SQL transaction (avoids Prisma 5s timeout & pool starvation)
+            const executionResult = await ExecutionRegister.execute(type, context);
+
+            // 3. Settle records based on execution result
+            if (executionResult.success) {
+                await prismaClient.nodeExecution.update({
+                    where: { id: nodeExecutionId },
+                    data: {
+                        status: "Completed",
+                        outputData: sanitizeForPrismaJson(executionResult.output),
+                        completedAt: new Date()
+                    }
+                });
+                await prismaClient.workflowExecution.update({
+                    where: { id: workflowExecutionId },
+                    data: {
+                        status: "Completed",
+                        completedAt: new Date()
+                    }
+                });
                 return res.status(statusCodes.ACCEPTED).json({
                     message: `${nodeData.name} node execution done`,
-                    data: result.executionResult
+                    data: executionResult
                 });
             } else {
+                await prismaClient.nodeExecution.update({
+                    where: { id: nodeExecutionId },
+                    data: {
+                        status: "Failed",
+                        completedAt: new Date(),
+                        error: executionResult.error
+                    }
+                });
+                await prismaClient.workflowExecution.update({
+                    where: { id: workflowExecutionId },
+                    data: {
+                        status: "Failed",
+                        completedAt: new Date(),
+                        error: executionResult.error
+                    }
+                });
                 return res.status(statusCodes.FORBIDDEN).json({
                     message: `${nodeData.name} node execution failed`,
-                    data: result.executionResult
+                    data: executionResult
                 });
             }
         }
         return res.status(statusCodes.NOT_FOUND).json({
             message: `${dataSafe.data.NodeId} not found`
-        })
+        });
 
     } catch (e) {
-        // console.log("This is the error from executing node", e);
+        console.error("Error executing node:", e);
+
+        // Safely record failure if execution records were already created
+        if (nodeExecutionId) {
+            try {
+                await prismaClient.nodeExecution.update({
+                    where: { id: nodeExecutionId },
+                    data: {
+                        status: "Failed",
+                        completedAt: new Date(),
+                        error: e instanceof Error ? e.message : String(e)
+                    }
+                });
+            } catch (updateErr) {
+                console.error("Failed to update nodeExecution status in catch block:", updateErr);
+            }
+        }
+
+        if (workflowExecutionId) {
+            try {
+                await prismaClient.workflowExecution.update({
+                    where: { id: workflowExecutionId },
+                    data: {
+                        status: "Failed",
+                        completedAt: new Date(),
+                        error: e instanceof Error ? e.message : String(e)
+                    }
+                });
+            } catch (updateErr) {
+                console.error("Failed to update workflowExecution status in catch block:", updateErr);
+            }
+        }
+
         return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
-            message: "Internal server Error from node execution ",
+            message: "Internal server Error from node execution",
         });
     }
-})
+});

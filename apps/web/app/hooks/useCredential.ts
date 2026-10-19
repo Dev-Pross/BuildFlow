@@ -7,12 +7,14 @@ import { useSession } from "next-auth/react";
 export const useCredentials = (type: string, workflowId?: string): any => {
   const [cred, setCred] = useState<any[]>([]);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const { data: session } = useSession();
   const token = (session as any)?.accessToken;
 
   useEffect(() => {
     const fetchCred = async () => {
       try {
+        setIsLoading(true);
         // Clear credentials and authUrl when type is empty to prevent leaking credentials
         if (!type) {
           setCred([]);
@@ -20,27 +22,18 @@ export const useCredentials = (type: string, workflowId?: string): any => {
           return;
         }
 
-        const response = await api.Credentials.getCredentials(type)
-        const data = JSON.stringify(response)
-        console.log("This is the log from usecredentials", data)
+        const response = await api.Credentials.getCredentials(type);
+        const data = JSON.stringify(response);
+        console.log("This is the log from usecredentials", data);
         // Backend should ONLY return stored credentials
         if (response.hasCredentials) {
           setCred(response.data);
         } else {
-          console.log("Redirect url:", window.location.pathname)
+          console.log("Redirect url:", window.location.pathname);
           const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
-          const url = `${BACKEND_URL}/auth/google/initiate?authType=${type}&redirect_url=${encodeURIComponent(window.location.pathname)}${tokenParam}`
-          setAuthUrl(url)
+          const url = `${BACKEND_URL}/auth/google/initiate?authType=${type}&redirect_url=${encodeURIComponent(window.location.pathname)}${tokenParam}`;
+          setAuthUrl(url);
         }
-
-        // Frontend defines where to redirect for OAuth
-        // if (type === "google") {
-        //   const baseUrl = `${BACKEND_URL}/oauth/google/initiate`;
-        //   const url = workflowId ? `${baseUrl}?workflowId=${workflowId}` : baseUrl;
-        //   setAuthUrl(url);
-        // } else {
-        //   setAuthUrl(null);
-        // }
       } catch (e) {
         console.log(
           e instanceof Error
@@ -50,11 +43,13 @@ export const useCredentials = (type: string, workflowId?: string): any => {
         // Clear state on error to prevent stale data
         setCred([]);
         setAuthUrl(null);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchCred();
   }, [type, workflowId, token]);
 
-  return { cred, authUrl };
+  return { cred, authUrl, isLoading };
 };

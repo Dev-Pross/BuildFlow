@@ -39,6 +39,18 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function sanitizeForPrismaJson(data: any): any {
+  if (data === undefined) return undefined;
+  try {
+    return JSON.parse(
+      JSON.stringify(data, (_key, value) => (value === undefined ? null : value))
+    );
+  } catch (err) {
+    console.error('[sanitizeForPrismaJson] Failed to sanitize data, returning null:', err);
+    return null;
+  }
+}
+
 export async function executeWorkflow(
   workflowExecutionId: string
 ): Promise<void> {
@@ -166,7 +178,7 @@ export async function executeWorkflow(
           nodeId: node.id,
           workflowExecId: workflowExecutionId,
           status: "Start",
-          inputData: currentInputData ? currentInputData : {},
+          inputData: sanitizeForPrismaJson(currentInputData) ?? {},
           startedAt: new Date()
         }
       });
@@ -318,7 +330,7 @@ export async function executeWorkflow(
           data: {
             status: "Failed",
             error: execute.error,
-            outputData: isPartialFailure ? execute.output : undefined,
+            outputData: isPartialFailure ? sanitizeForPrismaJson(execute.output) : undefined,
             completedAt: new Date()
           }
         });
@@ -338,7 +350,7 @@ export async function executeWorkflow(
         where: { id: nodeExecution.id },
         data: {
           completedAt: new Date(),
-          outputData: execute.output,
+          outputData: sanitizeForPrismaJson(execute.output),
           status: "Completed"
         }
       });
