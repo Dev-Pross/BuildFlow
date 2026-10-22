@@ -90,12 +90,30 @@ export const AuthOptions: NextAuthOptions = {
         token.city = (user as any).city;
         token.country = (user as any).country;
       }
-      if (!token.accessToken && token.id) {
-        token.accessToken = jwt.sign(
-          { id: token.id, sub: token.id, email: token.email },
-          SECRET,
-          { expiresIn: "7d" }
-        );
+      const userId = (token.id as string) || (token.sub as string);
+      if (userId) {
+        let shouldSign = !token.accessToken;
+
+        if (token.accessToken) {
+          try {
+            const decoded = jwt.decode(token.accessToken as string) as { exp?: number } | null;
+            const currentTime = Math.floor(Date.now() / 1000);
+            // Re-sign if token has no exp, is expired, or has less than 1 hour remaining before expiry
+            if (!decoded?.exp || decoded.exp - currentTime < 60 * 60) {
+              shouldSign = true;
+            }
+          } catch {
+            shouldSign = true;
+          }
+        }
+
+        if (shouldSign) {
+          token.accessToken = jwt.sign(
+            { id: userId, sub: userId, email: token.email },
+            SECRET,
+            { expiresIn: "7d" }
+          );
+        }
       }
       return token;
     },
