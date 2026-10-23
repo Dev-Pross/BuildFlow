@@ -25,6 +25,11 @@ const VARIABLE_REGEX = /\{\{([^}]+)\}\}/g;
 export function getNestedValue(obj: any, path: string): any {
   if (!obj || !path) return undefined;
 
+  // Direct property check (handles exact keys containing dots, e.g., "ambatirayadu5@gmail.com")
+  if (typeof obj === 'object' && path in obj) {
+    return obj[path];
+  }
+
   // Split path and handle array notation
   // "rows[0].email" -> ["rows", "0", "email"]
   const keys = path
@@ -33,10 +38,19 @@ export function getNestedValue(obj: any, path: string): any {
     .filter(Boolean);
 
   let current = obj;
-  for (const key of keys) {
+  for (let i = 0; i < keys.length; i++) {
     if (current === null || current === undefined) {
       return undefined;
     }
+
+    // Check if the remaining path joined together matches a property directly on current
+    // (e.g., current = item.json, keys = ["json", "ambatirayadu5@gmail", "com"] -> "ambatirayadu5@gmail.com")
+    const remainingPath = keys.slice(i).join('.');
+    if (typeof current === 'object' && remainingPath in current) {
+      return current[remainingPath];
+    }
+
+    const key = keys[i]!;
     current = current[key];
   }
 
@@ -135,9 +149,6 @@ export function resolveVariable(variable: string, context: InterpolationContext,
   // 2. Detect Explicit Absolute Coordinates (Fallback if relative mapping fails or is absent)
   const isAbsoluteCoordinate = /^\d+/.test(path) || /^\[\d+\]/.test(path);
   if (isAbsoluteCoordinate) {
-    // If the path looks like "[1].email" where we want a column from an array
-    const keys = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
-
     // First, try direct nested value fallback
     const absoluteValue = getNestedValue(nodeData, path);
     if (absoluteValue !== undefined) return absoluteValue;
@@ -149,15 +160,16 @@ export function resolveVariable(variable: string, context: InterpolationContext,
       if (jsonValue !== undefined) return jsonValue;
     }
 
-    // Second, if they asked for a column from a specific wire (e.g. "[1].email"), 
-    // extract it across the array!
-    if (keys.length === 2 && !isNaN(Number(keys[0]))) {
-      const wireIndex = Number(keys[0]);
-      const columnName = keys[1];
+    // Second, if they asked for a column from a specific wire (e.g. "[1].email" or "[0].ambatirayadu5@gmail.com"),
+    // extract it across the array preserving any dots inside the column name
+    const wireMatch = path.match(/^\[?(\d+)\]?\.(.+)$/);
+    if (wireMatch) {
+      const wireIndex = Number(wireMatch[1]);
+      const columnName = wireMatch[2]!;
       const wireArray = nodeData[wireIndex];
 
       if (Array.isArray(wireArray)) {
-        const mappedValues = wireArray.map(item => getNestedValue(item?.json, columnName!));
+        const mappedValues = wireArray.map(item => getNestedValue(item?.json, columnName));
         // If it actually found values, return the array
         if (mappedValues.some(v => v !== undefined)) {
           return mappedValues;
