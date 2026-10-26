@@ -111,16 +111,17 @@ export function resolveVariable(variable: string, context: InterpolationContext,
     return `{{${variable}}}`;
   }
 
-  if (path === 'rows' || path === 'allRows') {
-    if (Array.isArray(nodeData) && Array.isArray(nodeData[0])) {
-      if (sourceRefs && sourceRefs[nodeName]) {
-        return nodeData[sourceRefs[nodeName].wireIndex];
+  // Check if path requests an entire wire array: e.g. "rows", "allRows", "[0]", "[1]", "0", "1"
+  const wireOnlyMatch = path.match(/^\[?(\d+)\]?$/);
+  if (path === 'rows' || path === 'allRows' || wireOnlyMatch) {
+    const targetWire = wireOnlyMatch ? parseInt(wireOnlyMatch[1]!, 10) : (sourceRefs?.[nodeName]?.wireIndex ?? 0);
+    if (Array.isArray(nodeData)) {
+      if (Array.isArray(nodeData[targetWire])) {
+        return nodeData[targetWire];
       }
-      return nodeData[0]
-    } else if (Array.isArray(nodeData)) {
-      return nodeData
-    } else {
-      return nodeData.rows
+      return nodeData;
+    } else if (nodeData && typeof nodeData === 'object' && 'rows' in nodeData) {
+      return nodeData.rows;
     }
   }
 
