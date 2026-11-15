@@ -47,7 +47,14 @@ execRouter.post('/node', userMiddleware, async (req: AuthRequest, res: Response)
             const type = nodeData.AvailableNode.type;
             const config = dataSafe.data.Config ? dataSafe.data.Config : nodeData.config; // for test api data prefered first then config in db 
 
-            const rawItems = dataSafe.data.items || (dataSafe.data.Config && dataSafe.data.Config.items) || [];
+            let rawItems = dataSafe.data.items || (dataSafe.data.Config && dataSafe.data.Config.items) || [];
+            if (Array.isArray(rawItems) && rawItems.length > 1) {
+
+                if (nodeData?.AvailableNode.type === "gmail" || nodeData?.AvailableNode.type === "http_request") {
+                    rawItems = rawItems.slice(0, 1)
+                }
+
+            }
             const context = {
                 userId: req.user.sub,
                 config: [config],

@@ -72,9 +72,12 @@ class GmailExecutor {
       const successOutputs: ExecuteItem[] = [];
       const failedOutputs: ExecuteItem[] = [];
 
-      const itemsToProcess: ExecuteItem[] = context.items && context.items.length > 0 ? context.items : []
+      const itemsToProcess: ExecuteItem[] = context.items && context.items.length > 0
+        ? context.items
+        : (context.config && context.config.length > 0 ? [{ json: {} }] : []);
+
       if (itemsToProcess.length === 0) {
-        return { success: true, output: [] }
+        return { success: true, output: [] };
       }
 
       for (let index = 0; index < itemsToProcess.length; index++) {
@@ -88,6 +91,25 @@ class GmailExecutor {
         const cleanRecipient = Array.isArray(rawTo)
           ? rawTo.filter((e): e is string => typeof e === 'string' && Boolean(e.trim())).join(', ')
           : (typeof rawTo === 'string' ? rawTo.trim() : (rawTo !== null && rawTo !== undefined ? String(rawTo) : ''));
+
+        if (!cleanRecipient) {
+          failedOutputs.push({
+            json: {
+              ...cleanJson(item.json),
+              email: cleanRecipient,
+              to: cleanRecipient,
+              sent: false,
+              status: "failed",
+              success: false,
+              error: "Recipient email is missing or empty"
+            },
+            sourceRefs: {
+              ...(item.sourceRefs),
+              [context.nodeId]: { wireIndex: 1, rowIndex: failedOutputs.length }
+            }
+          });
+          continue;
+        }
 
         const result = await this.gmailService.sendEmail(cleanRecipient, subject, body);
 

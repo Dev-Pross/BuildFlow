@@ -70,7 +70,7 @@ export default function ConfigModal({
   const [isLoadingHeaders, setIsLoadingHeaders] = useState(false);
   const [isLoadingOptions, setIsLoadingOptions] = useState<Record<string, boolean>>({});
   const [customRowKeys, setCustomRowKeys] = useState<Record<string, boolean>>({});
-  
+
   // Webhook Listening State
   const [isListeningWebhook, setIsListeningWebhook] = useState(false);
   const [webhookCountdown, setWebhookCountdown] = useState(0);
@@ -285,12 +285,12 @@ export default function ConfigModal({
       while (queue.length > 0) {
         const current = queue.shift()!;
         const incomingEdges = reduxWorkflow.edges.filter(e => e.target === current);
-        
+
         for (const edge of incomingEdges) {
           if (!visited.has(edge.source)) {
             visited.add(edge.source);
             queue.push(edge.source);
-            
+
             const match = edge.sourceHandle ? String(edge.sourceHandle).match(/\d+$/) : null;
             const wireIndex = match ? parseInt(match[0], 10) : 0;
             mapping[edge.source] = wireIndex;
@@ -526,6 +526,12 @@ export default function ConfigModal({
         }
       }
 
+      if (itemsToPass.length > 0) {
+        if (selectedNode?.name?.toLowerCase() === "gmail" || selectedNode.type === "http_request") {
+          itemsToPass = [itemsToPass[0]]
+        }
+      }
+
       const response = await api.execute.node(selectedNode.id, resolvedConfig, itemsToPass);
       console.log('[ConfigModal] API response (already extracted output):', response);
 
@@ -635,6 +641,12 @@ export default function ConfigModal({
         }
       }
 
+      if (itemsToPass.length > 0) {
+        if (targetNodeType.toLowerCase() === 'gmail' || targetNodeType === "http_request") {
+          itemsToPass = itemsToPass.slice(0, 1)
+        }
+      }
+
       const response = await api.execute.node(nodeId, resolvedConfig, itemsToPass);
       const outputData = response.output;
       const metadata = response.metadata;
@@ -725,15 +737,15 @@ export default function ConfigModal({
         if (groups[groupIdx] && groups[groupIdx].conditions && groups[groupIdx].conditions[ruleIdx]) {
           const rule = groups[groupIdx].conditions[ruleIdx];
           const currentVal = rule[operandKey] || "";
-          
-          const updatedGroups = groups.map((grp, gI) => 
-            gI === groupIdx 
+
+          const updatedGroups = groups.map((grp, gI) =>
+            gI === groupIdx
               ? {
-                  ...grp,
-                  conditions: grp.conditions.map((r: any, rI: number) => 
-                    rI === ruleIdx ? { ...r, [operandKey]: currentVal + variableSyntax } : r
-                  )
-                }
+                ...grp,
+                conditions: grp.conditions.map((r: any, rI: number) =>
+                  rI === ruleIdx ? { ...r, [operandKey]: currentVal + variableSyntax } : r
+                )
+              }
               : grp
           );
 
@@ -779,9 +791,9 @@ export default function ConfigModal({
     }
 
     // Update config with new value
-    const updatedConfig = ({ ...config, [fieldName]: value });
-    if (fieldName === "spreadsheetId") {
-      updatedConfig._isNewSheet = false;
+    const updatedConfig = { ...config, [fieldName]: value };
+    if (fieldName === "spreadsheetId" || fieldName === "sheetName" || fieldName === "operation") {
+      delete updatedConfig._isNewSheet;
     }
 
     if (fieldName === "operation") {
@@ -796,7 +808,7 @@ export default function ConfigModal({
 
     console.log(fieldName, " ", value, " ", nodeConfig)
     console.log(config, "from handle field function - 1")
-    setConfig((prev) => ({ ...prev, [fieldName]: value }));
+    setConfig(updatedConfig);
     dispatchConfig(updatedConfig);
     console.log(config, "from handle field fun - 2")
     console.log({ ...config, [fieldName]: value }, "what we're setting")
@@ -856,6 +868,7 @@ export default function ConfigModal({
 
     const nodeConfig = getNodeConfig(selectedNode.name || selectedNode.actionType);
     let finalConfig = { ...loadedConfig };
+    delete finalConfig._isNewSheet;
 
     if (nodeConfig?.fields) {
       for (const field of nodeConfig.fields) {
@@ -1074,14 +1087,8 @@ export default function ConfigModal({
       let options = dynamicOptions[field.name] || field.options || [];
       const isFieldLoading = Boolean(isLoadingOptions[field.name]);
 
-      // For Google Sheets: If a new sheet/tab was selected/created, only allow write_rows and append_rows
+      // For Google Sheets: Display badge when a new blank sheet/tab was just created
       const isSheetNode = selectedNode?.actionType === "google_sheet" || selectedNode?.name?.toLowerCase().includes("sheet");
-      if (isSheetNode && field.name === "operation" && config._isNewSheet) {
-        options = options.filter((opt: any) => {
-          const val = opt.value || (opt.id !== undefined ? opt.id : opt);
-          return val === "append_rows" || val === "write_rows";
-        });
-      }
 
       return (
         <div key={field.name} className="form-group">
@@ -1098,7 +1105,7 @@ export default function ConfigModal({
             </label>
             {isSheetNode && field.name === "operation" && config._isNewSheet && (
               <span className="text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 font-medium">
-                ✨ Blank sheet: Append &amp; Update only
+                Blank sheet tab
               </span>
             )}
           </div>
@@ -1298,11 +1305,11 @@ export default function ConfigModal({
           typeof k === "string"
             ? { key: k, label: k, description: "", defaultValue: "" }
             : {
-                key: k.key,
-                label: k.label || k.key,
-                description: k.description || "",
-                defaultValue: k.defaultValue || ""
-              }
+              key: k.key,
+              label: k.label || k.key,
+              description: k.description || "",
+              defaultValue: k.defaultValue || ""
+            }
         );
       const hasPresets = presets.length > 0;
 
@@ -1610,8 +1617,8 @@ export default function ConfigModal({
           operand2?: any;
         }>;
       }> = (Array.isArray(config.conditionGroups) && config.conditionGroups.length > 0)
-        ? config.conditionGroups
-        : [
+          ? config.conditionGroups
+          : [
             {
               id: "group-1",
               combinator: "AND",
@@ -1684,11 +1691,11 @@ export default function ConfigModal({
         const updated = conditionGroups.map((grp, gIdx) =>
           gIdx === groupIndex
             ? {
-                ...grp,
-                conditions: grp.conditions.map((rule, rIdx) =>
-                  rIdx === ruleIndex ? { ...rule, ...patch } : rule
-                )
-              }
+              ...grp,
+              conditions: grp.conditions.map((rule, rIdx) =>
+                rIdx === ruleIndex ? { ...rule, ...patch } : rule
+              )
+            }
             : grp
         );
         updateBuilderState(updated);
@@ -1706,7 +1713,7 @@ export default function ConfigModal({
               </p>
             )}
           </div>
-          
+
           <div className="space-y-5 p-5 bg-gradient-to-b from-[#0e131f] to-[#0c1017] rounded-2xl border border-indigo-500/20 shadow-[0_0_40px_rgba(99,102,241,0.03)] backdrop-blur-xl relative overflow-hidden">
             {/* Ambient Background Glow */}
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -1734,22 +1741,20 @@ export default function ConfigModal({
                 <button
                   type="button"
                   onClick={() => updateBuilderState(conditionGroups, "OR")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${
-                    nodeCombinator === "OR"
-                      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
-                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
-                  }`}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${nodeCombinator === "OR"
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                    }`}
                 >
                   ANY (OR)
                 </button>
                 <button
                   type="button"
                   onClick={() => updateBuilderState(conditionGroups, "AND")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${
-                    nodeCombinator === "AND"
-                      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
-                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
-                  }`}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${nodeCombinator === "AND"
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                    }`}
                 >
                   ALL (AND)
                 </button>
@@ -1792,22 +1797,20 @@ export default function ConfigModal({
                             <button
                               type="button"
                               onClick={() => handleGroupCombinatorChange(groupIndex, "AND")}
-                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
-                                isGroupAnd
-                                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
-                                  : "text-gray-500 hover:text-gray-300 border border-transparent"
-                              }`}
+                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${isGroupAnd
+                                ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
+                                : "text-gray-500 hover:text-gray-300 border border-transparent"
+                                }`}
                             >
                               AND
                             </button>
                             <button
                               type="button"
                               onClick={() => handleGroupCombinatorChange(groupIndex, "OR")}
-                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
-                                !isGroupAnd
-                                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
-                                  : "text-gray-500 hover:text-gray-300 border border-transparent"
-                              }`}
+                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${!isGroupAnd
+                                ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
+                                : "text-gray-500 hover:text-gray-300 border border-transparent"
+                                }`}
                             >
                               OR
                             </button>
@@ -1971,7 +1974,7 @@ export default function ConfigModal({
       if (workflowId && selectedNode) {
         url = `${HOOKS_URL}/hooks/catch/${userId}/${workflowId}/${selectedNode.id}`;
       }
-      
+
       return (
         <div key={field.name} className="form-group mb-4 p-4 bg-[#0a0e17] rounded-xl border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.05)]">
           <label className="block text-sm font-semibold text-gray-200 mb-2">
@@ -2074,70 +2077,70 @@ export default function ConfigModal({
 
   const renderFormPanel = () => (
     <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#141518] border border-[#222429] shadow-xl">
-              {/* Header */}
-              <div className="p-4 border-b border-[#222429] flex items-center justify-between flex-shrink-0 bg-[#18191c]">
-                <h2 className="text-base font-semibold flex items-center gap-3 text-[#f0f0e8]">
-                  <NodeIcon icon={selectedNode.icon} name={selectedNode.name} size="md" />
-                  <span>{selectedNode.name}</span>
-                </h2>
-                <button
-                  onClick={onClose}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-white/5 transition-colors"
-                  type="button"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+      {/* Header */}
+      <div className="p-4 border-b border-[#222429] flex items-center justify-between flex-shrink-0 bg-[#18191c]">
+        <h2 className="text-base font-semibold flex items-center gap-3 text-[#f0f0e8]">
+          <NodeIcon icon={selectedNode.icon} name={selectedNode.name} size="md" />
+          <span>{selectedNode.name}</span>
+        </h2>
+        <button
+          onClick={onClose}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-white/5 transition-colors"
+          type="button"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+        {/* Node info */}
+        <div className="p-3.5 rounded-xl bg-[#141c2b]/80 border border-[#1e293b]/40">
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">ID</span>
+              <span className="text-gray-400 font-mono bg-[#0a0e17] px-2 py-0.5 rounded">{selectedNode.id}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">Type</span>
+              <span className="text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{selectedNode.type ?? "Trigger"}</span>
+            </div>
+          </div>
+        </div>
+        {/* Dynamic Form Block */}
+        {(() => {
+          const nodeConfig = getNodeConfig(
+            selectedNode.name || selectedNode.actionType
+          );
+          if (!nodeConfig) {
+            return (
+              <p className="text-red-400">
+                No config found for {selectedNode.name}
+              </p>
+            );
+          }
+          if ((nodeConfig.fields || []).length === 0) {
+            return (
+              <div className="text-center py-8 text-gray-200">
+                <div className="text-4xl mb-4">✅</div>
+                <p className="text-lg font-medium text-white">
+                  {nodeConfig.label}
+                </p>
+                <p className="mt-2 text-gray-300">{nodeConfig.description}</p>
               </div>
+            );
+          }
+          return (
+            <div className="space-y-4">
+              {nodeConfig.fields
+                .filter((field) => isFieldVisible(field, config))
+                .map((field) => renderField(field, nodeConfig))}
+            </div>
+          );
+        })()}
 
-              {/* Body */}
-              <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                {/* Node info */}
-                <div className="p-3.5 rounded-xl bg-[#141c2b]/80 border border-[#1e293b]/40">
-                  <div className="flex items-center gap-4 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">ID</span>
-                      <span className="text-gray-400 font-mono bg-[#0a0e17] px-2 py-0.5 rounded">{selectedNode.id}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">Type</span>
-                      <span className="text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{selectedNode.type ?? "Trigger"}</span>
-                    </div>
-                  </div>
-                </div>
-                {/* Dynamic Form Block */}
-                {(() => {
-                  const nodeConfig = getNodeConfig(
-                    selectedNode.name || selectedNode.actionType
-                  );
-                  if (!nodeConfig) {
-                    return (
-                      <p className="text-red-400">
-                        No config found for {selectedNode.name}
-                      </p>
-                    );
-                  }
-                  if ((nodeConfig.fields || []).length === 0) {
-                    return (
-                      <div className="text-center py-8 text-gray-200">
-                        <div className="text-4xl mb-4">✅</div>
-                        <p className="text-lg font-medium text-white">
-                          {nodeConfig.label}
-                        </p>
-                        <p className="mt-2 text-gray-300">{nodeConfig.description}</p>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="space-y-4">
-                      {nodeConfig.fields
-                        .filter((field) => isFieldVisible(field, config))
-                        .map((field) => renderField(field, nodeConfig))}
-                    </div>
-                  );
-                })()}
-
-                {/* Test Result Display */}
-                {/* {testResult && (
+        {/* Test Result Display */}
+        {/* {testResult && (
               <div className="mt-4 p-3 rounded-lg bg-green-900/30 border border-green-700">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-green-400">✅ Test Output</span>
@@ -2154,68 +2157,68 @@ export default function ConfigModal({
               </div>
             )} */}
 
-                {/* Test Error Display */}
-                {/* {nodeTestOutput?.error && (
+        {/* Test Error Display */}
+        {/* {nodeTestOutput?.error && (
               <div className="mt-4 p-3 rounded-lg bg-red-900/30 border border-red-700">
                 <span className="text-sm font-medium text-red-400">❌ Test Failed</span>
                 <p className="text-xs text-gray-300 mt-1">{nodeTestOutput.error}</p>
               </div>
             )} */}
-              </div>
+      </div>
 
-              {/* Footer */}
-              <div className="p-4 border-t border-[#1e293b]/60 flex justify-between items-center gap-3 bg-gradient-to-r from-[#0f1420] to-[#141c2b] flex-shrink-0">
-                {selectedNode.name.toLowerCase().includes("webhook") ? (
-                  <button
-                    onClick={handleListenWebhook}
-                    disabled={isListeningWebhook || loading}
-                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none"
-                    type="button"
-                  >
-                    {isListeningWebhook ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
-                        Listening... {webhookCountdown}s
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                        Listen for Test Event
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleTestNode}
-                    disabled={isTestingNode || loading}
-                    className="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-purple-500/20 disabled:shadow-none"
-                    type="button"
-                  >
-                    {isTestingNode ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
-                        Testing...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                        Test Node
-                      </>
-                    )}
-                  </button>
-                )}
-                <div className="flex gap-2 ml-auto">
-                  <button
-                    onClick={() => onClose()}
-                    disabled={loading}
-                    className="px-6 py-2.5 bg-white text-black hover:bg-gray-100 rounded-xl disabled:opacity-50 text-xs font-bold transition-all shadow-sm cursor-pointer"
-                    type="button"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </div>
+      {/* Footer */}
+      <div className="p-4 border-t border-[#1e293b]/60 flex justify-between items-center gap-3 bg-gradient-to-r from-[#0f1420] to-[#141c2b] flex-shrink-0">
+        {selectedNode.name.toLowerCase().includes("webhook") ? (
+          <button
+            onClick={handleListenWebhook}
+            disabled={isListeningWebhook || loading}
+            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none"
+            type="button"
+          >
+            {isListeningWebhook ? (
+              <>
+                <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
+                Listening... {webhookCountdown}s
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                Listen for Test Event
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={handleTestNode}
+            disabled={isTestingNode || loading}
+            className="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-purple-500/20 disabled:shadow-none"
+            type="button"
+          >
+            {isTestingNode ? (
+              <>
+                <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                Test Node
+              </>
+            )}
+          </button>
+        )}
+        <div className="flex gap-2 ml-auto">
+          <button
+            onClick={() => onClose()}
+            disabled={loading}
+            className="px-6 py-2.5 bg-white text-black hover:bg-gray-100 rounded-xl disabled:opacity-50 text-xs font-bold transition-all shadow-sm cursor-pointer"
+            type="button"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -2231,11 +2234,10 @@ export default function ConfigModal({
             <button
               type="button"
               onClick={() => setMobileTab("variables")}
-              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                mobileTab === "variables"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
-              }`}
+              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${mobileTab === "variables"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                }`}
             >
               <span>📊</span>
               <span>Variables</span>
@@ -2243,11 +2245,10 @@ export default function ConfigModal({
             <button
               type="button"
               onClick={() => setMobileTab("config")}
-              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                mobileTab === "config"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
-              }`}
+              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${mobileTab === "config"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                }`}
             >
               <span>⚙️</span>
               <span>Configure</span>
@@ -2255,11 +2256,10 @@ export default function ConfigModal({
             <button
               type="button"
               onClick={() => setMobileTab("test")}
-              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                mobileTab === "test"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
-              }`}
+              className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${mobileTab === "test"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                }`}
             >
               <span>🧪</span>
               <span>Test Output</span>
