@@ -27,13 +27,13 @@ export default function DashboardStatCard({
   if (loading) {
     return (
       <div
-        className={`px-5 py-4 ${border ? "border-r border-[#222429]" : ""} flex flex-grow gap-4 items-center`}
+        className={`px-5 py-4 ${border ? "border-r border-border" : ""} flex flex-grow gap-4 items-center bg-card`}
       >
-        <div className="h-12 w-12 rounded-2xl bg-[#1e2025] animate-pulse shrink-0" />
+        <div className="h-12 w-12 rounded-xl bg-muted border border-border/60 animate-pulse shrink-0" />
         <div className="flex-1 space-y-2">
-          <div className="h-3 w-20 rounded bg-[#1e2025] animate-pulse" />
-          <div className="h-6 w-24 rounded bg-[#1e2025] animate-pulse" />
-          <div className="h-2.5 w-16 rounded bg-[#1e2025] animate-pulse" />
+          <div className="h-3 w-20 rounded bg-muted border border-border/60 animate-pulse" />
+          <div className="h-6 w-24 rounded bg-muted border border-border/60 animate-pulse" />
+          <div className="h-2.5 w-16 rounded bg-muted border border-border/60 animate-pulse" />
         </div>
       </div>
     );
@@ -41,24 +41,24 @@ export default function DashboardStatCard({
 
   return (
     <div
-      className={`px-5 py-4 ${border ? "border-r border-[#222429]" : ""} flex flex-grow gap-3.5 items-center`}
+      className={`px-5 py-4 ${border ? "border-r border-border" : ""} flex flex-grow gap-3.5 items-center bg-card`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="h-fit p-3 bg-[#1e2025] border border-[#2a2c33] rounded-2xl shrink-0">
+      <div className="h-fit p-3 bg-secondary text-primary border border-border rounded-xl shrink-0">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs text-[#9ca3af] font-medium tracking-wide truncate">{label}</p>
+          <p className="text-xs text-muted-foreground font-medium tracking-wide truncate">{label}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-2xl font-bold text-white tracking-tight">{value}</p>
+          <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
           {trend && (
             <span
-              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                 trend.positive
-                  ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
-                  : "text-rose-400 bg-rose-500/10 border border-rose-500/20"
+                  ? "text-success bg-success/10 border-success/20"
+                  : "text-destructive bg-destructive/10 border-destructive/20"
               }`}
             >
               {trend.positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -66,7 +66,7 @@ export default function DashboardStatCard({
             </span>
           )}
         </div>
-        {hint && <p className="mt-0.5 text-[11px] text-[#6b7280] truncate">{hint}</p>}
+        {hint && <p className="mt-0.5 text-[11px] text-muted-foreground truncate">{hint}</p>}
       </div>
     </div>
   );

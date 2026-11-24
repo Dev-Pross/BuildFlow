@@ -40,38 +40,39 @@ export function CardDemo({ onClose }: CardDemoProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-all"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 transition-all"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md rounded-3xl bg-[#18191c] border border-[#27282d] shadow-2xl p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="relative w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-white text-black flex items-center justify-center shadow-sm">
-              <Workflow className="h-5 w-5 text-black" />
+            <div className="h-10 w-10 rounded-xl bg-secondary border border-border text-primary flex items-center justify-center shadow-xs">
+              <Workflow className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">New Automation Flow</h2>
-              <p className="text-xs text-[#9ca3af]">Configure a blank visual workspace</p>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">New Automation Flow</h2>
+              <p className="text-xs text-muted-foreground">Configure a blank visual workspace</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-[#9ca3af] hover:text-white hover:bg-[#222429] transition-colors"
+            className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+            aria-label="Close Modal"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Workflow Name <span className="text-indigo-400">*</span>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
+              Workflow Name <span className="text-primary">*</span>
             </label>
             <input
               type="text"
@@ -80,13 +81,13 @@ export function CardDemo({ onClose }: CardDemoProps) {
               placeholder="e.g., Stripe Payment to Google Sheets"
               required
               disabled={loading}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#1e2025] border border-[#2a2c33] text-sm text-white placeholder-[#6b7280] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-secondary border border-border text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-medium"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-              Description <span className="text-[#6b7280] font-normal">(Optional)</span>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
+              Description <span className="text-muted-foreground font-normal">(Optional)</span>
             </label>
             <textarea
               rows={3}
@@ -94,29 +95,29 @@ export function CardDemo({ onClose }: CardDemoProps) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the trigger and actions handled by this automation..."
               disabled={loading}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#1e2025] border border-[#2a2c33] text-sm text-white placeholder-[#6b7280] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-secondary border border-border text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all resize-none font-medium"
             />
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-xs text-rose-300">
+            <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive">
               {error}
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#27282d] mt-2">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border mt-1">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#9ca3af] hover:text-white hover:bg-[#222429] transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-black text-xs font-bold hover:bg-gray-100 transition-all disabled:opacity-50 shadow-md cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-semibold transition-all disabled:opacity-50 shadow-card cursor-pointer"
             >
               {loading ? (
                 "Creating Canvas..."

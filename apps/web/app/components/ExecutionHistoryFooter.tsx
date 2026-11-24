@@ -9,12 +9,18 @@ import {
   ChevronDown,
   ArrowLeft,
   X,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Clock,
+  RotateCcw,
+  PlayCircle,
+  Ban,
 } from 'lucide-react';
 import { WorkflowExecutionLog, NodeExecutionLog } from '@/app/types/execution.types';
 import {
   formatDate,
   formatDuration,
-  getStatusIcon,
 } from '@/app/lib/formatters';
 
 interface ExecutionHistoryFooterProps {
@@ -25,35 +31,51 @@ interface ExecutionHistoryFooterProps {
 }
 
 // ─── Status Badge ───
+const renderStatusIcon = (status: string) => {
+  switch (status) {
+    case 'Completed':
+      return <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />;
+    case 'Failed':
+      return <AlertCircle className="w-3.5 h-3.5 shrink-0" />;
+    case 'InProgress':
+      return <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />;
+    case 'Pending':
+      return <Clock className="w-3.5 h-3.5 shrink-0" />;
+    case 'ReConnecting':
+      return <RotateCcw className="w-3.5 h-3.5 shrink-0 animate-spin" />;
+    case 'Start':
+      return <PlayCircle className="w-3.5 h-3.5 shrink-0" />;
+    case 'Skipped':
+      return <Ban className="w-3.5 h-3.5 shrink-0" />;
+    default:
+      return <Activity className="w-3.5 h-3.5 shrink-0" />;
+  }
+};
+
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const styles: Record<string, string> = {
-    Completed: 'background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);',
-    Failed: 'background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);',
-    InProgress: 'background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);',
-    Pending: 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);',
-    Start: 'background:rgba(148,163,184,0.15);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);',
-    ReConnecting: 'background:rgba(249,115,22,0.15);color:#fb923c;border:1px solid rgba(249,115,22,0.3);',
-    Skipped: 'background:rgba(100,116,139,0.15);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);',
+  const getBadgeClass = (s: string) => {
+    switch (s) {
+      case 'Completed':
+        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+      case 'Failed':
+        return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+      case 'InProgress':
+        return 'bg-primary/10 text-primary border-primary/20';
+      case 'Pending':
+        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+      case 'ReConnecting':
+        return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20';
+      case 'Skipped':
+        return 'bg-muted text-muted-foreground border-border dark:border-white/10';
+      default:
+        return 'bg-muted text-muted-foreground border-border dark:border-white/10';
+    }
   };
+
   return (
-    <span
-      style={{
-        ...Object.fromEntries((styles[status] || styles.Start)!.split(';').filter(Boolean).map(s => {
-          const [k, v] = s.split(':');
-          return [k!.trim().replace(/-([a-z])/g, (_, l) => l.toUpperCase()), v!.trim()];
-        })),
-        padding: '3px 10px',
-        borderRadius: '6px',
-        fontSize: '11px',
-        fontWeight: 600,
-        letterSpacing: '0.3px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        whiteSpace: 'nowrap' as const,
-      }}
-    >
-      {getStatusIcon(status)} {status}
+    <span className={`px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wide inline-flex items-center gap-1.5 whitespace-nowrap border ${getBadgeClass(status)}`}>
+      {renderStatusIcon(status)}
+      <span>{status}</span>
     </span>
   );
 };
@@ -303,8 +325,8 @@ export default function ExecutionHistoryFooter({
           left: sidebarWidth,
           right: 0,
           height: '48px',
-          background: 'rgba(15, 16, 18, 0.95)',
-          borderTop: '1px solid #27282d',
+          background: 'var(--chassis)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           zIndex: 9,
           display: 'flex',
           alignItems: 'center',
@@ -316,14 +338,14 @@ export default function ExecutionHistoryFooter({
       >
         {/* Left */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--chassis-foreground)', display: 'flex', alignItems: 'center', gap: '7px' }}>
             <Activity style={{ width: '15px', height: '15px', color: '#818cf8', flexShrink: 0 }} />
             <span>Executions</span>
           </span>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>
+          <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)' }}>
             Last: <StatusBadge status={lastStatus} />
           </span>
-          <span style={{ fontSize: '11px', color: '#475569' }}>
+          <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)' }}>
             {executions.length} runs
           </span>
         </div>
@@ -334,13 +356,13 @@ export default function ExecutionHistoryFooter({
             onClick={fetchExecutionLogs}
             disabled={footerLoading}
             style={{
-              padding: '4px 12px',
+              padding: '5px 14px',
               fontSize: '11px',
               fontWeight: 600,
-              background: footerLoading ? '#18191c' : '#ffffff',
-              color: footerLoading ? '#9ca3af' : '#000000',
-              border: 'none',
-              borderRadius: '6px',
+              background: footerLoading ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.10)',
+              color: footerLoading ? 'rgba(255, 255, 255, 0.4)' : '#ffffff',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '8px',
               cursor: footerLoading ? 'wait' : 'pointer',
               transition: 'all 0.15s ease',
               display: 'flex',
@@ -363,13 +385,13 @@ export default function ExecutionHistoryFooter({
               if (!isExpanded) setSelectedExecution(null);
             }}
             style={{
-              padding: '4px 12px',
+              padding: '5px 14px',
               fontSize: '11px',
               fontWeight: 600,
-              background: isExpanded ? '#18191c' : '#ffffff',
-              color: isExpanded ? '#9ca3af' : '#000000',
-              border: isExpanded ? '1px solid #27282d' : 'none',
-              borderRadius: '6px',
+              background: isExpanded ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.10)',
+              color: '#ffffff',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '8px',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
               display: 'flex',

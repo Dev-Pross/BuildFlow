@@ -5,6 +5,22 @@ import { useAppSelector } from "@/app/hooks/redux";
 import { selectAllOutputs, NodeTestOutput } from "@/store/slices/nodeOutputSlice";
 import { useState } from "react";
 import { NodeIcon } from "@/app/components/ui/NodeIcon";
+import {
+  ChevronRight,
+  ChevronDown,
+  Table,
+  Play,
+  RefreshCw,
+  Type,
+  Hash,
+  ToggleLeft,
+  Calendar,
+  List,
+  Braces,
+  Sparkles,
+  ArrowLeft,
+  Info,
+} from "lucide-react";
 
 interface VariablePanelProps {
   previousNodes: PreviousNodeOutput[];
@@ -89,7 +105,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     const isWebhook = node.nodeName.toLowerCase().includes('webhook');
     if (!node.variables || node.variables.length === 0) {
       return (
-        <p className="text-xs text-gray-500 italic p-6 text-center bg-[#111620]">
+        <p className="text-xs text-muted-foreground italic p-6 text-center bg-card dark:bg-black/20 dark:text-chassis-foreground/60">
           {isWebhook
             ? 'Webhook data will be available when the workflow is triggered'
             : 'Test this node to discover available variables'}
@@ -116,8 +132,8 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
           <div key={`${depth}-${strictConcatPath}-${idx}`} className="w-full">
             <div
               className={`
-                flex items-center group transition-colors border-b border-[#1a1f2e]/50
-                ${activeField && isTested ? "hover:bg-[#202737] cursor-pointer" : "cursor-not-allowed opacity-50"}
+                flex items-center group transition-colors border-b border-border/60 dark:border-white/10
+                ${activeField && isTested ? "hover:bg-muted/50 dark:hover:bg-white/5 cursor-pointer" : "cursor-not-allowed opacity-50"}
               `}
               onClick={(e) => {
                 e.stopPropagation();
@@ -140,7 +156,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                 {/* Tree branch line */}
                 {depth > 0 && (
                   <div 
-                    className="absolute left-0 top-0 bottom-0 border-l border-[#2a2f3e]" 
+                    className="absolute left-0 top-0 bottom-0 border-l border-border dark:border-white/10" 
                     style={{ marginLeft: `${(depth - 1) * 16 + 21}px` }} 
                   />
                 )}
@@ -149,40 +165,40 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                   <button 
                     type="button"
                     onClick={(e) => toggleTableExpand(e, expandKey)}
-                    className={`mr-1.5 w-5 h-5 flex items-center justify-center rounded-md transition-all z-10 ${
+                    className={`mr-1.5 w-5 h-5 flex items-center justify-center rounded-md transition-all z-10 cursor-pointer ${
                       isExpanded 
-                        ? 'bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30' 
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 border border-gray-700'
+                        ? 'bg-primary/20 text-primary hover:bg-primary/30' 
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-border dark:bg-white/10 dark:text-white dark:border-white/10'
                     }`}
                   >
-                    <span className="text-[10px] leading-none">{isExpanded ? '▼' : '▶'}</span>
+                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                   </button>
                 ) : (
                   <span className="mr-1.5 w-5 h-5 inline-block" />
                 )}
 
-                <span className="opacity-50 mr-2 text-[10px] w-4 text-center border border-gray-700/50 rounded-sm">
-                  {getTypeIcon(variable.type)}
+                <span className="opacity-70 mr-2 w-4 h-4 flex items-center justify-center shrink-0">
+                  {renderTypeIcon(variable.type)}
                 </span>
-                <span className={`text-xs font-medium truncate transition-colors ${activeField && isTested ? 'text-gray-200 group-hover:text-blue-400' : 'text-gray-500'}`}>
+                <span className={`text-xs font-medium truncate transition-colors ${activeField && isTested ? 'text-foreground dark:text-white group-hover:text-primary' : 'text-muted-foreground'}`}>
                   {variable.name}
                 </span>
                 {variable.type && (
-                  <span className="ml-2 text-[10px] text-purple-400/50 font-mono tracking-wider hidden sm:inline-block">
+                  <span className="ml-2 text-[10px] text-primary/70 font-mono tracking-wider hidden sm:inline-block">
                     {variable.type}
                   </span>
                 )}
               </div>
-              <div className="flex-[3.5] px-3 py-2 text-xs text-gray-400 truncate border-l border-[#1a1f2e]/50 min-w-0 font-mono bg-[#161b26]/30">
+              <div className="flex-[3.5] px-3 py-2 text-xs text-muted-foreground dark:text-chassis-foreground/70 truncate border-l border-border/60 dark:border-white/10 min-w-0 font-mono bg-muted/20 dark:bg-black/20">
                 {variable.sampleValue !== undefined && variable.sampleValue !== null
                   ? (typeof variable.sampleValue === 'object'
                     ? (
-                        <span className="text-gray-500 italic">
+                        <span className="text-muted-foreground italic">
                           {variable.type === 'array' ? `Array [${variable.children?.length || 0}]` : `Object {${variable.children?.length || 0}}`}
                         </span>
                       )
                     : String(variable.sampleValue))
-                  : <span className="text-gray-600 italic">No Data</span>
+                  : <span className="text-muted-foreground/60 italic">No Data</span>
                 }
               </div>
             </div>
@@ -193,10 +209,10 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     };
 
     return (
-      <div className="w-full border-t border-gray-800 bg-[#111620]">
-        <div className="flex bg-[#161b22] border-b border-[#2a2f3e] sticky top-0 shadow-sm z-10">
-          <div className="flex-[2.5] px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-gray-500">Name</div>
-          <div className="flex-[3.5] px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-gray-500 border-l border-[#2a2f3e]">Value</div>
+      <div className="w-full border-t border-border bg-card dark:border-white/10 dark:bg-black/20">
+        <div className="flex bg-muted/60 dark:bg-chassis border-b border-border dark:border-white/10 sticky top-0 shadow-xs z-10">
+          <div className="flex-[2.5] px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground dark:text-chassis-foreground/70">Name</div>
+          <div className="flex-[3.5] px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground dark:text-chassis-foreground/70 border-l border-border dark:border-white/10">Value</div>
         </div>
         <div className="flex flex-col mb-1 pb-2">
           {renderRows(node.variables)}
@@ -215,32 +231,33 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     const dataRows = rows.slice(1);
 
     return (
-      <div className="w-full border-t border-gray-800">
-        <div className="text-[10px] p-2 bg-gray-800/50 text-gray-400 flex justify-between items-center border-b border-gray-800 w-full">
+      <div className="w-full border-t border-border dark:border-white/10">
+        <div className="text-[10px] p-2 bg-muted/40 text-muted-foreground dark:bg-chassis dark:text-chassis-foreground/70 flex justify-between items-center border-b border-border dark:border-white/10 w-full">
           <div className="flex items-center gap-2">
-            <span>Spreadsheet Data</span>
+            <span className="font-semibold uppercase tracking-wider">Spreadsheet Data</span>
             <button
+              type="button"
               onClick={() => handleInsert(`{{${formattedNodeName}.rows}}`)}
-              className="px-2 py-0.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 rounded transition-colors"
+              className="px-2 py-0.5 bg-primary/15 text-primary hover:bg-primary/25 rounded transition-colors text-[10px] font-medium cursor-pointer"
               title="Insert the entire array of data"
             >
               Select Entire Table
             </button>
           </div>
-          <span>{dataRows.length} rows</span>
+          <span className="font-mono">{dataRows.length} rows</span>
         </div>
-        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-          <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
-            <thead className="bg-[#1a1f2e] sticky top-0">
+        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent">
+          <table className="w-full text-left text-xs text-foreground dark:text-gray-300 min-w-max border-collapse">
+            <thead className="bg-muted/70 text-muted-foreground dark:bg-black/40 dark:text-chassis-foreground/80 sticky top-0">
               <tr>
-                <th className="px-2 py-2 w-8 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-normal">#</th>
+                <th className="px-2 py-2 w-8 text-center border-r border-b border-border dark:border-white/10 text-muted-foreground font-mono text-[10px]">#</th>
                 {headers.map((header, colIndex) => {
                   const colPath = String(header).trim().toLowerCase().replace(/\s+/g, '_') || `column_${colIndex + 1}`;
                   return (
                     <th
                       key={colIndex}
-                      className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium truncate max-w-[150px] transition-colors
-                        ${activeField ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                      className={`px-3 py-2 border-r border-b border-border dark:border-white/10 font-medium truncate max-w-[150px] transition-colors
+                        ${activeField ? "hover:bg-primary/10 hover:text-primary cursor-pointer" : "cursor-not-allowed opacity-50"}`}
                       onClick={() => handleInsert(`{{${formattedNodeName}.${colPath}}}`)}
                       title={`Insert entire column array: {{${formattedNodeName}.${colPath}}}`}
                     >
@@ -252,13 +269,13 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
             </thead>
             <tbody>
               {dataRows.slice(0, 50).map((row: any[], rowIndex: number) => (
-                <tr key={rowIndex} className="border-b border-[#1a1f2e]/50 hover:bg-[#1f2536] transition-colors group">
-                  <td className="px-2 py-1.5 text-center border-r border-[#1a1f2e]/50 text-gray-600 bg-[#161b26]">{rowIndex + 1}</td>
+                <tr key={rowIndex} className="border-b border-border/60 hover:bg-muted/40 dark:border-white/10 dark:hover:bg-white/5 transition-colors group">
+                  <td className="px-2 py-1.5 text-center border-r border-border/60 dark:border-white/10 text-muted-foreground bg-muted/20 dark:bg-black/20 font-mono text-[10px]">{rowIndex + 1}</td>
                   {headers.map((_, colIndex) => (
                     <td
                       key={colIndex}
-                      className={`px-3 py-1.5 border-r border-[#1a1f2e]/50 truncate max-w-[200px] transition-colors
-                        ${activeField ? "group-hover:text-white hover:bg-blue-500/30 cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                      className={`px-3 py-1.5 border-r border-border/60 dark:border-white/10 truncate max-w-[200px] transition-colors
+                        ${activeField ? "group-hover:text-primary hover:bg-primary/10 cursor-pointer" : "cursor-not-allowed opacity-70"}`}
                       onClick={() => handleInsert(`{{${formattedNodeName}.rows[${rowIndex + 1}][${colIndex}]}}`)}
                       title={`Insert cell {{${formattedNodeName}.rows[${rowIndex + 1}][${colIndex}]}}`}
                     >
@@ -294,12 +311,12 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
       const varSyntax = `{{${nodeId}${activeMappedPath}}}`;
       return (
         <div 
-          className={`flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1a2333] transition-colors group ${activeField && isTested ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+          className={`flex items-center justify-between py-1 px-2.5 rounded hover:bg-muted/50 dark:hover:bg-white/5 transition-colors group ${activeField && isTested ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
           onClick={() => activeField && isTested && handleInsert(varSyntax)}
           title={activeField ? `Insert: ${varSyntax}` : 'Select an input field first'}
         >
-          <span className="font-mono text-xs text-emerald-400 truncate max-w-[200px]">{JSON.stringify(data)}</span>
-          <span className="text-[10px] text-blue-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400 truncate max-w-[200px]">{JSON.stringify(data)}</span>
+          <span className="text-[10px] text-primary font-mono opacity-0 group-hover:opacity-100 transition-opacity">
             + Map
           </span>
         </div>
@@ -312,13 +329,13 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
 
       return (
         <div className="flex flex-col w-full">
-          <div className="flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1f293d] group transition-colors">
+          <div className="flex items-center justify-between py-1 px-2.5 rounded hover:bg-muted/50 dark:hover:bg-white/5 group transition-colors">
             <div 
               className="flex items-center gap-1.5 cursor-pointer flex-1 min-w-0"
               onClick={() => setTreeExpanded(prev => ({ ...prev, [`${nodeId}_${currentPath}`]: !isExpanded }))}
             >
-              <span className="text-gray-500 text-[10px] font-mono">{isExpanded ? '▼' : '▶'}</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-800/40 text-purple-300">
+              {isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-primary/10 border border-primary/20 text-primary">
                 Array ({data.length})
               </span>
             </div>
@@ -388,14 +405,14 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
           if (isNested) {
             return (
               <div key={key} className="flex flex-col">
-                <div className="flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1a2333] transition-colors group">
+                <div className="flex items-center justify-between py-1 px-2.5 rounded hover:bg-muted/50 dark:hover:bg-white/5 transition-colors group">
                   <div 
                     className="flex items-center gap-1.5 cursor-pointer flex-1 min-w-0"
                     onClick={() => setTreeExpanded(prev => ({ ...prev, [`${nodeId}_${itemPath}`]: !isExpanded }))}
                   >
-                    <span className="text-gray-500 text-[10px] font-mono">{isExpanded ? '▼' : '▶'}</span>
-                    <span className="font-mono text-xs text-blue-300 font-medium truncate">{key}</span>
-                    <span className="text-[10px] text-gray-500 font-mono">
+                    {isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
+                    <span className="font-mono text-xs text-foreground dark:text-blue-300 font-medium truncate">{key}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
                       {isValArray ? `[${val.length}]` : '{...}'}
                     </span>
                   </div>
@@ -417,10 +434,10 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                         e.stopPropagation();
                         if (activeField && isTested) handleInsert(itemSyntax);
                       }}
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all cursor-pointer ${
                         activeField && isTested
-                          ? 'bg-blue-500/20 hover:bg-blue-500/35 border-blue-500/40 text-blue-300 cursor-grab active:cursor-grabbing'
-                          : 'bg-gray-800/40 border-gray-700/50 text-gray-500 cursor-not-allowed'
+                          ? 'bg-primary/15 hover:bg-primary/25 border-primary/30 text-primary cursor-grab active:cursor-grabbing'
+                          : 'bg-muted border-border text-muted-foreground cursor-not-allowed'
                       }`}
                       title={`Map entire array: ${itemSyntax}`}
                     >
@@ -430,7 +447,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                 </div>
 
                 {isExpanded && (
-                  <div className="pl-3.5 border-l border-gray-800/80 ml-2 mt-0.5">
+                  <div className="pl-3.5 border-l border-border/80 dark:border-white/10 ml-2 mt-0.5">
                     {renderJsonTree(nodeId, nodeName, val, itemPath, depth + 1, isTested, itemMappedPath)}
                   </div>
                 )}
@@ -441,16 +458,16 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
           return (
             <div
               key={key}
-              className={`flex items-center justify-between py-1 px-2.5 rounded hover:bg-[#1a2333] transition-colors group ${activeField && isTested ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+              className={`flex items-center justify-between py-1 px-2.5 rounded hover:bg-muted/50 dark:hover:bg-white/5 transition-colors group ${activeField && isTested ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
               onClick={() => activeField && isTested && handleInsert(itemSyntax)}
               title={activeField ? `Insert: ${itemSyntax}` : 'Select an input field first'}
             >
               <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                <span className="text-gray-600 text-xs">•</span>
-                <span className="font-mono text-xs text-gray-300 truncate">{key}:</span>
-                <span className="font-mono text-xs text-emerald-400/90 truncate max-w-[150px]">{String(val ?? '')}</span>
+                <span className="text-muted-foreground text-xs">•</span>
+                <span className="font-mono text-xs text-foreground dark:text-gray-300 truncate">{key}:</span>
+                <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400 truncate max-w-[150px]">{String(val ?? '')}</span>
               </div>
-              <span className="text-[10px] text-blue-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-[10px] text-primary font-mono opacity-0 group-hover:opacity-100 transition-opacity">
                 + Map
               </span>
             </div>
@@ -474,7 +491,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
 
     if (!Array.isArray(dataArray) || dataArray.length === 0) {
       return (
-        <div className="p-4 text-center text-xs text-gray-500 italic bg-[#111620]">
+        <div className="p-4 text-center text-xs text-muted-foreground italic bg-card dark:bg-black/20 dark:text-chassis-foreground/60">
           No items found in dataset
         </div>
       );
@@ -509,9 +526,9 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
       // It's an array of primitives
       const allValuesSyntax = `{{${formattedNodeName}${basePrefix}}}`;
       return (
-        <div className="w-full border-t border-gray-800">
-          <div className="text-[10px] px-3 py-2 bg-[#161b22] text-gray-400 flex justify-between items-center border-b border-gray-800 w-full gap-2">
-            <span className="font-semibold text-gray-300 uppercase tracking-wider text-[10px]">Values</span>
+        <div className="w-full border-t border-border dark:border-white/10">
+          <div className="text-[10px] px-3 py-2 bg-muted/40 text-muted-foreground dark:bg-chassis dark:text-chassis-foreground/70 flex justify-between items-center border-b border-border dark:border-white/10 w-full gap-2">
+            <span className="font-semibold text-foreground dark:text-chassis-foreground uppercase tracking-wider text-[10px]">Values</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -526,30 +543,30 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
                 onClick={() => activeField && isTested && handleInsert(allValuesSyntax)}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors ${
+                className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors cursor-pointer ${
                   activeField && isTested
-                    ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/40 cursor-grab active:cursor-grabbing'
-                    : 'bg-gray-800/40 text-gray-500 border-gray-700/50 cursor-not-allowed opacity-60'
+                    ? 'bg-primary/15 text-primary hover:bg-primary/25 border-primary/30 cursor-grab active:cursor-grabbing'
+                    : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
                 }`}
               >
                 + All Values
               </button>
-              <span className="px-2 py-0.5 rounded-full bg-blue-900/30 border border-blue-800/40 text-blue-400 font-mono text-[10px]">
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-mono text-[10px]">
                 {rows.length} items
               </span>
             </div>
           </div>
-          <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-700">
-            <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
+          <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-muted-foreground/30">
+            <table className="w-full text-left text-xs text-foreground dark:text-gray-300 min-w-max border-collapse">
               <tbody>
                 {rows.slice(0, 100).map((item, index) => {
                   const insertSyntax = `{{${formattedNodeName}${basePrefix}[${index}]}}`;
                   return (
-                    <tr key={index} className="border-b border-gray-800/50 hover:bg-[#1a2333] transition-colors">
-                      <td className="px-2.5 py-1.5 w-8 text-center border-r border-gray-800/50 text-gray-600 font-mono text-[10px]">{index}</td>
+                    <tr key={index} className="border-b border-border/60 hover:bg-muted/40 dark:border-white/10 dark:hover:bg-white/5 transition-colors">
+                      <td className="px-2.5 py-1.5 w-8 text-center border-r border-border/60 dark:border-white/10 text-muted-foreground bg-muted/20 dark:bg-black/20 font-mono text-[10px]">{index}</td>
                       <td 
-                        className={`px-3 py-1.5 truncate max-w-[300px] transition-colors font-mono text-emerald-400/90
-                          ${activeField && isTested ? "hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer" : "cursor-not-allowed"}`}
+                        className={`px-3 py-1.5 truncate max-w-[300px] transition-colors font-mono text-emerald-600 dark:text-emerald-400
+                          ${activeField && isTested ? "hover:bg-primary/10 hover:text-primary cursor-pointer" : "cursor-not-allowed"}`}
                         onClick={() => activeField && isTested && handleInsert(insertSyntax)}
                       >
                         {String(item)}
@@ -573,11 +590,11 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
     const allRowsLabel = customLabel || `+ All Rows (${nodeName}${wireIndex !== undefined ? `.[${wireIndex}]` : ''})`;
 
     return (
-      <div className="w-full border-t border-gray-800">
+      <div className="w-full border-t border-border dark:border-white/10">
         {/* Clean Top Toolbar */}
-        <div className="text-[10px] px-3 py-2 bg-[#161b22] text-gray-400 flex justify-between items-center border-b border-gray-800 w-full gap-2">
+        <div className="text-[10px] px-3 py-2 bg-muted/40 text-muted-foreground dark:bg-chassis dark:text-chassis-foreground/70 flex justify-between items-center border-b border-border dark:border-white/10 w-full gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-semibold text-gray-300 uppercase tracking-wider text-[10px] truncate">
+            <span className="font-semibold text-foreground dark:text-chassis-foreground uppercase tracking-wider text-[10px] truncate">
               {customLabel ? customLabel.replace(/^\+\s*/, '') : 'Data Grid'}
             </span>
           </div>
@@ -601,8 +618,8 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
               }}
               className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all border flex items-center gap-1.5 ${
                 activeField && isTested
-                  ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/40 cursor-grab active:cursor-grabbing shadow-sm'
-                  : 'bg-gray-800/40 text-gray-500 border-gray-700/50 cursor-not-allowed opacity-60'
+                  ? 'bg-primary/15 text-primary hover:bg-primary/25 border-primary/30 cursor-grab active:cursor-grabbing shadow-xs'
+                  : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
               }`}
               title={
                 !isTested
@@ -614,18 +631,18 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
             >
               <span>{allRowsLabel}</span>
             </button>
-            <span className="px-2 py-0.5 rounded-full bg-blue-900/30 border border-blue-800/40 text-blue-400 font-mono text-[10px]">
+            <span className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-mono text-[10px]">
               {rows.length} rows
             </span>
           </div>
         </div>
 
         {/* Clean, Flat Data Table */}
-        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-          <table className="w-full text-left text-xs text-gray-300 min-w-max border-collapse">
-            <thead className="bg-[#1a1f2e] sticky top-0 z-10">
+        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent">
+          <table className="w-full text-left text-xs text-foreground dark:text-gray-300 min-w-max border-collapse">
+            <thead className="bg-muted/70 text-muted-foreground dark:bg-black/40 dark:text-chassis-foreground/80 sticky top-0 z-10">
               <tr>
-                <th className="px-2.5 py-2 text-center border-r border-b border-[#2a2f3e] text-gray-500 font-mono text-[10px] w-10">
+                <th className="px-2.5 py-2 text-center border-r border-b border-border dark:border-white/10 text-muted-foreground font-mono text-[10px] w-10">
                   #
                 </th>
                 {headers.map((header) => {
@@ -645,9 +662,9 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                         e.dataTransfer.effectAllowed = 'copy';
                       }}
                       key={header}
-                      className={`px-3 py-2 border-r border-b border-[#2a2f3e] font-medium text-gray-300 max-w-[180px] transition-colors group select-none
+                      className={`px-3 py-2 border-r border-b border-border dark:border-white/10 font-medium text-foreground dark:text-chassis-foreground max-w-[180px] transition-colors group select-none
                         ${activeField && isTested 
-                          ? "hover:bg-blue-600/20 hover:text-blue-300 cursor-grab active:cursor-grabbing" 
+                          ? "hover:bg-primary/10 hover:text-primary cursor-grab active:cursor-grabbing" 
                           : "cursor-not-allowed opacity-60"
                         }
                       `}
@@ -666,7 +683,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                     >
                       <div className="flex items-center justify-between gap-1.5">
                         <span className="truncate">{header}</span>
-                        <span className="text-[9px] text-blue-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <span className="text-[9px] text-primary font-mono opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                           + Map
                         </span>
                       </div>
@@ -677,8 +694,8 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
             </thead>
             <tbody>
               {rows.slice(0, 100).map((item, rowIndex) => (
-                <tr key={rowIndex} className="border-b border-[#1a1f2e]/60 hover:bg-[#1a2333]/70 transition-colors group">
-                  <td className="px-2.5 py-1.5 text-center border-r border-[#1a1f2e]/60 text-gray-600 bg-[#141822] font-mono text-[10px]">
+                <tr key={rowIndex} className="border-b border-border/60 hover:bg-muted/40 dark:border-white/10 dark:hover:bg-white/5 transition-colors group">
+                  <td className="px-2.5 py-1.5 text-center border-r border-border/60 dark:border-white/10 text-muted-foreground bg-muted/20 dark:bg-black/20 font-mono text-[10px]">
                     {rowIndex}
                   </td>
                   {headers.map((header) => {
@@ -693,9 +710,9 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                     if (isValArray) {
                       const arraySyntax = `{{${formattedNodeName}${fieldPath}}}`;
                       return (
-                        <td key={header} className="px-2.5 py-1.5 border-r border-[#1a1f2e]/60 align-middle max-w-[220px]">
+                        <td key={header} className="px-2.5 py-1.5 border-r border-border/60 dark:border-white/10 align-middle max-w-[220px]">
                           <div className="flex items-center gap-1.5">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-800/40 text-purple-300 whitespace-nowrap">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-primary/10 border border-primary/20 text-primary whitespace-nowrap">
                               Array ({val.length})
                             </span>
                             <button
@@ -706,10 +723,10 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                                   handleInsert(arraySyntax);
                                 }
                               }}
-                              className={`px-1.5 py-0.5 text-[9px] rounded font-medium border transition-colors whitespace-nowrap ${
+                              className={`px-1.5 py-0.5 text-[9px] rounded font-medium border transition-colors whitespace-nowrap cursor-pointer ${
                                 activeField && isTested
-                                  ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/40'
-                                  : 'bg-gray-800/40 text-gray-500 border-gray-700/50'
+                                  ? 'bg-primary/15 text-primary hover:bg-primary/25 border-primary/30'
+                                  : 'bg-muted text-muted-foreground border-border'
                               }`}
                               title={`Map array: ${arraySyntax}`}
                             >
@@ -732,7 +749,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                                     ]
                                   }));
                                 }}
-                                className="px-1.5 py-0.5 text-[9px] rounded font-medium bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/40 whitespace-nowrap"
+                                className="px-1.5 py-0.5 text-[9px] rounded font-medium bg-muted hover:bg-muted/80 text-foreground border border-border dark:bg-white/10 dark:text-white dark:border-white/10 whitespace-nowrap cursor-pointer"
                                 title="Explore this array as a table"
                               >
                                 View ↗
@@ -747,9 +764,9 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                       const objSyntax = `{{${formattedNodeName}${fieldPath}}}`;
                       const keyCount = Object.keys(val).filter(k => k !== 'sourceRefs').length;
                       return (
-                        <td key={header} className="px-2.5 py-1.5 border-r border-[#1a1f2e]/60 align-middle max-w-[220px]">
+                        <td key={header} className="px-2.5 py-1.5 border-r border-border/60 dark:border-white/10 align-middle max-w-[220px]">
                           <div className="flex items-center gap-1.5">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-950/60 border border-blue-800/40 text-blue-300 whitespace-nowrap truncate max-w-[100px]">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-primary/10 border border-primary/20 text-primary whitespace-nowrap truncate max-w-[100px]">
                               Object ({keyCount})
                             </span>
                             <button
@@ -760,10 +777,10 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                                   handleInsert(objSyntax);
                                 }
                               }}
-                              className={`px-1.5 py-0.5 text-[9px] rounded font-medium border transition-colors whitespace-nowrap ${
+                              className={`px-1.5 py-0.5 text-[9px] rounded font-medium border transition-colors whitespace-nowrap cursor-pointer ${
                                 activeField && isTested
-                                  ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/40'
-                                  : 'bg-gray-800/40 text-gray-500 border-gray-700/50'
+                                  ? 'bg-primary/15 text-primary hover:bg-primary/25 border-primary/30'
+                                  : 'bg-muted text-muted-foreground border-border'
                               }`}
                               title={`Map object: ${objSyntax}`}
                             >
@@ -785,7 +802,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                                   ]
                                 }));
                               }}
-                              className="px-1.5 py-0.5 text-[9px] rounded font-medium bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/40 whitespace-nowrap"
+                              className="px-1.5 py-0.5 text-[9px] rounded font-medium bg-muted hover:bg-muted/80 text-foreground border border-border dark:bg-white/10 dark:text-white dark:border-white/10 whitespace-nowrap cursor-pointer"
                               title="Explore this object"
                             >
                               View ↗
@@ -802,9 +819,9 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                     return (
                       <td
                         key={header}
-                        className={`px-3 py-1.5 border-r border-[#1a1f2e]/60 max-w-[200px] transition-colors
+                        className={`px-3 py-1.5 border-r border-border/60 dark:border-white/10 max-w-[200px] transition-colors
                           ${activeField && isTested 
-                            ? "hover:bg-blue-500/20 hover:text-white cursor-pointer" 
+                            ? "hover:bg-primary/10 hover:text-primary cursor-pointer" 
                             : "cursor-not-allowed opacity-75"
                           }
                         `}
@@ -821,7 +838,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                               : "Select an input field first"
                         }
                       >
-                        <span className="truncate block font-mono text-[11px] text-gray-300">
+                        <span className="truncate block font-mono text-[11px] text-foreground dark:text-chassis-foreground/80">
                           {displayStr}
                         </span>
                       </td>
@@ -838,12 +855,12 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
 
   if (enrichedNodes.length === 0) {
     return (
-      <div className="w-[35%] h-full bg-[#0d1117] border-r border-gray-800 p-6 flex flex-col items-center justify-center text-center">
-        <div className="w-16 h-16 bg-gray-800/50 rounded-full flex items-center justify-center mb-4 border border-gray-700">
-          <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+      <div className="w-full h-full bg-card text-card-foreground dark:bg-chassis dark:text-chassis-foreground p-6 flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 bg-muted dark:bg-white/5 rounded-full flex items-center justify-center mb-4 border border-border dark:border-white/10">
+          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
         </div>
-        <h3 className="text-gray-300 font-medium mb-2">No Data Available</h3>
-        <p className="text-sm text-gray-500 max-w-[200px]">
+        <h3 className="text-foreground dark:text-chassis-foreground font-medium mb-2">No Data Available</h3>
+        <p className="text-sm text-muted-foreground max-w-[200px]">
           Add a trigger or action before this node to map variables.
         </p>
       </div>
@@ -851,29 +868,29 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
   }
 
   return (
-    <div className="w-full h-full bg-[#0d1117] flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-card text-card-foreground dark:bg-chassis dark:text-chassis-foreground flex flex-col overflow-hidden">
 
       {/* Panel Header */}
-      <div className="p-4 border-b border-gray-800 bg-[#161b22] sticky top-0 z-20 flex-shrink-0">
-        <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
-          <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+      <div className="p-3.5 border-b border-border bg-card dark:border-white/10 dark:bg-chassis sticky top-0 z-20 flex-shrink-0">
+        <h2 className="text-sm font-semibold text-foreground dark:text-chassis-foreground flex items-center gap-2">
+          <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
           Data Mapping
         </h2>
         {!activeField ? (
-          <div className="mt-3 text-xs text-yellow-500/90 bg-yellow-500/10 border border-yellow-500/20 p-2.5 rounded-md flex items-start gap-2 leading-relaxed">
-            <div className="mt-0.5">ℹ️</div>
+          <div className="mt-2.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg flex items-start gap-2 leading-relaxed">
+            <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div>Select an input field in the configuration panel on the right before inserting data.</div>
           </div>
         ) : (
-          <div className="mt-3 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 p-2.5 rounded-md flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+          <div className="mt-2.5 text-xs text-primary bg-primary/10 border border-primary/20 p-2.5 rounded-lg flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             Ready to map data. Select a variable or cell below.
           </div>
         )}
       </div>
 
       {/* Accordion List */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 no-scrollbar">
         {enrichedNodes.map((node) => {
           const testOutput = testedOutputs[node.nodeId];
           const isTested = !!testOutput?.success;
@@ -888,14 +905,14 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
             <div
               key={node.nodeId}
               className={`
-                rounded-lg border transition-all duration-200 overflow-hidden bg-[#161b22]
-                ${isExpanded ? 'border-gray-600 shadow-lg' : 'border-gray-800 hover:border-gray-700'}
+                rounded-xl border transition-all duration-200 overflow-hidden bg-card border-border dark:bg-white/5 dark:border-white/10
+                ${isExpanded ? 'ring-1 ring-primary/40 shadow-sm' : 'hover:border-primary/40'}
               `}
             >
               {/* Accordion Header */}
               <div
                 className={`flex items-center justify-between w-full p-3 text-left transition-colors cursor-pointer select-none
-                  ${isExpanded ? 'bg-[#1a202c]' : 'hover:bg-[#1a202c]'}
+                  ${isExpanded ? 'bg-muted/50 dark:bg-white/10' : 'hover:bg-muted/30 dark:hover:bg-white/5'}
                 `}
                 onClick={() => setExpandedNodeId(isExpanded ? null : node.nodeId)}
               >
@@ -908,14 +925,14 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                       nodeType={node.nodeType === "trigger" ? "trigger" : "action"}
                     />
                     {isTested && (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[#161b22] rounded-full" title="Successfully Executed"></span>
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-card dark:border-chassis rounded-full" title="Successfully Executed"></span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className={`font-medium text-sm truncate ${isExpanded ? 'text-white' : 'text-gray-300'}`}>
+                    <h3 className={`font-medium text-sm truncate ${isExpanded ? 'text-foreground dark:text-white' : 'text-foreground/80 dark:text-gray-300'}`}>
                       {node.nodeName}
                     </h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
                       {isTested ? 'Data available' : 'Using sample schema'}
                     </p>
                   </div>
@@ -960,7 +977,7 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
 
               {/* Accordion Body */}
               {isExpanded && (
-                <div className="bg-[#0d1117] flex flex-col">
+                <div className="bg-card dark:bg-black/20 flex flex-col border-t border-border dark:border-white/10">
                   {hasData ? (() => {
                     const wIndex = node.wireIndex !== undefined ? node.wireIndex : 0;
                     const wireData = Array.isArray(testOutput.data) ? (testOutput.data[wIndex] || []) : testOutput.data;
@@ -968,15 +985,15 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                     
                     return (
                       <>
-                        <div className="flex justify-end px-2 py-1.5 border-b border-[#2a2f3e] bg-[#161b22]">
-                          <div className="flex items-center gap-1 p-0.5 bg-[#0d1117] rounded-md border border-[#2a2f3e]">
+                        <div className="flex justify-end px-2 py-1.5 border-b border-border bg-muted/40 dark:border-white/10 dark:bg-chassis">
+                          <div className="flex items-center gap-1 p-0.5 bg-background dark:bg-black/40 rounded-md border border-border dark:border-white/10">
                             <button
                               type="button"
                               onClick={() => setModeViews(prev => ({ ...prev, [node.nodeId]: 'tree' }))}
-                              className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                              className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors cursor-pointer ${
                                 currentMode === 'tree'
-                                  ? 'bg-indigo-600 text-white shadow-sm'
-                                  : 'text-gray-400 hover:text-gray-200'
+                                  ? 'bg-primary text-primary-foreground shadow-xs'
+                                  : 'text-muted-foreground hover:text-foreground'
                               }`}
                             >
                               Tree (JSON)
@@ -984,10 +1001,10 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                             <button
                               type="button"
                               onClick={() => setModeViews(prev => ({ ...prev, [node.nodeId]: 'table' }))}
-                              className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                              className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors cursor-pointer ${
                                 currentMode === 'table'
-                                  ? 'bg-indigo-600 text-white shadow-sm'
-                                  : 'text-gray-400 hover:text-gray-200'
+                                  ? 'bg-primary text-primary-foreground shadow-xs'
+                                  : 'text-muted-foreground hover:text-foreground'
                               }`}
                             >
                               Table
@@ -996,15 +1013,15 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                         </div>
 
                         {currentMode === 'tree' ? (
-                          <div className="p-2.5 bg-[#111620] overflow-x-auto">
-                            <div className="text-[10px] text-gray-500 font-mono mb-2 flex items-center justify-between">
+                          <div className="p-2.5 bg-card dark:bg-black/20 overflow-x-auto">
+                            <div className="text-[10px] text-muted-foreground dark:text-chassis-foreground/60 font-mono mb-2 flex items-center justify-between">
                               <span>Interactive JSON Explorer (click or drag to map)</span>
                               <span>{Array.isArray(wireData) ? `${wireData.length} items` : 'Object'}</span>
                             </div>
                             {renderJsonTree(node.nodeId, node.nodeName, wireData, Array.isArray(testOutput.data) && Array.isArray(testOutput.data[0]) ? `.[${wIndex}]` : "", 0, isTested)}
                           </div>
                         ) : (
-                          <div className="bg-[#111620]">
+                          <div className="bg-card dark:bg-black/20">
                             {(() => {
                               const currentDrillStack = drillDownStacks[node.nodeId] || [];
                               const isDrilled = currentDrillStack.length > 0;
@@ -1013,11 +1030,11 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                               if (isDrilled && currentLevel) {
                                 return (
                                   <>
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#141a24] border-b border-gray-800 text-xs">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 border-b border-border dark:bg-white/5 dark:border-white/10 text-xs">
                                       <button
                                         type="button"
                                         onClick={() => setDrillDownStacks(prev => ({ ...prev, [node.nodeId]: [] }))}
-                                        className="text-gray-400 hover:text-blue-400 font-medium transition-colors flex items-center gap-1"
+                                        className="text-muted-foreground hover:text-primary font-medium transition-colors flex items-center gap-1 cursor-pointer"
                                       >
                                         <span>Root</span>
                                       </button>
@@ -1049,9 +1066,10 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
                                           ...prev,
                                           [node.nodeId]: currentDrillStack.slice(0, -1)
                                         }))}
-                                        className="ml-auto text-[10px] text-gray-400 hover:text-gray-200 bg-gray-800/80 hover:bg-gray-700 px-2 py-0.5 rounded border border-gray-700 flex items-center gap-1"
+                                        className="ml-auto text-[10px] text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 px-2 py-0.5 rounded border border-border dark:bg-white/10 dark:text-white dark:border-white/10 flex items-center gap-1 cursor-pointer"
                                       >
-                                        ← Back
+                                        <ArrowLeft className="w-3 h-3" />
+                                        <span>Back</span>
                                       </button>
                                     </div>
                                     {renderArrayTable(
@@ -1106,17 +1124,23 @@ export function VariablePanel({ previousNodes, onInsert, activeField, onTestNode
 }
 
 // Helper function for type icons
-function getTypeIcon(type: string): string {
-  const icons: Record<string, string> = {
-    string: "📝",
-    number: "🔢",
-    boolean: "✓",
-    date: "📅",
-    array: "📋",
-    object: "{}",
-    any: "•",
-  };
-  return icons[type] || "•";
+function renderTypeIcon(type: string) {
+  switch (type) {
+    case "string":
+      return <Type className="w-3 h-3 text-sky-500" />;
+    case "number":
+      return <Hash className="w-3 h-3 text-amber-500" />;
+    case "boolean":
+      return <ToggleLeft className="w-3 h-3 text-emerald-500" />;
+    case "date":
+      return <Calendar className="w-3 h-3 text-purple-500" />;
+    case "array":
+      return <List className="w-3 h-3 text-blue-500" />;
+    case "object":
+      return <Braces className="w-3 h-3 text-indigo-500" />;
+    default:
+      return <Sparkles className="w-3 h-3 text-muted-foreground" />;
+  }
 }
 
 export default VariablePanel;

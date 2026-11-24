@@ -1,45 +1,46 @@
 "use client";
 
-import React, { Suspense, useState, useEffect } from 'react';
-import Card from '../components/ui/Card';
-import Link from 'next/link';
-import { signIn, useSession } from 'next-auth/react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Workflow, Loader2 } from 'lucide-react';
+import React, { Suspense, useState, useEffect } from "react";
+import Link from "next/link";
+import { signIn, useSession } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { Logo } from "@/app/components/ui/Logo";
+import { ThemeToggle } from "@/app/components/ui/ThemeToggle";
 
 function LoginContent() {
   const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const errorParam = searchParams.get('error');
+  const errorParam = searchParams.get("error");
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.replace('/dashboard');
+    if (status === "authenticated") {
+      router.replace("/dashboard");
     }
   }, [status, router]);
 
-  const handleOAuth = (provider: 'google' | 'github') => {
+  const handleOAuth = (provider: "google" | "github") => {
     setLoadingProvider(provider);
-    signIn(provider, { callbackUrl: '/dashboard' });
+    signIn(provider, { callbackUrl: "/dashboard" });
   };
 
   const getErrorMessage = () => {
     if (!errorParam) return null;
-    if (errorParam === 'OAuthCallback' || errorParam === 'OAuthSignin') {
-      return 'Authentication could not be completed with the provider. Please try again.';
+    if (errorParam === "OAuthCallback" || errorParam === "OAuthSignin") {
+      return "Authentication could not be completed with the provider. Please try again.";
     }
-    if (errorParam === 'AccessDenied') {
-      return 'Access was denied. Please approve the permissions to continue.';
+    if (errorParam === "AccessDenied") {
+      return "Access was denied. Please approve the permissions to continue.";
     }
-    return 'Sign-in failed. Please try again or use another account.';
+    return "Sign-in failed. Please try again or use another account.";
   };
 
-  if (status === 'authenticated' || status === 'loading') {
+  if (status === "authenticated" || status === "loading") {
     return (
-      <div className="min-h-screen bg-[#0f1012] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-white" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -47,31 +48,38 @@ function LoginContent() {
   const errorMessage = getErrorMessage();
 
   return (
-    <div className="relative min-h-screen bg-[#0f1012] flex items-center justify-center p-4 overflow-hidden">
+    <div className="relative min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+      {/* Top right theme toggle */}
+      <div className="absolute top-5 right-5 z-20">
+        <ThemeToggle />
+      </div>
+
       {/* Background subtle ambient glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[360px] rounded-full blur-3xl"
+        style={{
+          background: "radial-gradient(circle at center, color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 70%)"
+        }}
+      />
 
       <div className="relative z-10 w-full max-w-md">
         {/* Brand header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 mb-4 group">
-            <div className="h-11 w-11 rounded-2xl bg-white text-black flex items-center justify-center group-hover:scale-105 transition-transform shadow-md font-bold text-xl">
-              B
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight text-white">
-              BuildFlow
-            </span>
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-block mb-4" aria-label="BuildFlow Home">
+            <Logo variant="nav" />
           </Link>
-          <h1 className="text-2xl font-bold text-white">Welcome back</h1>
-          <p className="text-sm text-[#9ca3af] mt-1">
-            Sign in to automate your workflows across Google Sheets, Gmail, and Webhooks.
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Welcome to BuildFlow</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs mx-auto leading-relaxed">
+            Connect and automate your workflows across Webhooks, Google Sheets, and Gmail.
           </p>
         </div>
 
-        <Card blur="border border-[#27282d] shadow-2xl" color="bg-[#18191c]" width="w-full">
+        {/* Main Card */}
+        <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-card">
           {errorMessage && (
-            <div className="mb-5 p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs flex items-center gap-2">
-              <span>⚠️</span>
+            <div className="mb-5 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
               <span>{errorMessage}</span>
             </div>
           )}
@@ -82,10 +90,10 @@ function LoginContent() {
               type="button"
               disabled={!!loadingProvider}
               onClick={() => handleOAuth("google")}
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white hover:bg-zinc-100 active:scale-[0.99] text-zinc-950 font-semibold text-sm transition-all shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-card border border-border hover:bg-secondary active:scale-[0.99] text-foreground font-semibold text-sm transition-all shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loadingProvider === "google" ? (
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-900" />
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
               ) : (
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path
@@ -109,31 +117,29 @@ function LoginContent() {
               <span>Continue with Google</span>
             </button>
 
-            {(process.env.NEXT_PUBLIC_GITHUB_ENABLED === "true" || process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID) && (
-              <button
-                type="button"
-                disabled={!!loadingProvider}
-                onClick={() => handleOAuth("github")}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#24292e] hover:bg-[#1b1f23] active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-md cursor-pointer border border-zinc-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {loadingProvider === "github" ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                ) : (
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                  </svg>
-                )}
-                <span>Continue with GitHub</span>
-              </button>
-            )}
+            <button
+              type="button"
+              disabled={!!loadingProvider}
+              onClick={() => handleOAuth("github")}
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-secondary border border-border hover:bg-muted active:scale-[0.99] text-foreground font-semibold text-sm transition-all shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loadingProvider === "github" ? (
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              ) : (
+                <svg className="w-4 h-4 fill-current text-foreground" viewBox="0 0 24 24">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+              )}
+              <span>Continue with GitHub</span>
+            </button>
           </div>
 
-          <div className="mt-6 pt-5 border-t border-[#27282d] text-center">
-            <p className="text-xs text-[#9ca3af]">
-              By signing in, you agree to our Terms of Service and Privacy Policy.
+          <div className="mt-6 pt-5 border-t border-border text-center">
+            <p className="text-xs text-muted-foreground">
+              By continuing, you agree to BuildFlow's Terms of Service and Privacy Policy.
             </p>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );
@@ -142,8 +148,8 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0f1012] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-white" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     }>
       <LoginContent />

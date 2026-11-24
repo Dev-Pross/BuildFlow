@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Solid App Tile -->
+  <rect width="64" height="64" rx="14" fill="#2563EB" />
+  <!-- Mark (White #FFFFFF) -->
+  <path d="M 26.33 23.33 C 31.67 23.33, 32.0 28.5, 32.0 32.0 C 32.0 35.5, 31.67 40.0, 42.67 40.0" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="17.0" y="18.67" width="9.33" height="9.33" rx="2.13" stroke="#FFFFFF" stroke-width="4" />
+  <circle cx="42.67" cy="40.0" r="6.67" fill="#FFFFFF" />
+</svg>

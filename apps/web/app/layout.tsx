@@ -7,6 +7,7 @@ import { Providers } from "./components/providers";
 
 const inter = Inter({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap",
 });
@@ -15,18 +16,22 @@ export const metadata: Metadata = {
   title: "BuildFlow — Visual Workflow Automation Platform",
   description: "Connect APIs, build visual logic flows, and automate work seamlessly.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/apple-icon.png",
   },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`dark ${inter.variable}`} suppressHydrationWarning>
-      <body className="min-h-screen bg-[#0f1012] text-[#f9fafb] antialiased selection:bg-indigo-500/20 selection:text-indigo-400 font-sans" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen antialiased selection:bg-primary/20 selection:text-primary font-sans" suppressHydrationWarning>
         <Providers>
           <Toaster
             position="top-right"
-            theme="dark"
+            theme="system"
             toastOptions={{
               style: {
                 background: "#18191c",

@@ -9,12 +9,12 @@ import { useAppDispatch } from "../hooks/redux"
 import { userAction } from "@/store/slices/userSlice"
 import { PersistGate } from "redux-persist/lib/integration/react"
 
-function SessionSync(){
+function SessionSync() {
   const { status, data } = useSession();
   const dispatch = useAppDispatch();
 
-  React.useEffect(()=>{
-    if(status === 'authenticated'){
+  React.useEffect(() => {
+    if (status === 'authenticated') {
       dispatch(userAction.setUserStatus('Authenticated'));
       const id = (data?.user as any)?.id ?? null;
       // console.log("user from Session Sync ", id)
@@ -22,7 +22,7 @@ function SessionSync(){
       dispatch(userAction.setEmail(data.user?.email ? data.user.email : null))
       dispatch(userAction.setUserName(data.user?.name ? data.user.name : null))
     }
-    if(status === 'unauthenticated'){
+    if (status === 'unauthenticated') {
       dispatch(userAction.setUserId(null))
       dispatch(userAction.setUserStatus('Unauthenticated'))
     }
@@ -37,16 +37,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ReduxProvider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <SessionProvider>
-        <NextThemesProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-          enableColorScheme
-        >
-          <SessionSync />
-          {children}
-        </NextThemesProvider>
+          <NextThemesProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+            enableColorScheme
+          >
+            <SessionSync />
+            {children}
+          </NextThemesProvider>
         </SessionProvider>
       </PersistGate>
     </ReduxProvider>

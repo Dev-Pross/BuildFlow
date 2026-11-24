@@ -19,6 +19,7 @@ export interface DashboardRecentWorkflow {
   description?: string | null;
   createdAt: string;
   status?: string | null;
+  nodeCount?: number;
 }
 
 export interface DashboardOverview {

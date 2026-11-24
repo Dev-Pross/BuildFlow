@@ -26,6 +26,7 @@ import ConfigModal from "./components/ConfigModal";
 import TriggerReplaceModal from "./components/TriggerReplaceModal";
 import { WorkflowToolbar } from "./components/WorkflowToolbar";
 import { toast } from "sonner";
+import { AlertTriangle, X } from "lucide-react";
 import { getNodeConfig } from "@/app/lib/nodeConfigs";
 import { useAppDispatch, useAppSelector } from "@/app/hooks/redux";
 import { useAutoSave } from "@/app/hooks/useAutoSave";
@@ -972,21 +973,21 @@ export default function WorkflowCanvas() {
       <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "row", overflow: "hidden", position: "relative" }}>
         {/* Canvas initial loading screen */}
         {isWorkflowLoading && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#090d16]/75 backdrop-blur-sm transition-all animate-in fade-in duration-200">
-            <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-[#0f1420]/95 border border-indigo-500/30 shadow-2xl shadow-indigo-950/50 text-center max-w-sm">
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/80 backdrop-blur-md transition-all animate-in fade-in duration-200">
+            <div className="flex flex-col items-center justify-center p-8 rounded-3xl bg-chassis text-chassis-foreground border border-white/10 shadow-2xl text-center max-w-sm">
               <div className="relative mb-4 flex items-center justify-center">
-                <div className="w-16 h-16 rounded-full border-2 border-indigo-500/20 animate-ping absolute" />
-                <div className="w-14 h-14 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-inner">
-                  <span className="w-6 h-6 border-2 border-t-indigo-400 border-r-transparent border-b-purple-400 border-l-transparent rounded-full animate-spin" />
+                <div className="w-16 h-16 rounded-full border-2 border-primary/20 animate-ping absolute" />
+                <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shadow-inner">
+                  <span className="w-6 h-6 border-2 border-t-primary border-r-transparent border-b-primary border-l-transparent rounded-full animate-spin" />
                 </div>
               </div>
-              <h3 className="text-sm font-bold text-white mb-1">Connecting to Engine...</h3>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Loading workflow graph, triggers, and node configurations from cloud VM
+              <h3 className="text-sm font-bold text-chassis-foreground mb-1">Connecting to Engine...</h3>
+              <p className="text-xs text-chassis-foreground/70 leading-relaxed">
+                Loading workflow graph, triggers, and node configurations
               </p>
-              <div className="mt-3 flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 rounded-full border border-indigo-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                <span className="text-[10px] text-indigo-300 font-medium font-mono">Initializing state...</span>
+              <div className="mt-3 flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full border border-white/15">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] text-chassis-foreground/80 font-medium font-mono">Initializing state...</span>
               </div>
             </div>
           </div>
@@ -994,17 +995,17 @@ export default function WorkflowCanvas() {
         {/* Floating auto-clearing non-blocking error notification */}
         {error && (
           <div className="fixed top-5 right-5 z-[9999] pointer-events-none flex flex-col items-end animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="pointer-events-auto flex items-start gap-3 bg-red-950/90 text-white border border-red-700/50 backdrop-blur-md px-4 py-3 rounded-xl shadow-2xl max-w-md w-full">
-              <span className="text-red-400 mt-0.5 text-base">⚠️</span>
-              <div className="flex-1 text-xs font-medium leading-relaxed text-red-100">
+            <div className="pointer-events-auto flex items-start gap-3 bg-destructive/90 text-destructive-foreground border border-destructive/50 backdrop-blur-md px-4 py-3 rounded-xl shadow-2xl max-w-md w-full">
+              <AlertTriangle className="w-4 h-4 text-destructive-foreground shrink-0 mt-0.5" />
+              <div className="flex-1 text-xs font-medium leading-relaxed">
                 {error}
               </div>
               <button
                 onClick={() => setError(null)}
-                className="text-red-400 hover:text-white p-1 rounded transition-colors text-sm leading-none cursor-pointer"
+                className="text-destructive-foreground/70 hover:text-destructive-foreground p-1 rounded transition-colors text-sm leading-none cursor-pointer flex items-center justify-center"
                 title="Dismiss error"
               >
-                ×
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1029,18 +1030,22 @@ export default function WorkflowCanvas() {
         onNodeDragStop={nodeChangeDb}
         defaultEdgeOptions={{
           animated: true,
-          style: { stroke: "#475569", strokeWidth: 2 },
+          style: { stroke: "var(--edge-stroke)", strokeWidth: 2.5 },
         }}
         fitView
       >
         <Background
-          bgColor="#f8fafc"
-          color="#cbd5e1"
+          bgColor="var(--workspace)"
+          color="var(--border)"
           variant={BackgroundVariant.Dots}
           gap={24}
           size={1.5}
         />
-        <Controls position="top-left" style={{ top: 16, left: 16 }} className="!bg-white !border-gray-200 !rounded-2xl !shadow-xl [&>button]:!bg-white [&>button]:!text-gray-700 [&>button]:!border-gray-100 [&>button:hover]:!bg-gray-100" />
+        <Controls
+          position="top-left"
+          style={{ top: 16, left: 16 }}
+          className="bg-chassis text-chassis-foreground border border-white/10 rounded-2xl shadow-xl overflow-hidden [&>button]:!bg-chassis [&>button]:!text-chassis-foreground [&>button]:!border-white/10 hover:[&>button]:!bg-white/10"
+        />
 
         <WorkflowToolbar
           onExecute={handleExecute}

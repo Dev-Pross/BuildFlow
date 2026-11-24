@@ -22,8 +22,23 @@ import {
 import { workflowActions } from "@/store/slices/workflowSlice";
 import { TestPanel } from "@/app/components/ui/TestPanel";
 import { RichVariableInput } from "@/app/components/ui/RichVariableInput";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import { NodeIcon } from "@/app/components/ui/NodeIcon";
+import {
+  ChevronLeft,
+  ChevronRight,
+  X,
+  FlaskConical,
+  Database,
+  Plus,
+  Trash2,
+  Settings,
+  CheckCircle2,
+  AlertTriangle,
+  ExternalLink,
+  FileSpreadsheet,
+  Layers,
+} from "lucide-react";
 
 const IF_ELSE_OPERATORS = [
   { id: "equals", label: "Equals" },
@@ -65,6 +80,7 @@ export default function ConfigModal({
   const [loading, setLoading] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
   const [activeSubField, setActiveSubField] = useState<string | null>(null);
+  const [activeCaretOffset, setActiveCaretOffset] = useState<number | null>(null);
   const [testResult, setTestResult] = useState<any>(null);
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
   const [isLoadingHeaders, setIsLoadingHeaders] = useState(false);
@@ -79,6 +95,12 @@ export default function ConfigModal({
   // Responsive layout state
   const [isDesktop, setIsDesktop] = useState(true);
   const [mobileTab, setMobileTab] = useState<"variables" | "config" | "test">("config");
+
+  // Collapsible panels state & imperative handles
+  const variablePanelRef = usePanelRef();
+  const testPanelRef = usePanelRef();
+  const [isVariableCollapsed, setIsVariableCollapsed] = useState(false);
+  const [isTestCollapsed, setIsTestCollapsed] = useState(false);
 
   useEffect(() => {
     const checkWidth = () => {
@@ -144,11 +166,11 @@ export default function ConfigModal({
       try {
         const docs = await api.google.getDocuments(credentialId);
         return [
-          { id: "__create_new__", name: "➕ Create New Spreadsheet..." },
+          { id: "__create_new__", name: "+ Create New Spreadsheet..." },
           ...(docs || [])
         ];
       } catch (err) {
-        return [{ id: "__create_new__", name: "➕ Create New Spreadsheet..." }];
+        return [{ id: "__create_new__", name: "+ Create New Spreadsheet..." }];
       }
     },
     "google.getSheets": async ({ spreadsheetId, credentialId }) => {
@@ -156,11 +178,11 @@ export default function ConfigModal({
       try {
         const sheets = await api.google.getSheets(spreadsheetId, credentialId);
         return [
-          { id: "__create_new_tab__", name: "➕ Create New Tab..." },
+          { id: "__create_new_tab__", name: "+ Create New Tab..." },
           ...(sheets || [])
         ];
       } catch (err) {
-        return [{ id: "__create_new_tab__", name: "➕ Create New Tab..." }];
+        return [{ id: "__create_new_tab__", name: "+ Create New Tab..." }];
       }
     }
   };
@@ -196,7 +218,7 @@ export default function ConfigModal({
 
         const docs = await api.google.getDocuments(config.credentialId);
         const docOptions = [
-          { id: "__create_new__", name: "➕ Create New Spreadsheet..." },
+          { id: "__create_new__", name: "+ Create New Spreadsheet..." },
           ...(docs || [])
         ];
         setDynamicOptions(prev => ({ ...prev, spreadsheetId: docOptions }));
@@ -218,7 +240,7 @@ export default function ConfigModal({
           setDynamicOptions(prev => ({
             ...prev,
             sheetName: [
-              { id: "__create_new_tab__", name: "➕ Create New Tab..." },
+              { id: "__create_new_tab__", name: "+ Create New Tab..." },
               ...(tabs || [])
             ]
           }));
@@ -241,7 +263,7 @@ export default function ConfigModal({
         setDynamicOptions(prev => ({
           ...prev,
           sheetName: [
-            { id: "__create_new_tab__", name: "➕ Create New Tab..." },
+            { id: "__create_new_tab__", name: "+ Create New Tab..." },
             ...(tabs || [])
           ]
         }));
@@ -702,14 +724,29 @@ export default function ConfigModal({
   const handleVariableInsert = (variableSyntax: string) => {
     if (!activeField) return;
 
+    const insertAtOffset = (currentVal: string, syntax: string): string => {
+      if (
+        activeCaretOffset === null ||
+        activeCaretOffset === undefined ||
+        activeCaretOffset < 0 ||
+        activeCaretOffset > currentVal.length
+      ) {
+        return currentVal ? `${currentVal} ${syntax}` : syntax;
+      }
+      const before = currentVal.slice(0, activeCaretOffset);
+      const after = currentVal.slice(activeCaretOffset);
+      return before + syntax + after;
+    };
+
     if (activeField === "mappedColumns" && activeSubField) {
       const currentMapped = config.mappedColumns || {};
       const currentVal = currentMapped[activeSubField] || "";
-      const updatedMapped = { ...currentMapped, [activeSubField]: currentVal + variableSyntax };
+      const updatedMapped = { ...currentMapped, [activeSubField]: insertAtOffset(currentVal, variableSyntax) };
 
       const newConfig = { ...config, mappedColumns: updatedMapped };
       setConfig(newConfig);
       dispatchConfig(newConfig);
+      setActiveCaretOffset((prev) => (prev !== null ? prev + variableSyntax.length : null));
       return;
     }
 
@@ -717,10 +754,11 @@ export default function ConfigModal({
       const index = parseInt(activeSubField.replace("row-", ""), 10);
       if (!isNaN(index) && config[activeField][index]) {
         const rows = [...config[activeField]];
-        rows[index] = { ...rows[index], value: (rows[index].value || "") + variableSyntax };
+        rows[index] = { ...rows[index], value: insertAtOffset(rows[index].value || "", variableSyntax) };
         const newConfig = { ...config, [activeField]: rows };
         setConfig(newConfig);
         dispatchConfig(newConfig);
+        setActiveCaretOffset((prev) => (prev !== null ? prev + variableSyntax.length : null));
         return;
       }
     }
@@ -743,7 +781,7 @@ export default function ConfigModal({
               ? {
                 ...grp,
                 conditions: grp.conditions.map((r: any, rI: number) =>
-                  rI === ruleIdx ? { ...r, [operandKey]: currentVal + variableSyntax } : r
+                  rI === ruleIdx ? { ...r, [operandKey]: insertAtOffset(currentVal, variableSyntax) } : r
                 )
               }
               : grp
@@ -752,15 +790,17 @@ export default function ConfigModal({
           const newConfig = { ...config, [activeField]: updatedGroups };
           setConfig(newConfig);
           dispatchConfig(newConfig);
+          setActiveCaretOffset((prev) => (prev !== null ? prev + variableSyntax.length : null));
           return;
         }
       }
     }
 
     const currentValue = config[activeField] || "";
-    const newConfig = { ...config, [activeField]: currentValue + variableSyntax };
+    const newConfig = { ...config, [activeField]: insertAtOffset(currentValue, variableSyntax) };
     setConfig(newConfig);
     dispatchConfig(newConfig);
+    setActiveCaretOffset((prev) => (prev !== null ? prev + variableSyntax.length : null));
   };
 
 
@@ -968,9 +1008,9 @@ export default function ConfigModal({
 
       return (
         <div key={field.name} className="form-group">
-          <label className="block text-sm font-medium text-white mb-1">
+          <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 dark:text-chassis-foreground">
             {field.label}
-            {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+            {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
           </label>
           <select
             value={fieldValue}
@@ -980,7 +1020,7 @@ export default function ConfigModal({
               setConfig(newConfig);
               dispatchConfig(newConfig);
             }}
-            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
+            className="w-full p-2.5 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all outline-none text-sm dark:bg-white/5 dark:border-white/10 dark:text-white"
             required={isRequired}
           >
             <option value="">Select {field.label.toLowerCase()}</option>
@@ -1005,21 +1045,21 @@ export default function ConfigModal({
       return (
         <div key={field.name} className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-foreground uppercase tracking-wider dark:text-chassis-foreground">
               {field.label}
-              {isRequired && <span className="text-rose-400 ml-0.5">*</span>}
+              {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
             </label>
             {isLoadingCredentials && (
-              <span className="text-[10px] text-indigo-400 font-medium flex items-center gap-1.5 animate-pulse lowercase font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+              <span className="text-[10px] text-primary font-medium flex items-center gap-1.5 animate-pulse lowercase font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                 loading accounts...
               </span>
             )}
           </div>
 
           {isLoadingCredentials ? (
-            <div className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] rounded-lg flex items-center justify-center gap-2.5 text-xs text-gray-400 animate-pulse">
-              <span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-full p-2.5 border border-input bg-muted/40 rounded-lg flex items-center justify-center gap-2.5 text-xs text-muted-foreground animate-pulse dark:bg-white/5 dark:border-white/10">
+              <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <span>Loading Google accounts...</span>
             </div>
           ) : (Array.isArray(credentials) && credentials.length > 0) ? (
@@ -1031,7 +1071,7 @@ export default function ConfigModal({
                   await handleFieldChange(field.name, e.target.value, nodeConfig);
                   console.log(field.name, nodeConfig, e.target.value)
                 }}
-                className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
+                className="w-full p-2.5 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all outline-none text-sm dark:bg-white/5 dark:border-white/10 dark:text-white"
                 required={isRequired}
               >
                 <option value="">Select Google Account</option>
@@ -1045,7 +1085,7 @@ export default function ConfigModal({
                 {credentials.map((cred: any) => (
                   <span
                     key={cred.id}
-                    className="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 text-xs rounded-full border border-emerald-500/20 font-medium"
+                    className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs rounded-full border border-emerald-500/20 font-medium"
                   >
                     {cred.config?.email || cred.name}
                   </span>
@@ -1062,12 +1102,13 @@ export default function ConfigModal({
                         window.location.href = authUrl;
                       }
                     }}
-                    className="w-full p-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
+                    className="w-full p-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
                     type="button"
                   >
-                    🔗 Connect Google Account
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Connect Google Account</span>
                   </button>
-                  <p className="text-xs text-gray-400 mt-2 text-center">
+                  <p className="text-xs text-muted-foreground mt-2 text-center dark:text-chassis-foreground/60">
                     Connect your Google account to use Gmail &amp; Sheets
                   </p>
                 </>
@@ -1092,19 +1133,19 @@ export default function ConfigModal({
 
       return (
         <div key={field.name} className="form-group">
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium text-white flex items-center gap-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-foreground uppercase tracking-wider dark:text-chassis-foreground flex items-center gap-2">
               <span>{field.label}</span>
-              {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+              {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
               {isFieldLoading && (
-                <span className="text-[10px] text-indigo-400 font-medium flex items-center gap-1 animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                <span className="text-[10px] text-primary font-medium flex items-center gap-1 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                   Loading...
                 </span>
               )}
             </label>
             {isSheetNode && field.name === "operation" && config._isNewSheet && (
-              <span className="text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 font-medium">
+              <span className="text-[11px] text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-medium">
                 Blank sheet tab
               </span>
             )}
@@ -1117,7 +1158,7 @@ export default function ConfigModal({
               console.log("log for options: ", fieldValue)
               await handleFieldChange(field.name, e.target.value, nodeConfig);
             }}
-            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm disabled:opacity-50"
+            className="w-full p-2.5 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all outline-none text-sm disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white"
             required={isRequired}
           >
             {isFieldLoading ? (
@@ -1138,28 +1179,15 @@ export default function ConfigModal({
     if (field.type === "textarea") {
       return (
         <div key={field.name} className="form-group">
-          <label className="block text-sm font-medium text-white mb-1">
+          <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 dark:text-chassis-foreground">
             {field.label}
-            {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+            {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
           </label>
-          {/* <textarea
-            value={fieldValue}
-            placeholder={field.placeholder}
-            onFocus={() => setActiveField(field.name)}
-            onChange={(e) => {
-              const newConfig = { ...config, [field.name]: e.target.value };
-              setConfig(newConfig)
-              dispatchConfig(newConfig)
-            }
-            }
-            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm placeholder-gray-600 resize-none"
-            required={field.required}
-            rows={4}
-          /> */}
           <RichVariableInput
             value={fieldValue || ''}
             placeholder={field.placeholder}
             onFocus={() => setActiveField(field.name)}
+            onCaretChange={setActiveCaretOffset}
             onChange={(newValue) => {
               const newConfig = { ...config, [field.name]: newValue };
               setConfig(newConfig);
@@ -1167,7 +1195,6 @@ export default function ConfigModal({
             }}
             availableNodes={availableNodes}
           />
-
         </div>
       );
     }
@@ -1176,7 +1203,7 @@ export default function ConfigModal({
       const isChecked = Boolean(fieldValue ?? field.defaultValue ?? true)
 
       return (
-        <div key={field.name} className="flex items-center gap-3 p-2 bg-[#0a0e17] rounded-lg border border-[#1e293b]">
+        <div key={field.name} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border dark:bg-white/5 dark:border-white/10">
           <input
             type="checkbox"
             id={field.name}
@@ -1186,9 +1213,9 @@ export default function ConfigModal({
               setConfig(newConfig);
               dispatchConfig(newConfig);
             }}
-            className="w-4 h-4 text-indigo-600 bg-gray-900 border-gray-700 rounded focus:ring-indigo-500"
+            className="w-4 h-4 text-primary bg-background border-input rounded focus:ring-primary"
           />
-          <label htmlFor={field.name} className="text-sm font-medium text-gray-200 cursor-pointer">
+          <label htmlFor={field.name} className="text-sm font-medium text-foreground cursor-pointer dark:text-chassis-foreground">
             {field.label}
           </label>
         </div>
@@ -1203,17 +1230,17 @@ export default function ConfigModal({
       const availableHeaders = sheetHeaders.filter(h => !mappedKeys.includes(h));
 
       return (
-        <div key={field.name} className="flex flex-col gap-3 p-4 bg-[#0f141f] rounded-lg border border-[#1e293b]">
-          <label className="text-sm font-medium text-gray-200">{field.label}</label>
+        <div key={field.name} className="flex flex-col gap-3 p-4 bg-muted/30 rounded-xl border border-border dark:bg-white/5 dark:border-white/10">
+          <label className="text-xs font-semibold uppercase tracking-wider text-foreground dark:text-chassis-foreground">{field.label}</label>
 
           {isLoadingHeaders ? (
-            <div className="text-sm text-gray-400">Loading columns from Google Sheets...</div>
+            <div className="text-sm text-muted-foreground dark:text-chassis-foreground/60">Loading columns from Google Sheets...</div>
           ) : (
             <>
               <div className="flex flex-col gap-2">
                 {mappedKeys.map((header) => (
                   <div key={header} className="flex items-center gap-2">
-                    <div className="w-1/3 text-sm text-gray-400 truncate" title={header}>
+                    <div className="w-1/3 text-sm text-muted-foreground truncate dark:text-chassis-foreground/70" title={header}>
                       {header}
                     </div>
                     <div className="flex-1">
@@ -1230,10 +1257,12 @@ export default function ConfigModal({
                           setActiveField(field.name);
                           setActiveSubField(header);
                         }}
+                        onCaretChange={setActiveCaretOffset}
                         placeholder="Enter value..."
                       />
                     </div>
                     <button
+                      type="button"
                       onClick={() => {
                         const newMapped = { ...mappedValues };
                         delete newMapped[header];
@@ -1241,9 +1270,10 @@ export default function ConfigModal({
                         setConfig(newConfig);
                         dispatchConfig(newConfig);
                       }}
-                      className="p-2 text-gray-500 hover:text-red-400"
+                      className="p-2 text-muted-foreground hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
+                      title="Delete mapped column"
                     >
-                      🗑️
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
@@ -1252,7 +1282,7 @@ export default function ConfigModal({
               {availableHeaders.length > 0 && (
                 <div className="mt-2">
                   <select
-                    className="w-full p-2 bg-[#0a0e17] border border-gray-700 rounded-md text-sm text-gray-400 outline-none cursor-pointer hover:border-gray-600"
+                    className="w-full p-2 bg-background border border-input rounded-lg text-sm text-foreground outline-none cursor-pointer hover:border-primary transition-colors dark:bg-white/5 dark:border-white/10 dark:text-white"
                     value=""
                     onChange={(e) => {
                       if (!e.target.value) return;
@@ -1343,23 +1373,23 @@ export default function ConfigModal({
       };
 
       return (
-        <div key={field.name} className="space-y-2 p-3.5 bg-[#0c1017] rounded-xl border border-[#1e293b]/70">
+        <div key={field.name} className="space-y-2 p-3.5 bg-muted/30 rounded-xl border border-border dark:bg-white/5 dark:border-white/10">
           <div className="flex items-center justify-between">
             <div>
-              <label className="block text-xs font-semibold text-gray-200 uppercase tracking-wider">
+              <label className="block text-xs font-semibold text-foreground uppercase tracking-wider dark:text-chassis-foreground">
                 {field.label}
-                {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+                {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
               </label>
               {field.description && (
-                <p className="text-[11px] text-gray-400 mt-0.5">{field.description}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 dark:text-chassis-foreground/70">{field.description}</p>
               )}
             </div>
             <button
               type="button"
               onClick={handleAddRow}
-              className="px-2.5 py-1 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-lg transition-colors flex items-center gap-1"
+              className="px-2.5 py-1 text-xs font-medium text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary border border-primary/20 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
             >
-              <span>+</span> Add {field.label.replace(/s$/, '') || "Row"}
+              <Plus className="w-3 h-3" /> Add {field.label.replace(/s$/, '') || "Row"}
             </button>
           </div>
 
@@ -1372,11 +1402,11 @@ export default function ConfigModal({
           )}
 
           {pairs.length === 0 ? (
-            <div className="py-3 px-3 text-center rounded-lg border border-dashed border-gray-800 text-xs text-gray-500">
+            <div className="py-3 px-3 text-center rounded-lg border border-dashed border-border dark:border-white/15 text-xs text-muted-foreground dark:text-chassis-foreground/60">
               No {field.label.toLowerCase()} added. Click{" "}
               <button
                 type="button"
-                className="text-indigo-400 hover:underline font-medium"
+                className="text-primary hover:underline font-medium cursor-pointer"
                 onClick={handleAddRow}
               >
                 + Add
@@ -1385,7 +1415,7 @@ export default function ConfigModal({
             </div>
           ) : (
             <div className="space-y-2 mt-2">
-              <div className="grid grid-cols-[1fr_1.5fr_32px] gap-2 px-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_1.5fr_32px] gap-2 px-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider dark:text-chassis-foreground/60">
                 <span>Key</span>
                 <span>Value</span>
                 <span></span>
@@ -1405,7 +1435,7 @@ export default function ConfigModal({
                             value={pair.key}
                             placeholder="Custom header name..."
                             onChange={(e) => handleKeyChange(index, e.target.value)}
-                            className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-xs text-gray-200 rounded-lg outline-none focus:border-indigo-500/50 transition-colors font-mono"
+                            className="w-full p-2 bg-background border border-input text-xs text-foreground rounded-lg outline-none focus:border-primary transition-colors font-mono dark:bg-white/5 dark:border-white/10 dark:text-white"
                           />
                           <button
                             type="button"
@@ -1414,9 +1444,9 @@ export default function ConfigModal({
                               setCustomRowKeys((prev) => ({ ...prev, [pairId]: false }));
                               handleKeyChange(index, "");
                             }}
-                            className="p-2 text-gray-400 hover:text-indigo-400 text-xs bg-[#0a0e17] border border-[#1e293b] rounded-lg"
+                            className="p-2 text-muted-foreground hover:text-foreground text-xs bg-muted border border-border rounded-lg dark:bg-white/10 dark:border-white/10 cursor-pointer"
                           >
-                            ✕
+                            <X className="w-3 h-3" />
                           </button>
                         </div>
                       ) : (
@@ -1435,7 +1465,7 @@ export default function ConfigModal({
                               }
                             }
                           }}
-                          className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-xs text-gray-200 rounded-lg outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+                          className="w-full p-2 bg-background border border-input text-xs text-foreground rounded-lg outline-none focus:border-primary transition-colors cursor-pointer dark:bg-white/5 dark:border-white/10 dark:text-white"
                         >
                           <option value="">Select header...</option>
                           {presets.map((p) => (
@@ -1453,7 +1483,7 @@ export default function ConfigModal({
                         value={pair.key}
                         placeholder="Key"
                         onChange={(e) => handleKeyChange(index, e.target.value)}
-                        className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-xs text-gray-200 rounded-lg outline-none focus:border-indigo-500/50 transition-colors"
+                        className="w-full p-2 bg-background border border-input text-xs text-foreground rounded-lg outline-none focus:border-primary transition-colors dark:bg-white/5 dark:border-white/10 dark:text-white"
                       />
                     )}
                     <RichVariableInput
@@ -1464,15 +1494,16 @@ export default function ConfigModal({
                         setActiveField(field.name);
                         setActiveSubField(`row-${index}`);
                       }}
+                      onCaretChange={setActiveCaretOffset}
                       availableNodes={availableNodes}
                     />
                     <button
                       type="button"
                       onClick={() => handleDeleteRow(index)}
-                      className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-xs"
+                      className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors text-xs cursor-pointer"
                       title="Delete row"
                     >
-                      🗑️
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 );
@@ -1532,37 +1563,37 @@ export default function ConfigModal({
       };
 
       return (
-        <div key={field.name} className="space-y-2 p-3.5 bg-[#0c1017] rounded-xl border border-[#1e293b]/70">
+        <div key={field.name} className="space-y-2 p-3.5 bg-muted/30 rounded-xl border border-border dark:bg-white/5 dark:border-white/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <label className="block text-xs font-semibold text-gray-200 uppercase tracking-wider">
+              <label className="block text-xs font-semibold text-foreground uppercase tracking-wider dark:text-chassis-foreground">
                 {field.label}
-                {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+                {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
               </label>
               {rawJson.trim() ? (
                 isValidJson ? (
-                  <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Valid JSON
                   </span>
                 ) : (
                   <span
-                    className="px-2 py-0.5 text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/30 rounded-full flex items-center gap-1 cursor-help"
+                    className="px-2 py-0.5 text-[10px] font-medium bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-full flex items-center gap-1 cursor-help"
                     title={jsonError || "Invalid JSON"}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                     Invalid JSON
                   </span>
                 )
               ) : (
-                <span className="text-[10px] text-gray-500">Optional</span>
+                <span className="text-[10px] text-muted-foreground dark:text-chassis-foreground/60">Optional</span>
               )}
             </div>
 
             <button
               type="button"
               onClick={handleFormatJson}
-              className="px-2.5 py-0.5 text-[11px] font-medium text-gray-400 hover:text-indigo-300 hover:bg-indigo-500/10 border border-gray-700 hover:border-indigo-500/30 rounded transition-colors"
+              className="px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted border border-border rounded transition-colors dark:hover:bg-white/10 cursor-pointer"
               title="Format JSON indentation"
             >
               Prettify
@@ -1570,12 +1601,13 @@ export default function ConfigModal({
           </div>
 
           {field.description && (
-            <p className="text-[11px] text-gray-400">{field.description}</p>
+            <p className="text-[11px] text-muted-foreground dark:text-chassis-foreground/70">{field.description}</p>
           )}
 
           {jsonError && rawJson.trim() && (
-            <p className="text-[11px] text-rose-400 font-mono bg-rose-500/10 p-2 rounded border border-rose-500/20 truncate" title={jsonError}>
-              ⚠️ {jsonError}
+            <p className="text-[11px] text-rose-500 font-mono bg-rose-500/10 p-2 rounded border border-rose-500/20 flex items-center gap-1.5" title={jsonError}>
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{jsonError}</span>
             </p>
           )}
 
@@ -1594,12 +1626,12 @@ export default function ConfigModal({
                 setConfig(newConfig);
                 dispatchConfig(newConfig);
               }}
-              className="w-full p-3 bg-[#06090e] border border-[#1e293b] text-xs font-mono text-emerald-300 rounded-lg outline-none focus:border-indigo-500/50 transition-colors resize-y leading-relaxed placeholder-gray-600"
+              className="w-full p-3 bg-background border border-input text-xs font-mono text-emerald-600 dark:text-emerald-300 dark:bg-black/40 dark:border-white/10 rounded-lg outline-none focus:border-primary transition-colors resize-y leading-relaxed"
               spellCheck={false}
             />
           </div>
-          <div className="text-[10px] text-gray-500 flex items-center justify-between">
-            <span>Supports <kbd className="text-gray-400 font-mono bg-gray-800 px-1 rounded">Tab</kbd> indentation &amp; variable drops</span>
+          <div className="text-[10px] text-muted-foreground dark:text-chassis-foreground/60 flex items-center justify-between">
+            <span>Supports <kbd className="text-foreground dark:text-white font-mono bg-muted dark:bg-white/10 px-1 rounded border border-border dark:border-white/10">Tab</kbd> indentation &amp; variable drops</span>
             <span>Lines: {rawJson ? rawJson.split('\n').length : 0}</span>
           </div>
         </div>
@@ -1704,46 +1736,42 @@ export default function ConfigModal({
       return (
         <div key={field.name} className="space-y-3">
           <div>
-            <label className="block text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 uppercase tracking-widest mb-1 shadow-sm">
+            <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1 dark:text-chassis-foreground">
               {field.label}
             </label>
             {field.description && (
-              <p className="text-xs text-gray-400/90 leading-relaxed font-medium">
+              <p className="text-xs text-muted-foreground leading-relaxed font-medium dark:text-chassis-foreground/70">
                 {field.description}
               </p>
             )}
           </div>
 
-          <div className="space-y-5 p-5 bg-gradient-to-b from-[#0e131f] to-[#0c1017] rounded-2xl border border-indigo-500/20 shadow-[0_0_40px_rgba(99,102,241,0.03)] backdrop-blur-xl relative overflow-hidden">
-            {/* Ambient Background Glow */}
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-
+          <div className="space-y-5 p-5 bg-muted/20 dark:bg-white/[0.03] rounded-2xl border border-border dark:border-white/10 relative overflow-hidden">
             {/* Top Level: Node Combinator Control */}
-            <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-indigo-500/10 z-10">
+            <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border dark:border-white/10 z-10">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-indigo-500/10 rounded-md border border-indigo-500/20 shadow-sm">
-                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                  <div className="p-1.5 bg-primary/10 rounded-md border border-primary/20 shadow-xs">
+                    <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                   </div>
-                  <span className="text-[13px] font-bold text-gray-200 uppercase tracking-wide">
+                  <span className="text-[13px] font-bold text-foreground uppercase tracking-wide dark:text-chassis-foreground">
                     Global Strategy
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-1.5 font-medium ml-9">
+                <p className="text-[11px] text-muted-foreground mt-1.5 font-medium ml-9 dark:text-chassis-foreground/70">
                   {nodeCombinator === "OR"
                     ? "Passes if ANY condition group matches"
                     : "Passes only if ALL condition groups match"}
                 </p>
               </div>
 
-              <div className="flex items-center bg-[#06090e]/80 p-1 rounded-xl border border-[#1e293b]/80 shadow-inner">
+              <div className="flex items-center bg-muted dark:bg-black/40 p-1 rounded-xl border border-border dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => updateBuilderState(conditionGroups, "OR")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${nodeCombinator === "OR"
-                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
-                    : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${nodeCombinator === "OR"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
                     }`}
                 >
                   ANY (OR)
@@ -1751,9 +1779,9 @@ export default function ConfigModal({
                 <button
                   type="button"
                   onClick={() => updateBuilderState(conditionGroups, "AND")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${nodeCombinator === "AND"
-                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/40"
-                    : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${nodeCombinator === "AND"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
                     }`}
                 >
                   ALL (AND)
@@ -1770,36 +1798,36 @@ export default function ConfigModal({
                     {/* Between-Group Divider */}
                     {groupIndex > 0 && (
                       <div className="flex items-center gap-3 my-4 opacity-80">
-                        <div className="flex-1 border-t border-dashed border-indigo-500/20" />
-                        <span className="px-3 py-1 bg-[#0c1017] text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase rounded-lg tracking-widest shadow-sm">
+                        <div className="flex-1 border-t border-dashed border-border dark:border-white/15" />
+                        <span className="px-3 py-1 bg-card text-foreground border border-border dark:bg-chassis dark:text-chassis-foreground dark:border-white/15 text-[10px] font-bold uppercase rounded-lg tracking-widest shadow-xs">
                           {nodeCombinator}
                         </span>
-                        <div className="flex-1 border-t border-dashed border-indigo-500/20" />
+                        <div className="flex-1 border-t border-dashed border-border dark:border-white/15" />
                       </div>
                     )}
 
                     {/* Group Card */}
-                    <div className="group/card bg-[#111827]/80 backdrop-blur-md border border-gray-800/60 hover:border-indigo-500/40 rounded-2xl p-4 space-y-4 shadow-lg transition-all duration-300">
+                    <div className="group/card bg-card dark:bg-white/[0.04] border border-border dark:border-white/10 rounded-2xl p-4 space-y-4 shadow-xs transition-all duration-200">
                       {/* Group Header */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800/60 pb-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-white/10 pb-3">
                         <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-black flex items-center justify-center shadow-sm">
+                          <span className="w-6 h-6 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-black flex items-center justify-center shadow-xs">
                             {groupIndex + 1}
                           </span>
-                          <span className="text-[13px] font-bold text-gray-200">
+                          <span className="text-[13px] font-bold text-foreground dark:text-chassis-foreground">
                             Condition Group
                           </span>
                         </div>
 
                         <div className="flex items-center gap-3">
                           {/* Group Combinator Toggle */}
-                          <div className="flex items-center bg-[#06090e] p-0.5 rounded-lg border border-[#1e293b] shadow-inner">
+                          <div className="flex items-center bg-muted dark:bg-black/40 p-0.5 rounded-lg border border-border dark:border-white/10">
                             <button
                               type="button"
                               onClick={() => handleGroupCombinatorChange(groupIndex, "AND")}
-                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${isGroupAnd
-                                ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
-                                : "text-gray-500 hover:text-gray-300 border border-transparent"
+                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${isGroupAnd
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground"
                                 }`}
                             >
                               AND
@@ -1807,9 +1835,9 @@ export default function ConfigModal({
                             <button
                               type="button"
                               onClick={() => handleGroupCombinatorChange(groupIndex, "OR")}
-                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${!isGroupAnd
-                                ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm"
-                                : "text-gray-500 hover:text-gray-300 border border-transparent"
+                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${!isGroupAnd
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground"
                                 }`}
                             >
                               OR
@@ -1821,10 +1849,10 @@ export default function ConfigModal({
                             <button
                               type="button"
                               onClick={() => handleDeleteGroup(groupIndex)}
-                              className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/15 rounded-lg transition-colors border border-transparent hover:border-rose-500/20"
+                              className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors border border-transparent hover:border-rose-500/20 cursor-pointer"
                               title="Delete this group"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              <X className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -1839,7 +1867,7 @@ export default function ConfigModal({
                           return (
                             <div
                               key={rule.id || `rule-${ruleIndex}`}
-                              className="flex flex-col gap-3 bg-[#0a0e17]/80 p-3 rounded-xl border border-gray-800/40 group-hover/card:border-gray-700/50 transition-colors"
+                              className="flex flex-col gap-3 bg-muted/40 dark:bg-black/30 p-3 rounded-xl border border-border dark:border-white/10 transition-colors"
                             >
                               {/* Operand 1 (Left Field) */}
                               <div className="relative w-full">
@@ -1851,6 +1879,7 @@ export default function ConfigModal({
                                     setActiveField(field.name);
                                     setActiveSubField(`g${groupIndex}-r${ruleIndex}-op1`);
                                   }}
+                                  onCaretChange={setActiveCaretOffset}
                                   availableNodes={availableNodes}
                                 />
                               </div>
@@ -1860,15 +1889,15 @@ export default function ConfigModal({
                                 <select
                                   value={rule.operator}
                                   onChange={(e) => handleRuleChange(groupIndex, ruleIndex, { operator: e.target.value })}
-                                  className="w-full p-2.5 bg-[#06090e] border border-[#1e293b] text-[11px] font-bold tracking-wide text-indigo-300 uppercase rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/50 transition-all cursor-pointer appearance-none shadow-inner"
+                                  className="w-full p-2.5 bg-background dark:bg-white/5 border border-input dark:border-white/10 text-[11px] font-bold tracking-wide text-foreground dark:text-white uppercase rounded-lg outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all cursor-pointer appearance-none shadow-xs"
                                 >
                                   {IF_ELSE_OPERATORS.map((op) => (
-                                    <option key={op.id} value={op.id} className="bg-[#0f1420] text-gray-200 normal-case">
+                                    <option key={op.id} value={op.id} className="bg-card text-card-foreground dark:bg-chassis dark:text-chassis-foreground normal-case">
                                       {op.label}
                                     </option>
                                   ))}
                                 </select>
-                                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-500/70">
+                                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                               </div>
@@ -1877,7 +1906,7 @@ export default function ConfigModal({
                                 {/* Operand 2 (Right Value) or Unary Placeholder */}
                                 <div className="relative flex-1">
                                   {isUnary ? (
-                                    <div className="h-[38px] px-3 flex items-center bg-gray-900/40 border border-dashed border-gray-700 rounded-lg text-[11px] text-gray-500 italic font-medium select-none">
+                                    <div className="h-[38px] px-3 flex items-center bg-muted/50 border border-dashed border-border dark:border-white/15 rounded-lg text-[11px] text-muted-foreground italic font-medium select-none">
                                       No value required
                                     </div>
                                   ) : (
@@ -1889,6 +1918,7 @@ export default function ConfigModal({
                                         setActiveField(field.name);
                                         setActiveSubField(`g${groupIndex}-r${ruleIndex}-op2`);
                                       }}
+                                      onCaretChange={setActiveCaretOffset}
                                       availableNodes={availableNodes}
                                     />
                                   )}
@@ -1899,10 +1929,10 @@ export default function ConfigModal({
                                   type="button"
                                   onClick={() => handleDeleteRule(groupIndex, ruleIndex)}
                                   disabled={group.conditions.length <= 1}
-                                  className="w-[38px] h-[38px] flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed border border-transparent hover:border-rose-500/20"
+                                  className="w-[38px] h-[38px] flex-shrink-0 flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors text-xs disabled:opacity-20 disabled:cursor-not-allowed border border-transparent hover:border-rose-500/20 cursor-pointer"
                                   title="Delete condition"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
@@ -1911,13 +1941,13 @@ export default function ConfigModal({
                       </div>
 
                       {/* Add Condition inside Group */}
-                      <div className="pt-2 border-t border-gray-800/40 flex justify-end">
+                      <div className="pt-2 border-t border-border dark:border-white/10 flex justify-end">
                         <button
                           type="button"
                           onClick={() => handleAddRule(groupIndex)}
-                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary border border-primary/20 rounded-lg transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                          <Plus className="w-3.5 h-3.5" />
                           Add Condition
                         </button>
                       </div>
@@ -1932,11 +1962,9 @@ export default function ConfigModal({
               <button
                 type="button"
                 onClick={handleAddGroup}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 hover:from-indigo-500/10 hover:to-purple-500/10 border border-dashed border-indigo-500/30 hover:border-indigo-500/60 rounded-xl text-xs font-bold text-indigo-300 hover:text-indigo-200 transition-all duration-300 flex items-center justify-center gap-2 shadow-sm group"
+                className="w-full py-3.5 px-4 bg-muted/30 hover:bg-muted/60 dark:bg-white/[0.02] dark:hover:bg-white/5 border border-dashed border-border dark:border-white/20 rounded-xl text-xs font-bold text-foreground dark:text-chassis-foreground transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
               >
-                <div className="p-1 rounded bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-                </div>
+                <Plus className="w-3.5 h-3.5 text-primary" />
                 <span>Add Alternative Condition Group ({nodeCombinator})</span>
               </button>
             </div>
@@ -1948,9 +1976,9 @@ export default function ConfigModal({
     if (field.type === "number") {
       return (
         <div key={field.name} className="form-group">
-          <label className="block text-sm font-medium text-white mb-1">
+          <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 dark:text-chassis-foreground">
             {field.label}
-            {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+            {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
           </label>
           <input
             type="number"
@@ -1963,7 +1991,7 @@ export default function ConfigModal({
               setConfig(newConfig);
               dispatchConfig(newConfig);
             }}
-            className="w-full p-2.5 border border-[#1e293b] bg-[#0a0e17] text-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all outline-none text-sm"
+            className="w-full p-2.5 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all outline-none text-sm dark:bg-white/5 dark:border-white/10 dark:text-white"
           />
         </div>
       );
@@ -1976,19 +2004,19 @@ export default function ConfigModal({
       }
 
       return (
-        <div key={field.name} className="form-group mb-4 p-4 bg-[#0a0e17] rounded-xl border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.05)]">
-          <label className="block text-sm font-semibold text-gray-200 mb-2">
+        <div key={field.name} className="form-group mb-4 p-4 bg-muted/30 rounded-xl border border-border dark:bg-white/5 dark:border-white/10">
+          <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1 dark:text-chassis-foreground">
             {field.label}
           </label>
           {field.description && (
-            <p className="text-xs text-gray-400 mb-3">{field.description}</p>
+            <p className="text-xs text-muted-foreground mb-3 dark:text-chassis-foreground/70">{field.description}</p>
           )}
           <div className="flex items-center gap-2">
             <input
               type="text"
               readOnly
               value={url}
-              className="w-full p-2.5 border border-[#1e293b] bg-[#06090e] text-indigo-300 font-mono text-[11px] sm:text-xs rounded-lg outline-none"
+              className="w-full p-2.5 border border-input bg-background text-foreground font-mono text-[11px] sm:text-xs rounded-lg outline-none dark:bg-black/30 dark:border-white/10 dark:text-chassis-foreground"
             />
             <button
               type="button"
@@ -1996,7 +2024,7 @@ export default function ConfigModal({
                 navigator.clipboard.writeText(url);
                 toast.success("Copied to clipboard!");
               }}
-              className="px-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
+              className="px-3.5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-lg transition-colors flex-shrink-0 cursor-pointer"
             >
               Copy
             </button>
@@ -2007,14 +2035,15 @@ export default function ConfigModal({
 
     return (
       <div key={field.name} className="form-group">
-        <label className="block text-sm font-medium text-white mb-1">
+        <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 dark:text-chassis-foreground">
           {field.label}
-          {isRequired && <span className="text-red-400 ml-0.5">*</span>}
+          {isRequired && <span className="text-rose-500 ml-0.5">*</span>}
         </label>
         <RichVariableInput
           value={String(fieldValue ?? "")}
           placeholder={field.placeholder}
           onFocus={() => setActiveField(field.name)}
+          onCaretChange={setActiveCaretOffset}
           onChange={(newValue) => {
             const newConfig = { ...config, [field.name]: newValue };
             setConfig(newConfig);
@@ -2050,60 +2079,118 @@ export default function ConfigModal({
   };
 
   const renderVariablePanel = () => (
-    <div className="w-full h-full min-h-0 rounded-2xl overflow-hidden border border-[#27282d] shadow-xl bg-[#18191c] flex flex-col">
-      <VariablePanel
-        previousNodes={previousNodes}
-        onInsert={handleVariableInsert}
-        activeField={activeField}
-        onTestNode={handleTestPreviousNode}
-      />
+    <div className="w-full h-full min-h-0 rounded-2xl overflow-hidden border border-border bg-card text-card-foreground shadow-sm dark:border-white/10 dark:bg-chassis dark:text-chassis-foreground flex flex-col">
+      <div className="px-3 py-2.5 border-b border-border dark:border-white/10 flex items-center justify-between flex-shrink-0 bg-muted/30 dark:bg-white/5">
+        <span className="text-xs font-semibold text-foreground dark:text-chassis-foreground flex items-center gap-1.5">
+          <Database className="w-4 h-4 text-primary" />
+          <span>Previous Nodes</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => variablePanelRef.current?.collapse()}
+          title="Collapse Variables"
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/10 transition-colors cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <VariablePanel
+          previousNodes={previousNodes}
+          onInsert={handleVariableInsert}
+          activeField={activeField}
+          onTestNode={handleTestPreviousNode}
+        />
+      </div>
     </div>
   );
 
   const renderTestPanel = () => {
     const activeTestResult = testResult ?? nodeTestOutput?.data ?? null;
     return (
-      <div className="w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#222429] shadow-xl bg-[#141518] flex flex-col">
-        <TestPanel
-          testResult={activeTestResult}
-          metadata={nodeTestOutput?.metadata}
-          nodeName={selectedNode?.name}
-          nodeIcon={selectedNode?.icon}
-          isLoading={isTestingNode}
-        />
+      <div className="w-full h-full min-h-0 rounded-2xl overflow-hidden border border-border bg-card text-card-foreground shadow-sm dark:border-white/10 dark:bg-chassis dark:text-chassis-foreground flex flex-col">
+        <div className="px-3 py-2.5 border-b border-border dark:border-white/10 flex items-center justify-between flex-shrink-0 bg-muted/30 dark:bg-white/5">
+          <span className="text-xs font-semibold text-foreground dark:text-chassis-foreground flex items-center gap-1.5">
+            <FlaskConical className="w-4 h-4 text-primary" />
+            <span>Test Output</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => testPanelRef.current?.collapse()}
+            title="Collapse Test Output"
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/10 transition-colors cursor-pointer"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <TestPanel
+            testResult={activeTestResult}
+            metadata={nodeTestOutput?.metadata}
+            nodeName={selectedNode?.name}
+            nodeIcon={selectedNode?.icon}
+            isLoading={isTestingNode}
+          />
+        </div>
       </div>
     );
   };
 
   const renderFormPanel = () => (
-    <div className="rounded-xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-[#141518] border border-[#222429] shadow-xl">
+    <div className="rounded-2xl w-full h-full min-h-0 max-h-full overflow-hidden flex flex-col bg-card border border-border text-card-foreground shadow-sm dark:bg-chassis dark:border-white/10 dark:text-chassis-foreground">
       {/* Header */}
-      <div className="p-4 border-b border-[#222429] flex items-center justify-between flex-shrink-0 bg-[#18191c]">
-        <h2 className="text-base font-semibold flex items-center gap-3 text-[#f0f0e8]">
+      <div className="p-4 border-b border-border bg-card dark:border-white/10 dark:bg-chassis flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
           <NodeIcon icon={selectedNode.icon} name={selectedNode.name} size="md" />
-          <span>{selectedNode.name}</span>
-        </h2>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-white/5 transition-colors"
-          type="button"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
+          <h2 className="text-base font-semibold text-foreground dark:text-chassis-foreground">
+            {selectedNode.name}
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {isVariableCollapsed && (
+            <button
+              type="button"
+              onClick={() => variablePanelRef.current?.expand()}
+              className="text-xs px-2.5 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground dark:bg-white/10 dark:hover:bg-white/15 dark:text-white font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Expand Variables Panel"
+            >
+              <Database className="w-3.5 h-3.5 text-primary" />
+              <span>Variables</span>
+            </button>
+          )}
+          {isTestCollapsed && (
+            <button
+              type="button"
+              onClick={() => testPanelRef.current?.expand()}
+              className="text-xs px-2.5 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground dark:bg-white/10 dark:hover:bg-white/15 dark:text-white font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Expand Test Output Panel"
+            >
+              <FlaskConical className="w-3.5 h-3.5 text-primary" />
+              <span>Test Output</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/10 transition-colors cursor-pointer"
+            type="button"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Body */}
-      <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+      <div className="p-5 space-y-5 flex-1 min-h-0 overflow-y-auto no-scrollbar">
         {/* Node info */}
-        <div className="p-3.5 rounded-xl bg-[#141c2b]/80 border border-[#1e293b]/40">
+        <div className="p-3.5 rounded-xl bg-muted/40 border border-border dark:bg-white/5 dark:border-white/10">
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">ID</span>
-              <span className="text-gray-400 font-mono bg-[#0a0e17] px-2 py-0.5 rounded">{selectedNode.id}</span>
+              <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">ID</span>
+              <span className="text-foreground dark:text-white/90 font-mono bg-background border border-border dark:bg-white/10 dark:border-white/10 px-2 py-0.5 rounded text-xs">{selectedNode.id}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-gray-500 font-medium uppercase tracking-wider text-[10px]">Type</span>
-              <span className="text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{selectedNode.type ?? "Trigger"}</span>
+              <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Type</span>
+              <span className="text-primary font-medium bg-primary/10 border border-primary/20 px-2 py-0.5 rounded text-xs">{selectedNode.type ?? "Trigger"}</span>
             </div>
           </div>
         </div>
@@ -2114,19 +2201,19 @@ export default function ConfigModal({
           );
           if (!nodeConfig) {
             return (
-              <p className="text-red-400">
+              <p className="text-rose-500 font-medium">
                 No config found for {selectedNode.name}
               </p>
             );
           }
           if ((nodeConfig.fields || []).length === 0) {
             return (
-              <div className="text-center py-8 text-gray-200">
-                <div className="text-4xl mb-4">✅</div>
-                <p className="text-lg font-medium text-white">
+              <div className="text-center py-8 text-foreground dark:text-chassis-foreground">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                <p className="text-base font-semibold text-foreground dark:text-white">
                   {nodeConfig.label}
                 </p>
-                <p className="mt-2 text-gray-300">{nodeConfig.description}</p>
+                <p className="mt-1 text-sm text-muted-foreground dark:text-chassis-foreground/70">{nodeConfig.description}</p>
               </div>
             );
           }
@@ -2138,41 +2225,15 @@ export default function ConfigModal({
             </div>
           );
         })()}
-
-        {/* Test Result Display */}
-        {/* {testResult && (
-              <div className="mt-4 p-3 rounded-lg bg-green-900/30 border border-green-700">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-green-400">✅ Test Output</span>
-                  <button
-                    onClick={() => setTestResult(null)}
-                    className="text-gray-400 hover:text-white text-xs"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <pre className="text-xs text-gray-300 overflow-auto max-h-32">
-                  {JSON.stringify(testResult, null, 2)}
-                </pre>
-              </div>
-            )} */}
-
-        {/* Test Error Display */}
-        {/* {nodeTestOutput?.error && (
-              <div className="mt-4 p-3 rounded-lg bg-red-900/30 border border-red-700">
-                <span className="text-sm font-medium text-red-400">❌ Test Failed</span>
-                <p className="text-xs text-gray-300 mt-1">{nodeTestOutput.error}</p>
-              </div>
-            )} */}
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-[#1e293b]/60 flex justify-between items-center gap-3 bg-gradient-to-r from-[#0f1420] to-[#141c2b] flex-shrink-0">
+      <div className="p-4 border-t border-border dark:border-white/10 flex justify-between items-center gap-3 bg-card dark:bg-chassis flex-shrink-0">
         {selectedNode.name.toLowerCase().includes("webhook") ? (
           <button
             onClick={handleListenWebhook}
             disabled={isListeningWebhook || loading}
-            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed"
             type="button"
           >
             {isListeningWebhook ? (
@@ -2191,17 +2252,17 @@ export default function ConfigModal({
           <button
             onClick={handleTestNode}
             disabled={isTestingNode || loading}
-            className="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-purple-500/20 disabled:shadow-none"
+            className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl disabled:opacity-40 flex items-center gap-2 text-sm font-medium transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed"
             type="button"
           >
             {isTestingNode ? (
               <>
-                <span className="w-4 h-4 border-2 border-t-transparent border-white/60 rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-t-transparent border-primary-foreground/60 rounded-full animate-spin" />
                 Testing...
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                <FlaskConical className="w-4 h-4" />
                 Test Node
               </>
             )}
@@ -2211,7 +2272,7 @@ export default function ConfigModal({
           <button
             onClick={() => onClose()}
             disabled={loading}
-            className="px-6 py-2.5 bg-white text-black hover:bg-gray-100 rounded-xl disabled:opacity-50 text-xs font-bold transition-all shadow-sm cursor-pointer"
+            className="px-6 py-2.5 bg-muted hover:bg-muted/80 text-foreground dark:bg-white/10 dark:hover:bg-white/20 dark:text-white rounded-xl disabled:opacity-50 text-xs font-semibold transition-all border border-border dark:border-white/15 cursor-pointer shadow-xs"
             type="button"
           >
             Done
@@ -2227,73 +2288,129 @@ export default function ConfigModal({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Main container: full screen on mobile, floating on larger screens */}
-      <div className="fixed inset-0 sm:m-3 p-1 sm:p-2 sm:rounded-3xl z-50 bg-[#0f1012] border border-[#27282d] shadow-2xl shadow-black/80 overflow-hidden flex flex-col">
+      <div className="fixed inset-0 sm:m-3 p-1 sm:p-2 sm:rounded-3xl z-50 bg-background/95 border border-border shadow-2xl backdrop-blur-md overflow-hidden flex flex-col dark:bg-chassis dark:border-white/10">
         {/* Mobile / Tablet Tab Switcher */}
         {!isDesktop && (
-          <div className="flex items-center gap-1.5 p-2 bg-[#141518] border-b border-[#222429] flex-shrink-0">
+          <div className="flex items-center gap-1.5 p-2 bg-muted/30 border-b border-border dark:border-white/10 dark:bg-chassis flex-shrink-0">
             <button
               type="button"
               onClick={() => setMobileTab("variables")}
               className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${mobileTab === "variables"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/5"
                 }`}
             >
-              <span>📊</span>
+              <Database className="w-3.5 h-3.5" />
               <span>Variables</span>
             </button>
             <button
               type="button"
               onClick={() => setMobileTab("config")}
               className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${mobileTab === "config"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/5"
                 }`}
             >
-              <span>⚙️</span>
+              <Settings className="w-3.5 h-3.5" />
               <span>Configure</span>
             </button>
             <button
               type="button"
               onClick={() => setMobileTab("test")}
               className={`flex-1 py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${mobileTab === "test"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/5"
                 }`}
             >
-              <span>🧪</span>
+              <FlaskConical className="w-3.5 h-3.5" />
               <span>Test Output</span>
             </button>
           </div>
         )}
 
         {isDesktop ? (
-          <Group orientation="horizontal" id="buildflow-node-config-panels" className="w-full h-full flex items-stretch gap-0">
-            {/* Left Panel: Variable / Data Mapping */}
-            <Panel id="variable-panel" defaultSize="30%" minSize="20%" maxSize="45%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-              {renderVariablePanel()}
-            </Panel>
+          <div className="w-full h-full flex items-stretch min-h-0 overflow-hidden">
+            {/* Left rail when Variables panel is collapsed */}
+            {isVariableCollapsed && (
+              <button
+                type="button"
+                onClick={() => variablePanelRef.current?.expand()}
+                title="Expand Variables Panel"
+                className="w-9 h-full flex flex-col items-center justify-center gap-2 border-r border-border dark:border-white/10 bg-card hover:bg-muted dark:bg-chassis dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all cursor-pointer flex-shrink-0"
+              >
+                <ChevronRight className="w-4 h-4" />
+                <span className="[writing-mode:vertical-rl] rotate-180 text-[10px] font-bold tracking-wider uppercase">Variables</span>
+              </button>
+            )}
 
-            {/* Drag Handle 1 */}
-            <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
-              <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
-            </Separator>
+            <Group orientation="horizontal" id="buildflow-node-config-panels" className="flex-1 h-full flex items-stretch gap-0 min-w-0">
+              {/* Left Panel: Variable / Data Mapping */}
+              <Panel
+                panelRef={variablePanelRef}
+                id="variable-panel"
+                defaultSize="30%"
+                minSize="18%"
+                maxSize="45%"
+                collapsible={true}
+                collapsedSize={0}
+                onResize={(size) => {
+                  setIsVariableCollapsed(size.asPercentage === 0);
+                }}
+                className="h-full min-h-0 min-w-0 flex flex-col p-1.5"
+              >
+                {renderVariablePanel()}
+              </Panel>
 
-            {/* Center Panel: Node Configuration Form */}
-            <Panel id="form-panel" defaultSize="35%" minSize="25%" maxSize="50%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-              {renderFormPanel()}
-            </Panel>
+              {/* Drag Handle 1 */}
+              {!isVariableCollapsed && (
+                <Separator className="w-2.5 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
+                  <div className="w-1 h-12 rounded-full bg-border group-hover:bg-primary group-hover:h-24 dark:bg-white/20 dark:group-hover:bg-primary transition-all duration-200 shadow-xs" />
+                </Separator>
+              )}
 
-            {/* Drag Handle 2 */}
-            <Separator className="w-3 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
-              <div className="w-1 h-12 rounded-full bg-gray-700/50 group-hover:bg-indigo-500 group-hover:h-24 group-active:bg-indigo-400 group-active:h-28 transition-all duration-200 shadow-sm" />
-            </Separator>
+              {/* Center Panel: Node Configuration Form */}
+              <Panel id="form-panel" defaultSize="38%" minSize="25%" maxSize="100%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
+                {renderFormPanel()}
+              </Panel>
 
-            {/* Right Panel: Test Output */}
-            <Panel id="test-panel" defaultSize="35%" minSize="20%" maxSize="65%" className="h-full min-h-0 min-w-0 flex flex-col p-1.5">
-              {renderTestPanel()}
-            </Panel>
-          </Group>
+              {/* Drag Handle 2 */}
+              {!isTestCollapsed && (
+                <Separator className="w-2.5 relative flex items-center justify-center cursor-col-resize group px-0.5 z-20 transition-all select-none">
+                  <div className="w-1 h-12 rounded-full bg-border group-hover:bg-primary group-hover:h-24 dark:bg-white/20 dark:group-hover:bg-primary transition-all duration-200 shadow-xs" />
+                </Separator>
+              )}
+
+              {/* Right Panel: Test Output */}
+              <Panel
+                panelRef={testPanelRef}
+                id="test-panel"
+                defaultSize="32%"
+                minSize="18%"
+                maxSize="65%"
+                collapsible={true}
+                collapsedSize={0}
+                onResize={(size) => {
+                  setIsTestCollapsed(size.asPercentage === 0);
+                }}
+                className="h-full min-h-0 min-w-0 flex flex-col p-1.5"
+              >
+                {renderTestPanel()}
+              </Panel>
+            </Group>
+
+            {/* Right rail when Test Output panel is collapsed */}
+            {isTestCollapsed && (
+              <button
+                type="button"
+                onClick={() => testPanelRef.current?.expand()}
+                title="Expand Test Output Panel"
+                className="w-9 h-full flex flex-col items-center justify-center gap-2 border-l border-border dark:border-white/10 bg-card hover:bg-muted dark:bg-chassis dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all cursor-pointer flex-shrink-0"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="[writing-mode:vertical-rl] rotate-180 text-[10px] font-bold tracking-wider uppercase">Test Output</span>
+              </button>
+            )}
+          </div>
         ) : (
           <div className="w-full flex-1 min-h-0 p-1 sm:p-2 overflow-hidden flex flex-col">
             {mobileTab === "variables" && renderVariablePanel()}
@@ -2306,36 +2423,37 @@ export default function ConfigModal({
       {/* Google Sheets Create Document / Tab Modal */}
       {createSheetModal.open && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-[#18191c] border border-[#27282d] rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-white">
-            <div className="flex items-center justify-between pb-3 border-b border-[#27282d]">
+          <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-card-foreground dark:bg-chassis dark:border-white/10 dark:text-chassis-foreground">
+            <div className="flex items-center justify-between pb-3 border-b border-border dark:border-white/10">
               <h3 className="text-base font-semibold flex items-center gap-2">
-                <span>{createSheetModal.type === "document" ? "📊 Create New Spreadsheet" : "📑 Create New Sheet Tab"}</span>
+                <FileSpreadsheet className="w-5 h-5 text-primary" />
+                <span>{createSheetModal.type === "document" ? "Create New Spreadsheet" : "Create New Sheet Tab"}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setCreateSheetModal(prev => ({ ...prev, open: false }))}
-                className="text-gray-400 hover:text-white"
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {createSheetModal.type === "document" && (
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">Spreadsheet Title *</label>
+                <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1 dark:text-chassis-foreground">Spreadsheet Title *</label>
                 <input
                   type="text"
                   placeholder="e.g. Q4 Marketing Leads"
                   value={createSheetModal.title}
                   onChange={(e) => setCreateSheetModal(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full p-2.5 border border-[#27282d] bg-[#0f1012] text-white rounded-lg text-sm outline-none focus:border-indigo-500"
+                  className="w-full p-2.5 border border-input bg-background text-foreground rounded-lg text-sm outline-none focus:border-primary dark:bg-white/5 dark:border-white/10 dark:text-white"
                   autoFocus
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">
+              <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1 dark:text-chassis-foreground">
                 {createSheetModal.type === "document" ? "Initial Tab Name (Optional, defaults to Sheet1)" : "Tab Name *"}
               </label>
               <input
@@ -2343,27 +2461,27 @@ export default function ConfigModal({
                 placeholder="e.g. Leads"
                 value={createSheetModal.tabName}
                 onChange={(e) => setCreateSheetModal(prev => ({ ...prev, tabName: e.target.value }))}
-                className="w-full p-2.5 border border-[#27282d] bg-[#0f1012] text-white rounded-lg text-sm outline-none focus:border-indigo-500"
+                className="w-full p-2.5 border border-input bg-background text-foreground rounded-lg text-sm outline-none focus:border-primary dark:bg-white/5 dark:border-white/10 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">Initial Column Headers (Optional, comma-separated)</label>
+              <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1 dark:text-chassis-foreground">Initial Column Headers (Optional, comma-separated)</label>
               <input
                 type="text"
                 placeholder="e.g. Name, Email, Phone, Company"
                 value={createSheetModal.headers}
                 onChange={(e) => setCreateSheetModal(prev => ({ ...prev, headers: e.target.value }))}
-                className="w-full p-2.5 border border-[#27282d] bg-[#0f1012] text-white rounded-lg text-sm outline-none focus:border-indigo-500"
+                className="w-full p-2.5 border border-input bg-background text-foreground rounded-lg text-sm outline-none focus:border-primary dark:bg-white/5 dark:border-white/10 dark:text-white"
               />
-              <p className="text-[11px] text-gray-500 mt-1">These will be written to Row 1 (A1:...) so you can immediately map columns.</p>
+              <p className="text-[11px] text-muted-foreground mt-1 dark:text-chassis-foreground/60">These will be written to Row 1 (A1:...) so you can immediately map columns.</p>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#27282d]">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border dark:border-white/10">
               <button
                 type="button"
                 onClick={() => setCreateSheetModal(prev => ({ ...prev, open: false }))}
-                className="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white"
+                className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
               >
                 Cancel
               </button>
@@ -2376,7 +2494,7 @@ export default function ConfigModal({
                     : !createSheetModal.tabName.trim())
                 }
                 onClick={handleCreateSheetSubmit}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 {createSheetModal.isSubmitting ? "Creating..." : "Create"}
               </button>
