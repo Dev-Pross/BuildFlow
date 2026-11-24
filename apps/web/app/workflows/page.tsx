@@ -3,26 +3,31 @@
 import Link from "next/link";
 import WorkflowListView from "@/app/components/workflows/WorkflowListView";
 import { ArrowLeft, Workflow } from "lucide-react";
+import { ThemeToggle } from "@/app/components/ui/ThemeToggle";
 
 export default function UserWorkflowsPage() {
   return (
-    <div className="min-h-screen bg-[#0e0f11] text-[#f9fafb] flex flex-col font-sans">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
       {/* Top Header */}
-      <header className="border-b border-[#1e1f23] bg-[#0e0f11]/80 backdrop-blur-md px-4 py-3 sm:px-8 sm:py-5 sticky top-0 z-30">
+      <header className="border-b border-border bg-background/85 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-[#9ca3af] hover:text-white transition-colors px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl hover:bg-[#1e2025]"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-xl hover:bg-secondary"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Back to Dashboard</span>
             </Link>
-            <div className="h-4 w-px bg-[#2a2c33] hidden sm:block" />
-            <div className="flex items-center gap-2.5">
-              <Workflow className="h-4 sm:h-5 w-4 sm:w-5 text-indigo-400" />
-              <span className="text-xs sm:text-sm font-bold text-white">All Automations</span>
+            <div className="h-4 w-px bg-border hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <Workflow className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
+              <span className="text-xs sm:text-sm font-bold text-foreground">All Automations</span>
             </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
           </div>
         </div>
       </header>

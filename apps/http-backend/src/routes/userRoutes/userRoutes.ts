@@ -295,6 +295,27 @@ router.get("/dashboard/overview",
               description: true,
               createdAt: true,
               status: true,
+              nodes: {
+                select: {
+                  id: true,
+                  name: true,
+                  stage: true,
+                },
+              },
+              Trigger: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              executions: {
+                orderBy: { startAt: "desc" },
+                take: 1,
+                select: {
+                  status: true,
+                  startAt: true,
+                },
+              },
             },
           }),
           prismaClient.credential.findMany({
@@ -344,6 +365,16 @@ router.get("/dashboard/overview",
       const googleSheetsConnected =
         hasSharedGoogleOAuth || credentialTypes.has("gsheet_oauth");
 
+      const formattedRecentWorkflows = recentWorkflows.map((wf) => ({
+        id: wf.id,
+        name: wf.name,
+        description: wf.description,
+        createdAt: wf.createdAt,
+        status: (wf as any).executions?.[0]?.status || wf.status || null,
+        lastExecutionAt: (wf as any).executions?.[0]?.startAt || null,
+        nodeCount: ((wf as any).nodes?.length || 0) + ((wf as any).Trigger ? 1 : 0),
+      }));
+
       return res.status(statusCodes.OK).json({
         message: "Dashboard overview fetched successfully",
         data: {
@@ -365,7 +396,7 @@ router.get("/dashboard/overview",
               connected: googleSheetsConnected,
             },
           ],
-          recentWorkflows,
+          recentWorkflows: formattedRecentWorkflows,
         },
       });
     } catch (error) {
@@ -562,6 +593,32 @@ router.get("/workflows",
       const workflows = await prismaClient.workflow.findMany({
         where: {
           userId,
+        },
+        include: {
+          nodes: {
+            select: {
+              id: true,
+              name: true,
+              stage: true,
+            },
+          },
+          Trigger: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          executions: {
+            orderBy: { startAt: "desc" },
+            take: 1,
+            select: {
+              status: true,
+              startAt: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
         },
       });
       // console.log(workflows);

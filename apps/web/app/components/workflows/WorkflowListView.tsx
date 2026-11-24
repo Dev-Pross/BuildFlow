@@ -10,9 +10,6 @@ import {
   Search,
   ExternalLink,
   Layers,
-  Clock,
-  Sparkles,
-  Zap,
   CheckCircle2
 } from "lucide-react";
 
@@ -69,8 +66,8 @@ export default function WorkflowListView({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {showTitle && (
           <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">{title}</h2>
-            <p className="text-xs text-[#9ca3af] mt-1">
+            <h2 className="text-xl font-bold text-foreground tracking-tight">{title}</h2>
+            <p className="text-xs text-muted-foreground mt-1">
               {data.length} {data.length === 1 ? "workflow" : "workflows"} configured
             </p>
           </div>
@@ -79,22 +76,23 @@ export default function WorkflowListView({
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {/* Search Bar */}
           <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6b7280]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search flows..."
+              placeholder="Search workflows..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-[#1e2025] border border-[#2a2c33] text-xs text-white placeholder-[#6b7280] focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all"
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-medium"
             />
           </div>
 
           {/* New Workflow button */}
           <button
+            type="button"
             onClick={() => setCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-black text-xs font-bold hover:bg-gray-100 transition-all shadow-md shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-semibold transition-colors shadow-card shrink-0 cursor-pointer"
           >
-            <Plus className="h-4 w-4 text-black" />
+            <Plus className="h-4 w-4" />
             <span>New Flow</span>
           </button>
         </div>
@@ -107,49 +105,51 @@ export default function WorkflowListView({
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="p-6 rounded-3xl bg-[#141518] border border-[#222429] flex flex-col justify-between h-48 animate-pulse shadow-sm"
+              className="p-6 rounded-2xl bg-card border border-border flex flex-col justify-between h-48 animate-pulse shadow-card"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="h-10 w-10 rounded-2xl bg-[#1e2025]" />
-                  <div className="h-4 w-16 rounded-full bg-[#1e2025]" />
+                  <div className="h-10 w-10 rounded-xl bg-muted border border-border/60" />
+                  <div className="h-4 w-16 rounded-full bg-muted border border-border/60" />
                 </div>
-                <div className="h-4 w-3/4 rounded bg-[#1e2025]" />
-                <div className="h-3 w-1/2 rounded bg-[#1e2025]" />
+                <div className="h-4 w-3/4 rounded-lg bg-muted border border-border/60" />
+                <div className="h-3 w-1/2 rounded-lg bg-muted border border-border/60" />
               </div>
-              <div className="h-9 w-full rounded-2xl bg-[#1e2025]" />
+              <div className="h-9 w-full rounded-xl bg-muted border border-border/60" />
             </div>
           ))}
         </div>
       ) : error ? (
-        <div className="p-6 rounded-3xl bg-rose-950/20 border border-rose-800/40 text-rose-300 text-sm flex items-center justify-between">
+        <div className="p-6 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
           <span>{error}</span>
           <button
+            type="button"
             onClick={fetchWorkflows}
-            className="px-4 py-1.5 rounded-xl bg-rose-900/40 text-xs font-semibold hover:bg-rose-900/60 transition-colors"
+            className="px-4 py-1.5 rounded-xl bg-destructive text-destructive-foreground text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
           >
             Retry
           </button>
         </div>
       ) : filteredWorkflows.length === 0 ? (
         /* Empty State */
-        <div className="py-20 flex flex-col items-center justify-center text-center p-6 rounded-3xl bg-[#141518] border border-[#222429] shadow-sm">
-          <div className="h-16 w-16 rounded-3xl bg-white text-black flex items-center justify-center shadow-md mb-4">
-            <Workflow className="h-8 w-8 text-black" />
+        <div className="py-20 flex flex-col items-center justify-center text-center p-6 rounded-2xl bg-card border border-dashed border-border shadow-card">
+          <div className="h-14 w-14 rounded-2xl bg-secondary border border-border text-primary flex items-center justify-center shadow-xs mb-4">
+            <Workflow className="h-7 w-7" />
           </div>
-          <h3 className="text-lg font-bold text-white">
-            {searchQuery ? "No matching workflows found" : "No workflows yet"}
+          <h3 className="text-base sm:text-lg font-bold text-foreground">
+            {searchQuery ? "No matching workflows found" : "No workflows configured yet"}
           </h3>
-          <p className="text-xs text-[#9ca3af] max-w-sm mt-1.5 mb-6">
+          <p className="text-xs text-muted-foreground max-w-sm mt-1.5 mb-6 leading-relaxed">
             {searchQuery
               ? `No workflows matched "${searchQuery}". Try a different keyword.`
-              : "Create your first visual flow to start automating tasks across your apps."}
+              : "Design your first visual pipeline to connect webhooks, Google Sheets, and Gmail automatically."}
           </p>
           <button
+            type="button"
             onClick={() => setCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-black text-xs font-bold hover:bg-gray-100 transition-all shadow-md cursor-pointer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-semibold shadow-card transition-colors cursor-pointer"
           >
-            <Plus className="h-4 w-4 text-black" />
+            <Plus className="h-4 w-4" />
             <span>Create First Workflow</span>
           </button>
         </div>
@@ -159,47 +159,65 @@ export default function WorkflowListView({
           {filteredWorkflows.map((workflow: any) => {
             const workflowId = workflow.id || workflow.ID;
             const workflowName = workflow.name || workflow.Name || "Untitled Automation";
-            const nodeCount = Array.isArray(workflow.nodes)
-              ? workflow.nodes.length
-              : typeof workflow.config === "object" && workflow.config?.nodes
-              ? workflow.config.nodes.length
-              : 0;
+            const nodeCount =
+              ((Array.isArray(workflow.nodes) ? workflow.nodes.length : 0) + (workflow.Trigger ? 1 : 0)) ||
+              (Array.isArray(workflow.config?.nodes) ? workflow.config.nodes.length : 0) ||
+              0;
+            const latestExecution = workflow.executions?.[0];
+            const rawStatus = latestExecution?.status || workflow.status;
+            const status = rawStatus?.toLowerCase();
 
             return (
               <div
                 key={workflowId}
                 onClick={() => router.push(`/workflows/${workflowId}`)}
-                className="group p-6 rounded-3xl bg-[#141518] border border-[#222429] hover:border-gray-500/50 hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-sm"
+                className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/50 hover:shadow-md focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.99] transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-card"
               >
                 <div>
                   {/* Top Bar: Icon + Status */}
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="h-11 w-11 rounded-2xl bg-[#1e2025] border border-[#2a2c33] flex items-center justify-center text-white group-hover:scale-105 transition-transform shadow-sm">
-                      <Workflow className="h-5 w-5 text-indigo-400" />
+                    <div className="h-10 w-10 rounded-xl bg-secondary border border-border text-primary flex items-center justify-center group-hover:scale-105 transition-transform shadow-xs">
+                      <Workflow className="h-5 w-5" />
                     </div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      Active
-                    </span>
+                    {status === "completed" || status === "active" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                        Success
+                      </span>
+                    ) : status === "failed" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                        Failed
+                      </span>
+                    ) : status === "inprogress" || status === "running" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                        Running
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/60 text-muted-foreground border border-border/50">
+                        Never run
+                      </span>
+                    )}
                   </div>
 
                   {/* Title & Description */}
-                  <h3 className="font-bold text-base text-white group-hover:text-indigo-300 transition-colors truncate">
+                  <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors truncate">
                     {workflowName}
                   </h3>
-                  <p className="text-xs text-[#9ca3af] mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
                     {workflow.description || "Visual node automation pipeline."}
                   </p>
                 </div>
 
                 {/* Bottom Row */}
-                <div className="mt-5 pt-3.5 border-t border-[#222429] flex items-center justify-between text-xs text-[#6b7280]">
-                  <span className="inline-flex items-center gap-1.5 text-[#9ca3af]">
-                    <Layers className="h-3.5 w-3.5 text-gray-400" />
+                <div className="mt-5 pt-3.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5" />
                     <span>{nodeCount} {nodeCount === 1 ? "step" : "steps"}</span>
                   </span>
 
-                  <span className="inline-flex items-center gap-1 font-bold text-white group-hover:text-indigo-400 transition-colors">
+                  <span className="inline-flex items-center gap-1 font-semibold text-primary group-hover:underline">
                     <span>Open Editor</span>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </span>
@@ -210,14 +228,15 @@ export default function WorkflowListView({
         </div>
       )}
 
-      {/* Floating Create Button */}
+      {/* Floating Create Button for mobile */}
       {showCreateButton && (
-        <div className="fixed bottom-6 right-6 z-40">
+        <div className="fixed bottom-6 right-6 z-40 sm:hidden">
           <button
+            type="button"
             onClick={() => setCreateModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-full bg-white text-black font-bold text-sm shadow-2xl hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground font-semibold text-xs shadow-xl active:scale-95 transition-all cursor-pointer"
           >
-            <Plus className="h-5 w-5 text-black" />
+            <Plus className="h-4 w-4" />
             <span>Create Workflow</span>
           </button>
         </div>

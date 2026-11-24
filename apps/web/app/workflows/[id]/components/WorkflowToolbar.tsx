@@ -43,13 +43,13 @@ export function WorkflowToolbar({
   const isSaved = saveStatus.toLowerCase().includes("saved") && !hasUnsavedChanges;
 
   return (
-    <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 p-2 bg-white/95 backdrop-blur-xl border border-gray-200/90 rounded-full shadow-2xl shadow-black/10 select-none">
-      {/* ── Run / Execute Workflow Button (Make.com Style) ── */}
+    <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 p-2 bg-chassis/95 text-chassis-foreground backdrop-blur-xl border border-white/10 rounded-full shadow-2xl shadow-black/30 select-none">
+      {/* ── Run / Execute Workflow Button ── */}
       <button
         type="button"
         onClick={onExecute}
         disabled={isExecuting}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#18181b] text-white text-xs font-bold hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50 shadow-md cursor-pointer shrink-0"
+        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:bg-primary-hover active:scale-[0.98] transition-all disabled:opacity-50 shadow-md cursor-pointer shrink-0"
         title="Execute Workflow Test Run"
       >
         {isExecuting ? (
@@ -59,13 +59,13 @@ export function WorkflowToolbar({
           </>
         ) : (
           <>
-            <Play className="w-3.5 h-3.5 fill-white text-white" />
+            <Play className="w-3.5 h-3.5 fill-current" />
             <span>Run once</span>
           </>
         )}
       </button>
 
-      <div className="h-5 w-px bg-gray-200 mx-0.5" />
+      <div className="h-5 w-px bg-white/10 mx-0.5" />
 
       {/* ── Save / Status Button ── */}
       <button
@@ -74,17 +74,17 @@ export function WorkflowToolbar({
         disabled={isSaving}
         className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
           isSaving
-            ? "text-amber-600 bg-amber-50"
+            ? "text-amber-400 bg-amber-500/10 border border-amber-500/20"
             : isSaved
-            ? "text-gray-600 hover:text-black hover:bg-gray-100"
-            : "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+            ? "text-chassis-foreground/80 hover:text-chassis-foreground hover:bg-white/10"
+            : "text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20"
         }`}
         title="Save Workflow Sync State"
       >
         {isSaving ? (
           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
         ) : isSaved ? (
-          <Check className="w-3.5 h-3.5 text-emerald-600" />
+          <Check className="w-3.5 h-3.5 text-success" />
         ) : (
           <Save className="w-3.5 h-3.5" />
         )}
@@ -94,13 +94,13 @@ export function WorkflowToolbar({
       {/* ── Zoom Controls ── */}
       {(onZoomIn || onZoomOut || onFitView) && (
         <>
-          <div className="h-5 w-px bg-gray-200 mx-0.5" />
+          <div className="h-5 w-px bg-white/10 mx-0.5" />
 
           {onZoomOut && (
             <button
               type="button"
               onClick={onZoomOut}
-              className="p-2 rounded-full text-gray-500 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer"
+              className="p-2 rounded-full text-chassis-foreground/70 hover:text-chassis-foreground hover:bg-white/10 transition-colors cursor-pointer"
               title="Zoom Out"
             >
               <ZoomOut className="w-4 h-4" />
@@ -111,7 +111,7 @@ export function WorkflowToolbar({
             <button
               type="button"
               onClick={onZoomIn}
-              className="p-2 rounded-full text-gray-500 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer"
+              className="p-2 rounded-full text-chassis-foreground/70 hover:text-chassis-foreground hover:bg-white/10 transition-colors cursor-pointer"
               title="Zoom In"
             >
               <ZoomIn className="w-4 h-4" />
@@ -122,7 +122,7 @@ export function WorkflowToolbar({
             <button
               type="button"
               onClick={onFitView}
-              className="p-2 rounded-full text-gray-500 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer"
+              className="p-2 rounded-full text-chassis-foreground/70 hover:text-chassis-foreground hover:bg-white/10 transition-colors cursor-pointer"
               title="Fit View"
             >
               <Maximize className="w-4 h-4" />
@@ -134,14 +134,14 @@ export function WorkflowToolbar({
       {/* ── Toggle History Drawer ── */}
       {onToggleHistory && (
         <>
-          <div className="h-5 w-px bg-gray-200 mx-0.5" />
+          <div className="h-5 w-px bg-white/10 mx-0.5" />
           <button
             type="button"
             onClick={onToggleHistory}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-gray-600 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-chassis-foreground/70 hover:text-chassis-foreground hover:bg-white/10 transition-colors cursor-pointer"
             title="Toggle Executions Logs"
           >
-            <Activity className="w-3.5 h-3.5 text-indigo-500" />
+            <Activity className="w-3.5 h-3.5 text-primary" />
             <span className="hidden md:inline">Logs</span>
           </button>
         </>
